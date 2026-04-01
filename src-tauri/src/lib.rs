@@ -30,6 +30,17 @@ pub fn run() {
             commands::traverse_graph,
             commands::get_mesh_stats,
             commands::list_memories,
+            commands::set_embedding_model,
+            commands::set_ask_model,
+            commands::import_audio,
+            commands::import_image,
+            commands::search_with_graph,
+            commands::list_folders,
+            commands::create_folder,
+            commands::rename_folder,
+            commands::delete_folder,
+            commands::move_document,
+            commands::search_in_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ClawKB");

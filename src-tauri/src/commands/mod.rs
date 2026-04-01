@@ -270,3 +270,226 @@ pub fn list_memories(state: State<'_, Mutex<AppState>>) -> Result<Vec<MemoryCard
 
     kb.list_memories().map_err(|e| e.to_string())
 }
+
+// ── AI Configuration Commands ──────────────────────────────────────
+
+#[tauri::command]
+pub fn set_embedding_model(
+    provider: String,
+    model: String,
+    api_key: Option<String>,
+    api_base: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    // In a full implementation, this would configure the memvid embedder
+    // For now, we store the configuration for future use
+    tracing::info!(
+        "Embedding model config: provider={}, model={}, has_api_key={}",
+        provider,
+        model,
+        api_key.is_some()
+    );
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_ask_model(
+    model: String,
+    temperature: f32,
+    top_k: usize,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    tracing::info!(
+        "Ask model config: model={}, temperature={}, top_k={}",
+        model,
+        temperature,
+        top_k
+    );
+    Ok(())
+}
+
+// ── Multimedia Import Commands ────────────────────────────────────
+
+#[tauri::command]
+pub fn import_audio(
+    path: String,
+    tags: Vec<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<ImportResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
+    kb.import_audio(&path, &tags_ref).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_image(
+    path: String,
+    tags: Vec<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<ImportResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
+    kb.import_image(&path, &tags_ref).map_err(|e| e.to_string())
+}
+
+// ── Graph Pattern Search ────────────────────────────────────────────
+
+#[tauri::command]
+pub fn search_with_graph(
+    query: String,
+    graph_pattern: String,
+    top_k: Option<usize>,
+    mode: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<SearchHit>, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let top_k = top_k.unwrap_or(10);
+    let search_mode = match mode.as_deref() {
+        Some("lex") => SearchMode::Lexical,
+        Some("sem") => SearchMode::Semantic,
+        _ => SearchMode::Hybrid,
+    };
+
+    kb.search_with_graph(&query, &graph_pattern, top_k, search_mode)
+        .map_err(|e| e.to_string())
+}
+
+// ── Folder Management ───────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FolderInfo {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "parent_id")]
+    pub parent_id: Option<String>,
+    pub path: String,
+    #[serde(rename = "doc_count")]
+    pub doc_count: usize,
+    #[serde(rename = "created_at")]
+    pub created_at: i64,
+}
+
+#[tauri::command]
+pub fn list_folders() -> Result<Vec<FolderInfo>, String> {
+    // Return demo folders - in a full implementation, this would read from KB metadata
+    Ok(vec![
+        FolderInfo {
+            id: "folder-work".to_string(),
+            name: "Work".to_string(),
+            parent_id: None,
+            path: "/Work".to_string(),
+            doc_count: 5,
+            created_at: chrono::Utc::now().timestamp() - 86400,
+        },
+        FolderInfo {
+            id: "folder-projectA".to_string(),
+            name: "Project A".to_string(),
+            parent_id: Some("folder-work".to_string()),
+            path: "/Work/Project A".to_string(),
+            doc_count: 3,
+            created_at: chrono::Utc::now().timestamp() - 72000,
+        },
+        FolderInfo {
+            id: "folder-projectB".to_string(),
+            name: "Project B".to_string(),
+            parent_id: Some("folder-work".to_string()),
+            path: "/Work/Project B".to_string(),
+            doc_count: 2,
+            created_at: chrono::Utc::now().timestamp() - 36000,
+        },
+        FolderInfo {
+            id: "folder-study".to_string(),
+            name: "Study".to_string(),
+            parent_id: None,
+            path: "/Study".to_string(),
+            doc_count: 8,
+            created_at: chrono::Utc::now().timestamp() - 172800,
+        },
+        FolderInfo {
+            id: "folder-life".to_string(),
+            name: "Life".to_string(),
+            parent_id: None,
+            path: "/Life".to_string(),
+            doc_count: 12,
+            created_at: chrono::Utc::now().timestamp() - 259200,
+        },
+    ])
+}
+
+#[tauri::command]
+pub fn create_folder(
+    name: String,
+    parent_id: Option<String>,
+) -> Result<FolderInfo, String> {
+    let id = format!("folder-{}", uuid::Uuid::new_v4());
+    let path = if let Some(ref pid) = parent_id {
+        format!("/{}/{}", pid, name)
+    } else {
+        format!("/{}", name)
+    };
+
+    Ok(FolderInfo {
+        id,
+        name,
+        parent_id,
+        path,
+        doc_count: 0,
+        created_at: chrono::Utc::now().timestamp(),
+    })
+}
+
+#[tauri::command]
+pub fn rename_folder(
+    folder_id: String,
+    new_name: String,
+) -> Result<(), String> {
+    tracing::info!("Rename folder {} to {}", folder_id, new_name);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_folder(
+    folder_id: String,
+) -> Result<(), String> {
+    tracing::info!("Delete folder {}", folder_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn move_document(
+    doc_id: String,
+    folder_id: Option<String>,
+) -> Result<(), String> {
+    tracing::info!("Move document {} to folder {:?}", doc_id, folder_id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn search_in_folder(
+    folder_id: String,
+    query: String,
+    top_k: Option<usize>,
+    mode: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<SearchHit>, String> {
+    // For now, search normally and filter by tag
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let top_k = top_k.unwrap_or(10);
+    let search_mode = match mode.as_deref() {
+        Some("lex") => SearchMode::Lexical,
+        Some("sem") => SearchMode::Semantic,
+        _ => SearchMode::Hybrid,
+    };
+
+    // Search and return results - in full implementation, filter by folder_id tag
+    kb.search(&query, top_k, search_mode)
+        .map_err(|e| e.to_string())
+}

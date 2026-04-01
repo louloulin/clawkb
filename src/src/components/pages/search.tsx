@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Trash2 } from 'lucide-react';
+import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Trash2, Filter, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,18 +20,32 @@ export function SearchPage() {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('hybrid');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [graphPattern, setGraphPattern] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchTag, setBatchTag] = useState('');
   const [batchLoading, setBatchLoading] = useState(false);
+  const [graphResults, setGraphResults] = useState<SearchHit[]>([]);
   const { results, loading, search } = useSearch();
   const { tags } = useTags();
   const openDocument = useKbStore(s => s.openDocument);
   const { toast } = useToast();
 
-  const handleSearch = useCallback(() => {
-    search(query, mode);
+  const handleSearch = useCallback(async () => {
     setSelectedIds(new Set());
-  }, [query, mode, search]);
+    // Use graph-enhanced search if pattern is provided
+    if (graphPattern.trim()) {
+      const hits = await api.searchWithGraph(query, graphPattern, 20, mode);
+      setGraphResults(hits);
+    } else {
+      search(query, mode);
+      setGraphResults([]);
+    }
+  }, [query, mode, search, graphPattern]);
+
+  const displayResults = graphResults.length > 0 ? graphResults : results;
+  const filteredResults = tagFilter
+    ? displayResults.filter(h => h.tags.includes(tagFilter))
+    : displayResults;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -84,11 +98,6 @@ export function SearchPage() {
     }
   };
 
-  // Filter results by selected tag
-  const filteredResults = tagFilter
-    ? results.filter(h => h.tags.includes(tagFilter))
-    : results;
-
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
@@ -125,6 +134,37 @@ export function SearchPage() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
       </div>
+
+      {/* Graph Pattern Filter */}
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <GitBranch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+          <Input
+            type="text"
+            value={graphPattern}
+            onChange={e => setGraphPattern(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="Filter by entity (e.g., Person:Alice, Project:memvid)..."
+            className="pl-10 h-9 rounded-lg bg-muted/20 border-border/30 text-[13px]"
+          />
+        </div>
+        {graphPattern && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setGraphPattern(''); handleSearch(); }}
+            className="h-9 px-2 rounded-lg text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      {graphPattern && (
+        <div className="text-[11px] text-muted-foreground mb-4 flex items-center gap-1">
+          <Filter className="h-3 w-3" />
+          <span>Graph-filtered search: results related to entities matching "{graphPattern}"</span>
+        </div>
+      )}
 
       {/* Tag filter chips */}
       {tags.length > 0 && (

@@ -27,3 +27,10 @@ comfy-table = "7"
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 tempfile = "3"
+# Document parsing
+docx-rs = "0.4"
+calamine = "0.26"
+zip = "2"
+quick-xml = "0.37"
+scraper = "0.22"
+csv = "1"

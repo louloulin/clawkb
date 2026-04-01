@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useKbStore } from '@/store/kb-store';
+import { FolderTree } from '@/components/folder-tree';
 import { isTauri } from '@/api/platform';
 import { formatBytes } from '@/lib/format';
 
@@ -117,6 +118,13 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Folder Tree */}
+        {!sidebarCollapsed && (
+          <div className="mt-3 border-t pt-2">
+            <FolderTree />
+          </div>
+        )}
       </ScrollArea>
 
       {/* KB Status Footer */}

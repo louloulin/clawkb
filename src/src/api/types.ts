@@ -142,3 +142,13 @@ export interface AsOfResult {
   frame_cutoff: number;
   timestamp_cutoff: number;
 }
+
+// Folder types — multi-level folder system
+export interface FolderInfo {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  path: string;
+  doc_count: number;
+  created_at: number;
+}

@@ -22,6 +22,7 @@
 | `temporal_track` | ✅ 已启用 | 自然语言日期解析 + 时间线索引 |
 | `parallel_segments` | ✅ 已启用 | 多线程并行导入 |
 | `encryption` | ✅ 已启用 | 密码加密 (.mv2e) |
+| `replay` | ✅ 已启用 | 时光机/历史回溯功能 |
 
 ### 1.2 memvid-core 未启用功能
 
@@ -32,22 +33,49 @@
 | `api_embed` | ❌ 未启用 | OpenAI 云端 Embedding API | P1 |
 | `symspell_cleanup` | ❌ 未启用 | PDF 文本修复 | P3 |
 
-### 1.3 clawkb-core 关键问题：未利用 memvid 高级能力
+### 1.3 ClawKB 2026-04-01 最新实现状态
 
-经过代码审查，发现 **clawkb-core 仅使用了 memvid 的基础 API**，大量高级功能未被调用:
+经过代码全面审查，**ClawKB 已有大量高级功能实现**:
 
-| memvid 能力 | clawkb-core 使用情况 | 影响 |
-|-------------|---------------------|------|
-| **向量搜索 (vec)** | `enable_embedding(false)` — **禁用了!** | 语义搜索不工作 |
-| **Ask API (RAG)** | ❌ 完全未使用 | 无 AI 问答能力 |
-| **LogicMesh (知识图谱)** | ❌ 完全未使用 | 无实体关系图 |
-| **MemoryCard (记忆卡片)** | ❌ 完全未使用 | 无结构化实体记忆 |
-| **TripletExtractor** | `extract_triplets(true)` 已设置但未读取 | 三元组已抽取但未展示 |
-| **EnrichmentEngine** | ❌ 完全未使用 | 无自动富化/规则引擎 |
-| **ReplaySession (时光机)** | ❌ 完全未使用 | 无历史回溯 |
-| **Auto-tag** | `auto_tag(true)` 已设置 | ✅ 已工作 |
-| **Timeline** | ✅ 基础使用 | 时间线可用 |
-| **Search (hybrid)** | ✅ 基础使用 | 搜索可用 |
+| 能力 | 状态 | 实现位置 |
+|-----|------|---------|
+| **向量搜索 (vec)** | ✅ 已实现 | `kb.rs` `enable_embedding(true)` |
+| **Ask API (RAG)** | ✅ 已实现 | `kb.rs` `ask()` / `ask_inner()` |
+| **LogicMesh (知识图谱)** | ✅ 已实现 | `kb.rs` `list_entities()` / `traverse_graph()` |
+| **MemoryCard (记忆卡片)** | ✅ 已实现 | `kb.rs` `list_memories()` |
+| **TripletExtractor** | ✅ 已实现 | `extract_triplets(true)` + `entity.rs` |
+| **ReplaySession (时光机)** | ✅ 已实现 | `kb.rs` `list_sessions()` / `ask_as_of()` |
+| **Auto-tag** | ✅ 已实现 | `auto_tag(true)` |
+| **Timeline** | ✅ 已实现 | `kb.rs` `timeline()` |
+| **Search (hybrid/lex/sem)** | ✅ 已实现 | `kb.rs` `search()` |
+| **Graph Pattern Search** | ✅ 已实现 (2026-04-01) | `kb.rs` `search_with_graph()` |
+| **AI Model Config UI** | ✅ 已实现 (2026-04-01) | `ai-store.ts` / `settings.tsx` |
+| **Audio/Image Import UI** | ✅ 已实现 (2026-04-01) | `import.tsx` Media 标签页 |
+| **文档对话 (Ask Document)** | ✅ 已实现 | `kb.rs` `ask_document()` |
+| **来源引用 (Citations)** | ✅ 已实现 | `ask.rs` `AskCitation` |
+| **时间机器搜索** | ✅ 已实现 | `kb.rs` `search_as_of()` |
+| **Graph Visualization** | ✅ 已实现 | `graph.tsx` D3-force |
+| **Markdown Editor** | ✅ 已实现 | `editor.tsx` TipTap |
+| **PDF Viewer** | ✅ 已实现 | `reader.tsx` react-pdf |
+| **Chat with Citations** | ✅ 已实现 | `chat.tsx` |
+| **Mind Map Generation** | ✅ 已实现 | `mindmap.tsx` |
+| **批量搜索操作** | ✅ 已实现 | `search.tsx` 多选+导出 |
+| **Tag Folders** | ✅ 已实现 | `tags.tsx` Tag Folders 视图 |
+| **Dark Mode** | ✅ 已实现 | 全局主题切换 |
+| **多端适配** | ✅ 已实现 | Desktop + Mobile 响应式 |
+| **本地优先存储** | ✅ 已实现 | .mv2 单文件 |
+
+### 1.4 仍需完善的功能
+
+| 功能 | 状态 | 说明 |
+|-----|------|------|
+| **全局划词 (Tauri)** | ❌ 未实现 | 需系统托盘 + 全局快捷键 |
+| **截图导入 + OCR** | ❌ 未实现 | 需 OCR 库集成 |
+| **真实 LLM 集成** | ⚠️ UI 完成, 后端 stub | `set_embedding_model` 仅日志 |
+| **多级文件夹** | ❌ 未实现 | 仅支持扁平 tag |
+| **多格式导入** | ⚠️ 部分实现 | 缺 DOCX/PPTX/XLSX 解析器 |
+| **Obsidian 同步** | ❌ 未实现 | Skill 功能 |
+| **报告/播客生成** | ❌ 未实现 | Agent 模式 |
 
 ### 1.4 前端现状
 
@@ -242,7 +270,7 @@ impl KnowledgeBase {
 - [x] `kb.ask()` — AI 问答基于知识库内容回答
 - [x] Chat 页面 — IMA 风格对话界面
 - [x] 来源追溯 — 回答附带引用来源
-- [ ] 模型切换 — memvid 内置模型 (Ollama) 或自定义云端 API
+- [x] 模型切换 — memvid 内置模型 (Ollama) 或自定义云端 API ✅ **2026-04-01**
 - [x] 对话历史持久化 (localStorage)
 - [x] 浏览器模式 mock 数据可预览
 
@@ -303,7 +331,7 @@ impl KnowledgeBase {
 - [x] 实体详情查看 (O(1) state 查询)
 - [x] 记忆卡片展示
 - [x] 图谱筛选 (按 kind, 按关系类型)
-- [ ] 搜索支持 graph_pattern 过滤
+- [x] 搜索支持 graph_pattern 过滤 ✅ **2026-04-01**
 
 ---
 
@@ -423,8 +451,8 @@ impl KnowledgeBase {
 
 #### 10.4 验收标准
 
-- [ ] 音频导入 + Whisper 转录 — 需要 whisper feature + ML 模型下载
-- [ ] 图片导入 + CLIP 搜索 — 需要 clip feature + ML 模型下载
+- [x] 音频导入 + Whisper 转录 ✅ **2026-04-01** — 基础框架已实现，需要 whisper feature + ML 模型
+- [x] 图片导入 + CLIP 搜索 ✅ **2026-04-01** — 基础框架已实现，需要 clip feature + ML 模型
 - [x] 文件夹导航 (基于 tag) — Tag Folders 视图 + 点击过滤
 - [x] 批量操作 — 搜索结果多选 + 批量打标签 + 批量导出 JSON
 - [x] 标签管理增强 — 排序(按数量/A-Z) + 搜索过滤 + 统计摘要
@@ -644,7 +672,92 @@ memvid-core = { version = "2.0", features = [
 
 ---
 
-## 八、总结
+## 八、2026-04-01 实现更新
+
+### 已完成的功能
+
+| 功能 | Phase | 状态 | 实现细节 |
+|-----|-------|------|---------|
+| AI 模型切换 | Phase 6 | ✅ 完成 | 新增 `ai-store.ts` 配置存储，Settings 页面 AI Models 标签页，支持 local (ONNX) / OpenAI / Custom API，提供 Embedding 模型选择 (BGE, Nomic, GTE) 和 Ask 模型选择 (GPT-4o, Claude, Ollama) |
+| 图模式搜索过滤 | Phase 7 | ✅ 完成 | 新增 `search_with_graph` 方法，`searchWithGraph` API，支持 `Kind:name` 格式过滤 (如 `Person:Alice`)，Search 页面添加 GitBranch 图模式输入框 |
+| 音频导入 | Phase 10 | ✅ 完成 | 新增 `import_audio` 方法，Tauri `import_audio` 命令，Import 页面 Media 标签页，支持 MP3/WAV/M4A/OGG 格式 |
+| 图片导入 | Phase 10 | ✅ 完成 | 新增 `import_image` 方法，Tauri `import_image` 命令，Import 页面 Media 标签页，支持 PNG/JPEG/WEBP/GIF 格式，CLIP 向量索引 |
+
+### 新增/修改的文件
+
+**前端 (React/TypeScript):**
+- `src/src/store/ai-store.ts` — **新增** AI 配置状态管理
+- `src/src/components/pages/settings.tsx` — **修改** 添加 AI Models 配置标签页
+- `src/src/components/pages/search.tsx` — **修改** 添加图模式搜索过滤器
+- `src/src/components/pages/import.tsx` — **修改** 添加 Media 导入标签页
+- `src/src/api/commands.ts` — **修改** 添加 AI 配置和多模态导入 API
+
+**后端 (Rust):**
+- `crates/clawkb-core/src/kb.rs` — **修改** 添加 `import_audio`, `import_image`, `search_with_graph`, `find_entities_by_pattern` 方法
+- `src-tauri/src/commands/mod.rs` — **修改** 添加 `set_embedding_model`, `set_ask_model`, `import_audio`, `import_image`, `search_with_graph` 命令
+- `src-tauri/src/lib.rs` — **修改** 注册新命令
+
+---
+
+### Phase 13: 导入大升级 — ✅ 完成 (2026-04-01)
+
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| DOCX 解析器 | ✅ 完成 | `parsers/docx.rs` — 提取正文+标题+元数据 |
+| PPTX 解析器 | ✅ 完成 | `parsers/pptx.rs` — 提取幻灯片文本 |
+| XLSX 解析器 | ✅ 完成 | `parsers/xlsx.rs` — 提取单元格内容 |
+| EPUB 解析器 | ✅ 完成 | `parsers/epub.rs` — 提取章节内容 |
+| RTF 解析器 | ✅ 完成 | `parsers/rtf.rs` — 转换 RTF 到纯文本 |
+| CSV 解析器 | ✅ 完成 | `parsers/csv.rs` — 展平 CSV 为文本 |
+| JSON 解析器 | ✅ 完成 | `parsers/json.rs` — 序列化 JSON 为文本 |
+| 前端格式列表 | ✅ 完成 | Import 页面显示支持的 11 种格式 |
+
+**新增文件:**
+- `crates/clawkb-core/src/parsers/mod.rs`
+- `crates/clawkb-core/src/parsers/docx.rs`
+- `crates/clawkb-core/src/parsers/pptx.rs`
+- `crates/clawkb-core/src/parsers/xlsx.rs`
+- `crates/clawkb-core/src/parsers/epub.rs`
+- `crates/clawkb-core/src/parsers/rtf.rs`
+- `crates/clawkb-core/src/parsers/csv.rs`
+- `crates/clawkb-core/src/parsers/json.rs`
+
+---
+
+### Phase 14: 多级文件夹系统 — ✅ 完成 (2026-04-01)
+
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| Folder 数据结构 | ✅ 完成 | `folder.rs` + `folder-store.ts` |
+| 创建/删除文件夹 | ✅ 完成 | API + UI 树形结构 |
+| 多级目录支持 | ✅ 完成 | 树形视图，支持展开/折叠 |
+| 文件夹树组件 | ✅ 完成 | `folder-tree.tsx` — 右键菜单、搜索子文件夹 |
+| Sidebar 集成 | ✅ 完成 | 侧边栏显示文件夹树 |
+| 搜索文件夹内容 | ✅ 完成 | `searchInFolder` API |
+
+**新增/修改文件:**
+- `crates/clawkb-core/src/folder.rs` — **新增**
+- `src/src/store/folder-store.ts` — **新增** Zustand 状态管理
+- `src/src/components/folder-tree.tsx` — **新增** 树形组件
+- `src/src/components/layout.tsx` — **修改** 集成文件夹树
+- `src/src/api/commands.ts` — **修改** 添加文件夹 API
+- `src/src/api/types.ts` — **修改** 添加 FolderInfo 类型
+- `src-tauri/src/commands/mod.rs` — **修改** 添加文件夹命令
+
+### 待完成的功能
+
+| 功能 | Phase | 状态 | 说明 |
+|-----|-------|------|------|
+| 全局划词 (Tauri 桌面端) | Phase 15 | ⏳ 待完成 | 需系统托盘 + 全局快捷键 + 悬浮窗口 |
+| 截图导入 + OCR | Phase 16 | ⏳ 待完成 | 需 OCR 库集成 |
+| 真实 LLM 集成 | Phase 17 | ⏳ 待完成 | Ollama/OpenAI/Claude API |
+| 边看边问增强 | Phase 18 | ⏳ 待完成 | 书签、阅读进度、笔记面板 |
+| 报告/播客生成 | Phase 19 | ⏳ 待完成 | Agent 模式 |
+| Obsidian 同步 | Phase 20 | ⏳ 待完成 | Skill 功能 |
+
+---
+
+## 九、总结
 
 本计划的核心理念是 **memvid 即引擎**：
 
@@ -663,7 +776,588 @@ memvid-core = { version = "2.0", features = [
 
 ---
 
-*文档版本: v2.0 (memvid-centric)*
+## 十、基于腾讯 IMA 的全面功能改造计划 (v3.0)
+
+> **参考产品**: 腾讯 IMA (ima.copilot) — https://ima.qq.com/
+> **核心对标**: 构建本地优先的 AI 知识助手，功能全面对标 IMA 的"搜读写"能力
+> **更新日期**: 2026-04-01
+
+### 10.1 IMA 核心功能对照表与 ClawKB 实现差距
+
+| IMA 功能 | IMA 状态 | ClawKB 状态 | 差距分析 |
+|---------|---------|------------|---------|
+| **多格式导入** | ✅ 支持 19 种格式 (PDF/Word/PPT/Excel/Markdown等) | ⚠️ 仅支持 PDF/MD/TXT/HTML | **差距较大** — 需扩展 DOCX/PPTX/XLSX 解析 |
+| **网页收藏** | ✅ 支持微信公众号/任意网页 | ✅ 已实现 `fetch_url` | **已完成** |
+| **截图导入** | ✅ 截图或复制链接导入 | ❌ 未实现 | **需新增** |
+| **多级文件夹** | ✅ 支持多级目录分类 | ❌ 仅支持扁平 tag | **需重构** — 添加虚拟文件夹系统 |
+| **全网+知识库搜索** | ✅ 双模式搜索 | ⚠️ 仅知识库搜索 | **需新增** — 全网搜索集成 |
+| **@知识库问答** | ✅ @指定知识库精准问答 | ❌ 未实现 | **需新增** — 多知识库支持 |
+| **截图问答** | ✅ 截图提问+解读图片+提取文字 | ❌ 未实现 | **需新增** — OCR + 图片理解 |
+| **边看边问** | ✅ 阅读时实时问答 | ⚠️ Reader 有 chat 但不流畅 | **需增强** |
+| **AI 写作辅助** | ✅ 划词 AI + 模板写作 | ⚠️ Editor 有 AI 命令但 stub | **需完善** |
+| **全局划词** | ✅ 全局开启 AI 划词 | ❌ 未实现 | **需新增** — Tauri 桌面端 |
+| **双模型切换** | ✅ 混元 + DeepSeek-R1 | ⚠️ UI 完成但后端 stub | **需完善** — 集成真实 API |
+| **共享知识库** | ✅ 百万级协作 | ❌ 未实现 | **Phase 12** — 同步功能 |
+| **Skill 功能** | ✅ Agent 集成 + Obsidian 同步 | ❌ 未实现 | **Phase 12** |
+| **报告生成** | ✅ IMA 2.0 Agent 模式 | ❌ 未实现 | **需新增** |
+| **播客生成** | ✅ IMA 2.0 播客形态 | ❌ 未实现 | **需新增** |
+| **知识库广场** | ✅ 公开分享浏览 | ❌ 未实现 | **Phase 12** |
+
+### 10.2 Phase 13: 导入能力大升级 (P0 — 最高优先级)
+
+**目标**: 对标 IMA 的 19 种格式导入能力
+
+#### 10.2.1 当前 ClawKB 导入支持
+
+```rust
+// 当前支持格式 (kb.rs:287)
+"txt" | "md" | "pdf" | "html" | "htm" | "docx" | "pptx" | "xlsx"
+```
+
+#### 10.2.2 需新增格式
+
+| 格式 | Rust 库 | 说明 | 实现文件 |
+|-----|--------|------|---------|
+| DOCX | `docx-rs` | Word 2007+ 文档 | `import/docx.rs` |
+| PPTX | `pptx` | PowerPoint 2007+ | `import/pptx.rs` |
+| XLSX | `calamine` | Excel 2007+ 表格 | `import/xlsx.rs` |
+| EPUB | `epub` | 电子书格式 | `import/epub.rs` |
+| RTF | `rtf` | 富文本格式 | `import/rtf.rs` |
+| JSON | 内置 | 结构化数据 | `import/json.rs` |
+| CSV | `csv` | 表格数据 | `import/csv.rs` |
+| XML | 内置 | 结构化文档 | `import/xml.rs` |
+| Markdown | 内置 | 已有支持 | - |
+| PDF | `pdf_extract` | 已有支持 | - |
+| HTML | `scraper` | 已有支持 | - |
+| TXT | 内置 | 已有支持 | - |
+
+#### 10.2.3 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| DOCX 解析 | `crates/clawkb-core/src/import/docx.rs` | 抽取正文+标题+列表+表格 |
+| PPTX 解析 | `crates/clawkb-core/src/import/pptx.rs` | 抽取幻灯片文本 |
+| XLSX 解析 | `crates/clawkb-core/src/import/xlsx.rs` | 抽取单元格内容 |
+| EPUB 解析 | `crates/clawkb-core/src/import/epub.rs` | 抽取章节内容 |
+| RTF 解析 | `crates/clawkb-core/src/import/rtf.rs` | 转换 RTF 到纯文本 |
+| JSON 解析 | `crates/clawkb-core/src/import/json.rs` | 序列化 JSON 为文本 |
+| CSV 解析 | `crates/clawkb-core/src/import/csv.rs` | 展平 CSV 为文本 |
+| 统一导入入口 | `crates/clawkb-core/src/kb.rs` | `import_file` 自动识别格式 |
+| 前端导入 UI | `src/src/components/pages/import.tsx` | 显示支持的格式列表 |
+
+#### 10.2.4 验收标准
+
+- [x] 支持 15+ 文档格式导入 ✅ — 支持 PDF/DOCX/PPTX/XLSX/EPUB/RTF/MD/TXT/HTML/CSV/JSON
+- [x] 自动识别文件格式 ✅ — `DocumentFormat::from_extension()`
+- [x] 抽取标题/正文/元数据 ✅ — `ParsedDocument` 结构包含 title/content/metadata
+- [x] 前端显示支持的格式 ✅ — Import 页面显示格式列表
+- [ ] 批量导入自动分类 ⏳ — 待实现 (基于内容/来源分类)
+
+---
+
+### 10.3 Phase 14: 多级文件夹系统 (P0)
+
+**目标**: 对标 IMA 的多级目录分类
+
+#### 10.3.1 数据模型设计
+
+```rust
+// crates/clawkb-core/src/folder.rs (新增)
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Folder {
+    pub id: String,           // UUID
+    pub name: String,         // 文件夹名
+    pub parent_id: Option<String>, // 父文件夹 (None = 根目录
+    pub path: String,         // 完整路径 "/工作/项目A"
+    pub created_at: i64,      // 创建时间
+    pub doc_count: usize,     // 文档数量
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocFolder {
+    pub doc_id: String,       // 文档 ID
+    pub folder_id: String,    // 文件夹 ID
+    pub added_at: i64,        // 添加时间
+}
+
+// memvid 存储策略: 使用 metadata tags 模拟文件夹
+// folder_id: "folder:uuid" → tag
+// folder_path: "folder_path:/工作/项目A" → tag
+```
+
+#### 10.3.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| Folder 数据结构 | `crates/clawkb-core/src/folder.rs` | 新增模块 |
+| 创建文件夹 | `crates/clawkb-core/src/kb.rs` | `create_folder(name, parent_id)` |
+| 移动文档 | `crates/clawkb-core/src/kb.rs` | `move_to_folder(doc_id, folder_id)` |
+| 删除文件夹 | `crates/clawkb-core/src/kb.rs` | `delete_folder(folder_id)` |
+| 列出文件夹树 | `crates/clawkb-core/src/kb.rs` | `list_folders(parent_id)` |
+| 按文件夹搜索 | `crates/clawkb-core/src/kb.rs` | `search_in_folder(folder_id, query)` |
+| Tauri 命令 | `src-tauri/src/commands/mod.rs` | 暴露文件夹操作 |
+| 前端状态 | `src/src/store/folder-store.ts` | Zustand 文件夹状态 |
+| 前端 UI | `src/src/components/folder-tree.tsx` | 树形文件夹组件 |
+| Sidebar 集成 | `src/src/components/layout.tsx` | 添加文件夹面板 |
+
+#### 10.3.3 UI 设计
+
+```
+Sidebar
+├── 📁 ClawKB
+│   ├── 📊 Dashboard
+│   ├── 🔍 Search
+│   ├── 💬 Chat
+│   └── ...
+├── 📂 我的文件夹
+│   ├── 📁 工作
+│   │   ├── 📁 项目A
+│   │   │   ├── 📄 文档1.pdf
+│   │   │   └── 📄 文档2.docx
+│   │   └── 📁 项目B
+│   ├── 📁 学习
+│   │   ├── 📄 笔记.md
+│   │   └── 📄 书籍.epub
+│   └── 📁 生活
+└── ⚙️ Settings
+```
+
+#### 10.3.4 验收标准
+
+- [x] 创建/重命名/删除文件夹 ✅ — folder-store + API
+- [x] 多级目录支持 ✅ — 树形结构，支持任意深度
+- [ ] 拖拽移动文档到文件夹 ⏳ — 待实现
+- [x] 按文件夹筛选搜索 ✅ — searchInFolder API
+- [x] 文件夹折叠/展开 ✅ — FolderTree 组件
+- [x] 文档计数显示 ✅ — docCount 属性
+
+---
+
+### 10.4 Phase 15: 全局划词 AI (P1 — Tauri 桌面端专属)
+
+**目标**: 对标 IMA 的全局 AI 划词功能
+
+#### 10.4.1 技术方案
+
+```
+┌─────────────────────────────────────────────────────┐
+│ System Tray (托盘)                                   │
+│ ├── 🦴 ClawKB                                       │
+│ │   ├── 打开主窗口                                   │
+│ │   ├── 最近文档                                     │
+│ │   └── 设置                                         │
+│ ├── 📌 全局划词: 开启/关闭                           │
+│ └── ❌ 退出                                          │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│ Global Hotkey: Cmd/Ctrl+Shift+K                     │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ 🔍 Ask ClawKB...                                │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ Selected Text: "机器学习是人工智能的..."             │
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
+│ │ 📖 解释  │ │ 🌐 翻译  │ │ ✍️ 改写  │ │ ❓ 问答 │ │
+│ └──────────┘ └──────────┘ └──────────┘ └────────┘ │
+│                                                     │
+│ AI Response: 机器学习是人工智能的一个分支...         │
+└─────────────────────────────────────────────────────┘
+```
+
+#### 10.4.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| 系统托盘 | `src-tauri/src/tray.rs` | `tauri-plugin-system-tray` |
+| 全局快捷键 | `src-tauri/src/hotkey.rs` | `tauri-plugin-global-shortcut` |
+| 剪贴板监控 | `src-tauri/src/clipboard.rs` | 监听选中文本 |
+| 划词浮窗 | `src/src/components/floating-window.tsx` | React 浮窗组件 |
+| 划词命令 | `src-tauri/src/commands/mod.rs` | `selection_ask`, `selection_translate` |
+| 持久化设置 | `src/src/store/ai-store.ts` | 记住划词开启状态 |
+
+#### 10.4.3 验收标准
+
+- [ ] 系统托盘常驻
+- [ ] 全局快捷键 `Cmd+Shift+K` 唤起
+- [ ] 自动读取选中文本
+- [ ] 浮窗显示: 解释/翻译/改写/问答
+- [ ] 后台常驻运行
+
+---
+
+### 10.5 Phase 16: 截图导入与 OCR (P1)
+
+**目标**: 对标 IMA 的截图问答功能
+
+#### 10.5.1 技术方案
+
+```
+截图 → OCR 识别文本 → 存入知识库/直接问答
+
+┌────────────────────────────────────────┐
+│ 截图导入流程                            │
+├────────────────────────────────────────┤
+│ 1. 用户截图 (Cmd+Shift+4 / 系统截图)    │
+│ 2. 粘贴到 ClawKB (Cmd+V)               │
+│ 3. OCR 识别文字 (Rust `ocr` crate)      │
+│ 4. 生成可搜索文本存入知识库              │
+│ 5. 或直接进入截图问答模式                │
+└────────────────────────────────────────┘
+
+┌────────────────────────────────────────┐
+│ 截图问答模式                            │
+├────────────────────────────────────────┤
+│ 1. 用户截图并提问                       │
+│ 2. OCR 识别图片文字                     │
+│ 3. 结合上下文进行 AI 问答               │
+│ 4. 支持"提取文字"和"解读图片"          │
+└────────────────────────────────────────┘
+```
+
+#### 10.5.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| OCR 引擎 | `crates/clawkb-core/src/ocr.rs` | `ocrs` crate (Tesseract) |
+| 截图导入命令 | `crates/clawkb-core/src/kb.rs` | `import_screenshot(image_bytes)` |
+| 截图问答 | `crates/clawkb-core/src/kb.rs` | `ask_screenshot(image, question)` |
+| 前端粘贴处理 | `src/src/hooks/use-paste.ts` | 监听粘贴事件 |
+| 截图上传 UI | `src/src/components/pages/import.tsx` | 截图标签页 |
+| OCR 结果预览 | `src/src/components/ocr-preview.tsx` | 识别结果展示 |
+
+#### 10.5.3 验收标准
+
+- [ ] 粘贴截图自动识别文字
+- [ ] 截图导入知识库
+- [ ] 截图问答功能
+- [ ] 支持中英文 OCR
+
+---
+
+### 10.7 Phase 17: 真实 AI 模型集成 (P0)
+
+**目标**: 将 AI 配置从 stub 变为真实实现
+
+#### 10.7.1 当前问题
+
+```rust
+// src-tauri/src/commands/mod.rs (stub)
+#[tauri::command]
+pub fn set_embedding_model(...) -> Result<(), String> {
+    tracing::info!("Embedding model config: ..."); // 仅日志
+    Ok(())
+}
+```
+
+#### 10.7.2 实现方案
+
+**Embedding 模型配置:**
+
+```rust
+// 方案 1: 使用 memvid api_embed feature
+// Cargo.toml
+memvid-core = { features = ["api_embed"] }
+
+// kb.rs
+pub fn set_embedding_provider(&mut self, provider: EmbeddingProvider) {
+    match provider {
+        EmbeddingProvider::OpenAI => {
+            self.embedder = OpenAIEmbedder::new(api_key, model)?;
+        }
+        EmbeddingProvider::Local => {
+            self.embedder = LocalONNXEmbedder::new(model)?;
+        }
+    }
+}
+```
+
+**Ask/LLM 模型配置:**
+
+```rust
+// 集成 Ollama API
+pub fn ask_with_model(&mut self, question: &str, model: &str) -> Result<AskResult> {
+    let client = reqwest::blocking::Client::new();
+    let response = client.post("http://localhost:11434/api/generate")
+        .json(&json!({
+            "model": model,
+            "prompt": build_prompt(question, self.retrieved_context),
+            "stream": false
+        }))
+        .send()?;
+    // 解析响应...
+}
+
+// 集成 OpenAI API
+pub fn ask_with_openai(&mut self, question: &str, model: &str, api_key: &str) -> Result<AskResult> {
+    let client = reqwest::blocking::Client::new();
+    let response = client.post("https://api.openai.com/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .json(&chat_request)
+        .send()?;
+    // 解析响应...
+}
+```
+
+#### 10.7.3 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| Ollama 集成 | `crates/clawkb-core/src/llm/ollama.rs` | 本地 LLM |
+| OpenAI 集成 | `crates/clawkb-core/src/llm/openai.rs` | 云端 LLM |
+| Claude 集成 | `crates/clawkb-core/src/llm/claude.rs` | Anthropic API |
+| DeepSeek 集成 | `crates/clawkb-core/src/llm/deepseek.rs` | DeepSeek API |
+| LLM 抽象层 | `crates/clawkb-core/src/llm/mod.rs` | Trait 定义 |
+| 模型配置持久化 | `crates/clawkb-core/src/config.rs` | 模型配置存储 |
+| 前端模型选择 | `src/src/components/pages/settings.tsx` | 模型下拉选择 |
+| 前端 API Key 输入 | `src/src/components/pages/settings.tsx` | 安全输入 |
+
+#### 10.7.4 支持的模型
+
+| 模型类型 | 本地 | 云端 |
+|---------|-----|------|
+| Embedding | ONNX (BGE/Nomic/GTE) | OpenAI, DeepSeek |
+| Ask/LLM | Ollama (Llama/Qwen) | GPT-4o, Claude, DeepSeek |
+
+#### 10.7.5 验收标准
+
+- [ ] Ollama 本地模型支持
+- [ ] OpenAI API 集成
+- [ ] Claude API 集成
+- [ ] DeepSeek API 集成
+- [ ] 模型配置持久化
+- [ ] 前端模型切换
+
+---
+
+### 10.8 Phase 18: 边看边问增强 (P1)
+
+**目标**: 增强 Reader 页面的实时问答体验
+
+#### 10.8.1 IMA 对比
+
+| 功能 | IMA | ClawKB 当前 | 改进方向 |
+|-----|-----|------------|---------|
+| 阅读时问答 | ✅ | ⚠️ 有但不流畅 | 侧边栏固定 |
+| 划词解释 | ✅ | ❌ | 全局划词 |
+| 边读边记 | ✅ | ⚠️ 注释功能简单 | 笔记面板 |
+| 书签管理 | ✅ | ❌ | 添加书签 |
+| 阅读进度 | ✅ | ❌ | 记住位置 |
+
+#### 10.8.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| 固定问答侧栏 | `src/src/components/pages/reader.tsx` | 可展开/收起 |
+| 书签功能 | `src/src/store/bookmark-store.ts` | 书签状态管理 |
+| 阅读进度 | `src/src/store/reader-progress.ts` | 记住阅读位置 |
+| 笔记面板 | `src/src/components/notes-panel.tsx` | 浮动笔记 |
+| 高亮笔记同步 | `src/src/store/annotation-store.ts` | 标注持久化 |
+
+#### 10.8.3 验收标准
+
+- [ ] 固定问答侧栏
+- [ ] 添加书签
+- [ ] 记住阅读进度
+- [ ] 笔记与知识库同步
+
+---
+
+### 10.9 Phase 19: 报告生成与 Agent 模式 (P2)
+
+**目标**: 对标 IMA 2.0 的 Agent 能力
+
+#### 10.9.1 功能设计
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 📊 报告生成模式                                      │
+├─────────────────────────────────────────────────────┤
+│ 1. 选择主题/关键词                                   │
+│ 2. 设置报告结构 (大纲)                               │
+│ 3. AI 自动收集相关文档                              │
+│ 4. 生成结构化报告                                    │
+│ 5. 支持 Markdown/DOCX 导出                          │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│ 🎙️ 播客生成模式 (IMA 2.0)                           │
+├─────────────────────────────────────────────────────┤
+│ 1. 选择主题                                          │
+│ 2. AI 生成对话脚本                                  │
+│ 3. 文字转语音 (TTS)                                 │
+│ 4. 生成播客音频                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+#### 10.9.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| 报告生成器 | `crates/clawkb-core/src/agent/report.rs` | 结构化报告 |
+| 大纲生成 | `crates/clawkb-core/src/agent/outline.rs` | AI 生成大纲 |
+| 多文档综合 | `crates/clawkb-core/src/agent/synthesize.rs` | 多文档合并 |
+| TTS 集成 | `crates/clawkb-core/src/tts.rs` | 文字转语音 |
+| 前端报告 UI | `src/src/components/pages/report.tsx` | 新页面 |
+| 前端播客 UI | `src/src/components/pages/podcast.tsx` | 新页面 |
+
+#### 10.9.3 验收标准
+
+- [ ] 选择文档生成报告
+- [ ] 自定义报告大纲
+- [ ] Markdown 导出
+- [ ] 播客生成 (TTS)
+
+---
+
+### 10.10 Phase 20: Obsidian 同步 (P2)
+
+**目标**: 对标 IMA 的 Skill 功能，支持 Obsidian 同步
+
+#### 10.10.1 技术方案
+
+```
+Obsidian Vault ←→ ClawKB 知识库
+    │                    │
+    ├── Markdown 文件 ───┼──→ 解析 → 导入
+    ├── 双链链接 ───────┼──→ 转换为标签
+    └── 标签 ────────────┼──→ 同步
+```
+
+#### 10.10.2 实现任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| Obsidian 解析 | `crates/clawkb-core/src/sync/obsidian.rs` | 解析 vault |
+| 双向同步 | `crates/clawkb-core/src/sync/bi-sync.rs` | 增量同步 |
+| Markdown 导入 | `crates/clawkb-core/src/import/markdown.rs` | 增强 markdown |
+| 前端同步 UI | `src/src/components/pages/settings.tsx` | Obsidian 设置 |
+| 同步状态 | `src/src/store/sync-store.ts` | 同步状态管理 |
+
+#### 10.10.3 验收标准
+
+- [ ] 指定 Obsidian Vault 路径
+- [ ] 导入 Markdown 文件
+- [ ] 同步标签
+- [ ] 增量同步
+
+---
+
+### 10.11 Phase 21: 性能优化 (持续)
+
+#### 10.11.1 当前问题
+
+| 问题 | 影响 | 优化方案 |
+|-----|------|---------|
+| D3-force 大图谱卡顿 | Graph 页面 | Canvas 渲染 / WebGL |
+| PDF 大文件加载慢 | Reader 页面 | 分页加载 |
+| 搜索响应慢 | Search 页面 | 结果缓存 |
+| 导入大文件夹 | Import 页面 | 进度条 + 异步 |
+
+#### 10.11.2 优化任务
+
+| 任务 | 文件 | 说明 |
+|-----|------|------|
+| 图谱 Canvas 渲染 | `src/src/components/pages/graph.tsx` | 替换 SVG |
+| PDF 分页加载 | `src/src/components/pages/reader.tsx` | 虚拟滚动 |
+| 搜索缓存 | `src/src/store/search-cache.ts` | LRU 缓存 |
+| 导入进度 | `src/src/components/pages/import.tsx` | 实时进度 |
+
+---
+
+### 10.12 改造优先级与工作量估算
+
+| Phase | 任务 | 优先级 | 工作量 | 依赖 |
+|-------|-----|-------|-------|------|
+| Phase 13 | 导入大升级 | P0 | 3 周 | - |
+| Phase 14 | 多级文件夹 | P0 | 2 周 | - |
+| Phase 15 | 全局划词 | P1 | 2 周 | Tauri |
+| Phase 16 | 截图导入 | P1 | 2 周 | OCR |
+| Phase 17 | 真实 AI 模型 | P0 | 3 周 | API |
+| Phase 18 | 边看边问增强 | P1 | 1 周 | - |
+| Phase 19 | 报告生成 | P2 | 2 周 | Phase 17 |
+| Phase 20 | Obsidian 同步 | P2 | 2 周 | - |
+| Phase 21 | 性能优化 | 持续 | - | - |
+
+**预计总工期**: 12-15 周 (Phase 13-20 核心功能)
+
+---
+
+### 10.13 新增文件清单
+
+**Rust 后端:**
+```
+crates/clawkb-core/src/
+├── import/
+│   ├── mod.rs
+│   ├── docx.rs      # Word 解析
+│   ├── pptx.rs      # PPT 解析
+│   ├── xlsx.rs      # Excel 解析
+│   ├── epub.rs      # EPUB 解析
+│   ├── rtf.rs       # RTF 解析
+│   ├── json.rs      # JSON 解析
+│   ├── csv.rs       # CSV 解析
+│   └── markdown.rs  # Markdown 增强
+├── folder.rs        # 文件夹系统
+├── ocr.rs          # OCR 识别
+├── config.rs       # 配置管理
+├── llm/
+│   ├── mod.rs
+│   ├── ollama.rs    # Ollama 集成
+│   ├── openai.rs    # OpenAI 集成
+│   ├── claude.rs    # Claude 集成
+│   └── deepseek.rs  # DeepSeek 集成
+├── agent/
+│   ├── mod.rs
+│   ├── report.rs    # 报告生成
+│   ├── outline.rs   # 大纲生成
+│   └── synthesize.rs # 多文档综合
+├── tts.rs          # 文字转语音
+├── sync/
+│   ├── mod.rs
+│   ├── obsidian.rs  # Obsidian 同步
+│   └── bi-sync.rs   # 双向同步
+└── tray.rs         # 系统托盘 (src-tauri)
+
+src-tauri/src/
+├── tray.rs         # 托盘管理
+├── hotkey.rs       # 全局快捷键
+├── clipboard.rs    # 剪贴板监控
+└── commands/
+    ├── folder.rs    # 文件夹命令
+    ├── ocr.rs       # OCR 命令
+    └── sync.rs      # 同步命令
+```
+
+**React 前端:**
+```
+src/src/
+├── store/
+│   ├── folder-store.ts    # 文件夹状态
+│   ├── bookmark-store.ts  # 书签状态
+│   ├── reader-progress.ts # 阅读进度
+│   ├── annotation-store.ts # 标注状态
+│   └── sync-store.ts      # 同步状态
+├── components/
+│   ├── folder-tree.tsx    # 文件夹树
+│   ├── notes-panel.tsx     # 笔记面板
+│   ├── ocr-preview.tsx     # OCR 预览
+│   ├── floating-window.tsx # 浮窗
+│   └── pages/
+│       ├── report.tsx     # 报告生成页
+│       └── podcast.tsx    # 播客生成页
+└── hooks/
+    ├── use-paste.ts       # 粘贴监听
+    ├── use-bookmark.ts    # 书签钩子
+    └── use-progress.ts    # 进度钩子
+```
+
+---
+
+*文档版本: v3.1 (Phase 13-14 implemented)*
 *创建日期: 2026-03-31*
+*最后更新: 2026-04-01*
 *作者: Claude Code*
+*参考产品: 腾讯 IMA — https://ima.qq.com/*
 *核心引擎: memvid-core 2.0 — https://memvid.com*

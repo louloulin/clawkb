@@ -402,4 +402,112 @@ export const api = {
     const invoke = await getInvoke();
     return invoke('ask_as_of', { question, asOfTs, topK: topK || 8 }) as Promise<AsOfResult>;
   },
+
+  // ── AI Configuration ──
+
+  setEmbeddingModel: async (provider: string, model: string, apiKey?: string, apiBase?: string): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('set_embedding_model', { provider, model, apiKey: apiKey || null, apiBase: apiBase || null }) as Promise<void>;
+  },
+
+  setAskModel: async (model: string, temperature: number, topK: number): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('set_ask_model', { model, temperature, topK }) as Promise<void>;
+  },
+
+  // ── Multimedia Import ──
+
+  importAudio: async (path: string, tags: string[]): Promise<ImportResult> => {
+    if (!isTauri()) {
+      const title = path.split('/').pop() || 'audio';
+      return { path, title, chunks: 1, tags, success: true };
+    }
+    const invoke = await getInvoke();
+    return invoke('import_audio', { path, tags }) as Promise<ImportResult>;
+  },
+
+  importImage: async (path: string, tags: string[]): Promise<ImportResult> => {
+    if (!isTauri()) {
+      const title = path.split('/').pop() || 'image';
+      return { path, title, chunks: 1, tags, success: true };
+    }
+    const invoke = await getInvoke();
+    return invoke('import_image', { path, tags }) as Promise<ImportResult>;
+  },
+
+  // ── Graph Pattern Search ──
+
+  searchWithGraph: async (query: string, graphPattern: string, topK?: number, mode?: SearchMode): Promise<SearchHit[]> => {
+    if (!isTauri()) {
+      const q = query.toLowerCase();
+      const results = _demoNotes.filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q) ||
+        n.tags.some(t => t.includes(q))
+      );
+      return results.slice(0, topK || 10);
+    }
+    const invoke = await getInvoke();
+    return invoke('search_with_graph', { query, graphPattern, topK: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
+  },
+
+  // ── Folder Management ──
+
+  listFolders: async (): Promise<FolderInfo[]> => {
+    if (!isTauri()) {
+      return _demoFolders;
+    }
+    const invoke = await getInvoke();
+    return invoke('list_folders', {}) as Promise<FolderInfo[]>;
+  },
+
+  createFolder: async (name: string, parentId?: string | null): Promise<FolderInfo> => {
+    if (!isTauri()) {
+      const id = `folder-${Date.now()}`;
+      return { id, name, parent_id: parentId || null, path: `/${name}`, doc_count: 0, created_at: Date.now() / 1000 };
+    }
+    const invoke = await getInvoke();
+    return invoke('create_folder', { name, parent_id: parentId || null }) as Promise<FolderInfo>;
+  },
+
+  renameFolder: async (folderId: string, newName: string): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('rename_folder', { folder_id: folderId, new_name: newName }) as Promise<void>;
+  },
+
+  deleteFolder: async (folderId: string): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('delete_folder', { folder_id: folderId }) as Promise<void>;
+  },
+
+  moveDocument: async (docId: string, folderId: string | null): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('move_document', { doc_id: docId, folder_id: folderId }) as Promise<void>;
+  },
+
+  searchInFolder: async (folderId: string, query: string, topK?: number, mode?: SearchMode): Promise<SearchHit[]> => {
+    if (!isTauri()) {
+      const q = query.toLowerCase();
+      return _demoNotes.filter(n =>
+        (n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) &&
+        n.tags.some(t => t.includes(folderId))
+      ).slice(0, topK || 10);
+    }
+    const invoke = await getInvoke();
+    return invoke('search_in_folder', { folder_id: folderId, query, top_k: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
+  },
 };
+
+// Demo data for folders
+const _demoFolders: FolderInfo[] = [
+  { id: 'folder-work', name: 'Work', parent_id: null, path: '/Work', doc_count: 5, created_at: Date.now() / 1000 - 86400 },
+  { id: 'folder-projectA', name: 'Project A', parent_id: 'folder-work', path: '/Work/Project A', doc_count: 3, created_at: Date.now() / 1000 - 72000 },
+  { id: 'folder-projectB', name: 'Project B', parent_id: 'folder-work', path: '/Work/Project B', doc_count: 2, created_at: Date.now() / 1000 - 36000 },
+  { id: 'folder-study', name: 'Study', parent_id: null, path: '/Study', doc_count: 8, created_at: Date.now() / 1000 - 172800 },
+  { id: 'folder-life', name: 'Life', parent_id: null, path: '/Life', doc_count: 12, created_at: Date.now() / 1000 - 259200 },
+];

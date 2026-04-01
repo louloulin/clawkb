@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, Loader2, File, CheckCircle2, XCircle, Folder, Globe, Link } from 'lucide-react';
+import { Upload, Loader2, File, CheckCircle2, XCircle, Folder, Globe, Link, Music, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,9 @@ export function ImportPage() {
           <TabsTrigger value="url" className="rounded-lg text-[13px] gap-1.5">
             <Globe className="h-3.5 w-3.5" /> Web Page
           </TabsTrigger>
+          <TabsTrigger value="media" className="rounded-lg text-[13px] gap-1.5">
+            <Music className="h-3.5 w-3.5" /> Media
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="file">
@@ -33,6 +36,9 @@ export function ImportPage() {
         </TabsContent>
         <TabsContent value="url">
           <UrlFetchTab />
+        </TabsContent>
+        <TabsContent value="media">
+          <MediaImportTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -46,6 +52,20 @@ function FileImportTab() {
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState<ImportResult[]>([]);
   const { toast } = useToast();
+
+  const supportedFormats = [
+    { ext: 'PDF', name: 'PDF Document' },
+    { ext: 'DOCX', name: 'Word Document' },
+    { ext: 'PPTX', name: 'PowerPoint' },
+    { ext: 'XLSX', name: 'Excel Spreadsheet' },
+    { ext: 'EPUB', name: 'E-Book' },
+    { ext: 'RTF', name: 'Rich Text' },
+    { ext: 'MD', name: 'Markdown' },
+    { ext: 'TXT', name: 'Plain Text' },
+    { ext: 'HTML', name: 'Web Page' },
+    { ext: 'CSV', name: 'CSV Data' },
+    { ext: 'JSON', name: 'JSON Data' },
+  ];
 
   const handleImport = async () => {
     if (!path.trim()) return;
@@ -102,6 +122,19 @@ function FileImportTab() {
           <Checkbox checked={recursive} onCheckedChange={(c) => setRecursive(c === true)} />
           <Label className="text-sm text-muted-foreground cursor-pointer">Recursive (for directories)</Label>
         </div>
+
+        {/* Supported formats */}
+        <div className="rounded-lg bg-muted/30 p-3">
+          <p className="text-[11px] text-muted-foreground mb-2 font-medium">Supported formats:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {supportedFormats.map(fmt => (
+              <span key={fmt.ext} className="inline-flex items-center px-1.5 py-0.5 rounded bg-background/60 text-[10px] font-mono text-muted-foreground">
+                .{fmt.ext}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <Button onClick={handleImport} disabled={importing || !path.trim()} className="gap-2 rounded-xl h-10 px-6">
           {importing ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing...</> : <><Upload className="h-4 w-4" /> Import</>}
         </Button>
@@ -176,6 +209,133 @@ function UrlFetchTab() {
       </div>
 
       {results.length > 0 && <ResultSummary successCount={successCount} failCount={failCount} results={results.map(r => ({ title: r.success ? r.title : r.url, success: r.success, error: r.error }))} />}
+    </>
+  );
+}
+
+function MediaImportTab() {
+  const [path, setPath] = useState('');
+  const [type, setType] = useState<'audio' | 'image'>('audio');
+  const [tags, setTags] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [results, setResults] = useState<ImportResult[]>([]);
+  const { toast } = useToast();
+
+  const handleImport = async () => {
+    if (!path.trim()) return;
+    setImporting(true);
+    setResults([]);
+    try {
+      const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
+      const res = type === 'audio'
+        ? await api.importAudio(path, tagList)
+        : await api.importImage(path, tagList);
+      await api.commit();
+      setResults([res]);
+      if (res.success) {
+        toast({
+          title: type === 'audio' ? 'Audio imported' : 'Image imported',
+          description: `${res.title} (Whisper/CLIP processing enabled)`
+        });
+      } else {
+        toast({ title: 'Import failed', description: res.error || 'Unknown error', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Import failed', description: String(e), variant: 'destructive' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-4 mb-8">
+        {/* Type Selection */}
+        <div>
+          <Label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</Label>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setType('audio')}
+              className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-colors cursor-pointer ${
+                type === 'audio' ? 'border-primary/50 bg-primary/5' : 'border-border/50 hover:bg-muted/40'
+              }`}
+            >
+              <Music className={`h-5 w-5 ${type === 'audio' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm font-medium">Audio</span>
+            </button>
+            <button
+              onClick={() => setType('image')}
+              className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border transition-colors cursor-pointer ${
+                type === 'image' ? 'border-primary/50 bg-primary/5' : 'border-border/50 hover:bg-muted/40'
+              }`}
+            >
+              <Image className={`h-5 w-5 ${type === 'image' ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm font-medium">Image</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <Label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">Path</Label>
+          <div className="relative">
+            {type === 'audio' ? (
+              <Music className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Image className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            )}
+            <Input
+              type="text"
+              value={path}
+              onChange={e => setPath(e.target.value)}
+              placeholder={type === 'audio' ? '/path/to/audio.mp3' : '/path/to/image.png'}
+              className="pl-10 rounded-xl border-border/50 h-10"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</Label>
+          <Input
+            type="text"
+            value={tags}
+            onChange={e => setTags(e.target.value)}
+            placeholder="Comma separated"
+            className="rounded-xl border-border/50 h-10"
+          />
+        </div>
+
+        <div className="rounded-lg bg-muted/40 p-3">
+          <p className="text-xs text-muted-foreground">
+            {type === 'audio' ? (
+              <>
+                <strong>Whisper Transcription:</strong> Audio files will be transcribed using Whisper ML model.
+                Supported formats: MP3, WAV, M4A, OGG.
+              </>
+            ) : (
+              <>
+                <strong>CLIP Vision Search:</strong> Images will be indexed with CLIP embeddings for visual similarity search.
+                Supported formats: PNG, JPEG, JPG, WEBP, GIF.
+              </>
+            )}
+          </p>
+        </div>
+
+        <Button onClick={handleImport} disabled={importing || !path.trim()} className="gap-2 rounded-xl h-10 px-6">
+          {importing ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+          ) : (
+            <>{type === 'audio' ? <><Music className="h-4 w-4" /> Transcribe & Import</> : <><Image className="h-4 w-4" /> Index & Import</>}</>
+          )}
+        </Button>
+      </div>
+
+      {results.length > 0 && (
+        <ResultSummary
+          successCount={results.filter(r => r.success).length}
+          failCount={results.length - results.filter(r => r.success).length}
+          results={results.map(r => ({ title: r.title, success: r.success, error: r.error }))}
+        />
+      )}
     </>
   );
 }

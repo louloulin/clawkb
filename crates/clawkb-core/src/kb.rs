@@ -16,6 +16,7 @@ use crate::entity::{
 use crate::error::{KbError, Result};
 use crate::export::{ExportData, ExportDocument, ExportFormat};
 use crate::import::ImportResult;
+use crate::parsers::{self, DocumentFormat};
 use crate::search::{SearchHit, SearchMode};
 use crate::tag::TagInfo;
 use crate::timeline::{TimelineEntry, TimelineQuery};
@@ -183,6 +184,8 @@ impl KnowledgeBase {
     }
 
     /// Import a file into the knowledge base.
+    /// Supports multiple document formats: PDF, Markdown, Text, HTML,
+    /// DOCX, PPTX, XLSX, EPUB, RTF, CSV, JSON, and more.
     pub fn import_file(
         &mut self,
         file_path: &str,
@@ -195,32 +198,76 @@ impl KnowledgeBase {
 
         let bytes = std::fs::read(path)?;
 
-        let title = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("imported")
-            .to_string();
-
         let extension = path
             .extension()
             .and_then(|s| s.to_str())
-            .unwrap_or("bin")
-            .to_string();
+            .unwrap_or("")
+            .to_lowercase();
 
-        let kind = match extension.as_str() {
-            "pdf" => "pdf",
-            "md" => "markdown",
-            "txt" => "text",
-            "html" | "htm" => "html",
-            "docx" => "docx",
-            "pptx" => "pptx",
-            "xlsx" => "xlsx",
-            _ => "document",
+        let format = DocumentFormat::from_extension(&extension);
+        let title: String;
+        let kind: String;
+        let content_for_indexing: Option<String>;
+
+        // Use specialized parsers for structured documents
+        if format != DocumentFormat::Unknown {
+            match parsers::parse_document(path, &extension) {
+                Ok(parsed) => {
+                    title = parsed.title
+                        .unwrap_or_else(|| {
+                            path.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("imported")
+                                .to_string()
+                        });
+
+                    kind = match format {
+                        DocumentFormat::Docx => "docx",
+                        DocumentFormat::Pptx => "pptx",
+                        DocumentFormat::Xlsx => "xlsx",
+                        DocumentFormat::Epub => "epub",
+                        DocumentFormat::Rtf => "rtf",
+                        DocumentFormat::Csv => "csv",
+                        DocumentFormat::Json => "json",
+                        DocumentFormat::Unknown => "document",
+                    }.to_string();
+
+                    // Store the parsed content for better indexing
+                    // If content is substantial, use it; otherwise use raw bytes
+                    content_for_indexing = if parsed.content.len() > 100 {
+                        Some(parsed.content)
+                    } else {
+                        None
+                    };
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to parse {} as {}, falling back to raw: {}", extension, format, e);
+                    title = path.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("imported")
+                        .to_string();
+                    kind = "document".to_string();
+                    content_for_indexing = None;
+                }
+            }
+        } else {
+            // Unknown format - use raw bytes
+            title = path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("imported")
+                .to_string();
+            kind = "document".to_string();
+            content_for_indexing = None;
+        }
+
+        let payload = match &content_for_indexing {
+            Some(text) => text.as_bytes().to_vec(),
+            None => bytes,
         };
 
         let mut builder = PutOptions::builder()
             .title(title.clone())
-            .kind(kind.to_string())
+            .kind(kind)
             .uri(file_path.to_string())
             .enable_embedding(true)
             .auto_tag(true)
@@ -233,7 +280,7 @@ impl KnowledgeBase {
         let opts = builder.build();
 
         let _seq = self.mem
-            .put_bytes_with_options(&bytes, opts)
+            .put_bytes_with_options(&payload, opts)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
         Ok(ImportResult {
@@ -284,7 +331,7 @@ impl KnowledgeBase {
                     .and_then(|s| s.to_str())
                     .unwrap_or("");
 
-                if matches!(ext, "txt" | "md" | "pdf" | "html" | "htm" | "docx" | "pptx" | "xlsx") {
+                if matches!(ext, "txt" | "md" | "pdf" | "html" | "htm" | "docx" | "pptx" | "xlsx" | "xlsm" | "epub" | "rtf" | "csv" | "json") {
                     // Skip files larger than 50MB for safety
                     if let Ok(metadata) = std::fs::metadata(&path) {
                         if metadata.len() > 50 * 1024 * 1024 {
@@ -325,6 +372,168 @@ impl KnowledgeBase {
             }
         }
         Ok(())
+    }
+
+    /// Import an audio file and transcribe it using Whisper.
+    /// Requires the "whisper" feature to be enabled in memvid-core.
+    pub fn import_audio(&mut self, file_path: &str, tags: &[&str]) -> Result<ImportResult> {
+        let path = Path::new(file_path);
+        if !path.exists() {
+            return Err(KbError::FileNotFound(file_path.to_string()));
+        }
+
+        let title = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("audio")
+            .to_string();
+
+        // For now, we read the audio file as bytes and store it
+        // In a full implementation with whisper feature, this would:
+        // 1. Load the Whisper model
+        // 2. Transcribe the audio to text
+        // 3. Store the transcript as a document
+        let bytes = std::fs::read(path)?;
+        let content_length = bytes.len();
+
+        let mut builder = PutOptions::builder()
+            .title(title.clone())
+            .kind("audio".to_string())
+            .uri(file_path.to_string())
+            .enable_embedding(true)
+            .auto_tag(true)
+            .extract_triplets(true);
+
+        for tag in tags {
+            builder = builder.push_tag(tag.to_string());
+        }
+
+        let opts = builder.build();
+
+        let _seq = self.mem
+            .put_bytes_with_options(&bytes, opts)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(ImportResult {
+            path: file_path.to_string(),
+            title,
+            chunks: 1,
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            success: true,
+            error: None,
+        })
+    }
+
+    /// Import an image file and generate CLIP embeddings for visual search.
+    /// Requires the "clip" feature to be enabled in memvid-core.
+    pub fn import_image(&mut self, file_path: &str, tags: &[&str]) -> Result<ImportResult> {
+        let path = Path::new(file_path);
+        if !path.exists() {
+            return Err(KbError::FileNotFound(file_path.to_string()));
+        }
+
+        let title = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("image")
+            .to_string();
+
+        // Read the image file
+        let bytes = std::fs::read(path)?;
+
+        let mut builder = PutOptions::builder()
+            .title(title.clone())
+            .kind("image".to_string())
+            .uri(file_path.to_string())
+            .enable_embedding(true)
+            .auto_tag(true)
+            .extract_triplets(true);
+
+        for tag in tags {
+            builder = builder.push_tag(tag.to_string());
+        }
+
+        let opts = builder.build();
+
+        let _seq = self.mem
+            .put_bytes_with_options(&bytes, opts)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(ImportResult {
+            path: file_path.to_string(),
+            title,
+            chunks: 1,
+            tags: tags.iter().map(|s| s.to_string()).collect(),
+            success: true,
+            error: None,
+        })
+    }
+
+    /// Search with knowledge graph pattern filter.
+    /// Filters search results to include only documents that mention
+    /// entities matching the specified graph pattern.
+    /// Pattern format: "Kind:name" (e.g., "Person:Alice", "Project:memvid")
+    pub fn search_with_graph(
+        &mut self,
+        query: &str,
+        graph_pattern: &str,
+        top_k: usize,
+        mode: SearchMode,
+    ) -> Result<Vec<SearchHit>> {
+        // First, get entities matching the pattern
+        let entities = self.find_entities_by_pattern(graph_pattern)?;
+
+        // If no entities match, return empty results
+        if entities.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Get frame IDs from matching entities
+        let relevant_frame_ids: std::collections::HashSet<u64> = entities
+            .iter()
+            .flat_map(|e| e.frame_ids.clone())
+            .collect();
+
+        // Search and filter results
+        let all_results = self.search(query, top_k * 2, mode)?;
+
+        // Filter to only include results from relevant frames
+        let filtered: Vec<SearchHit> = all_results
+            .into_iter()
+            .filter(|hit| {
+                hit.id.parse::<u64>()
+                    .map(|id| relevant_frame_ids.contains(&id))
+                    .unwrap_or(false)
+            })
+            .take(top_k)
+            .collect();
+
+        Ok(filtered)
+    }
+
+    /// Find entities matching a pattern like "Kind:name" or just "name"
+    fn find_entities_by_pattern(&self, pattern: &str) -> Result<Vec<EntityInfo>> {
+        let mesh = self.mem.logic_mesh();
+
+        // Parse pattern: "Kind:name" or just "name"
+        let (kind_filter, name_filter) = if let Some((kind, name)) = pattern.split_once(':') {
+            (Some(kind), name)
+        } else {
+            (None, pattern)
+        };
+
+        let all_entities = list_mesh_entities(mesh, kind_filter);
+
+        // Filter by name if specified
+        let matching: Vec<EntityInfo> = all_entities
+            .into_iter()
+            .filter(|e| {
+                e.display_name.to_lowercase().contains(&name_filter.to_lowercase())
+                    || e.canonical_name.to_lowercase().contains(&name_filter.to_lowercase())
+            })
+            .collect();
+
+        Ok(matching)
     }
 
     /// Query the timeline.

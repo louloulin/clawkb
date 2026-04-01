@@ -4,12 +4,14 @@ pub mod search;
 pub mod note;
 pub mod ask;
 pub mod import;
+pub mod parsers;
 pub mod entity;
 pub mod timeline;
 pub mod export;
 pub mod tag;
 pub mod web;
 pub mod replay;
+pub mod folder;
 #[cfg(feature = "evif-mcp")]
 pub mod evif_mcp;
 
