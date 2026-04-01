@@ -1,0 +1,23 @@
+[package]
+name = "clawkb-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI tool for ClawKB — local-first personal secure knowledge base"
+
+[[bin]]
+name = "clawkb"
+path = "src/main.rs"
+
+[features]
+default = []
+evif-mcp = ["clawkb-core/evif-mcp", "clawkb-core/http-server"]
+
+[dependencies]
+clawkb-core = { path = "../clawkb-core", default-features = false, features = ["evif-mcp", "http-server"] }
+clap = { workspace = true }
+serde_json = { workspace = true }
+colored = { workspace = true }
+comfy-table = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }

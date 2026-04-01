@@ -1,0 +1,50 @@
+{
+  "name": "ClawKB - Personal Knowledge Base",
+  "short_name": "ClawKB",
+  "description": "Local-first personal knowledge base with AI-powered search",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshot-dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "label": "Dashboard view"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search",
+      "short_name": "Search",
+      "description": "Search your knowledge base",
+      "url": "/?page=search",
+      "icons": [{ "src": "/icon-search.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "New Note",
+      "short_name": "Note",
+      "description": "Create a new note",
+      "url": "/?page=notes",
+      "icons": [{ "src": "/icon-note.png", "sizes": "96x96" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

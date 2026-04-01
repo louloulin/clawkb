@@ -1,0 +1,21 @@
+[package]
+name = "clawkb-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ClawKB Tauri v2 Desktop + Mobile App"
+
+[lib]
+name = "clawkb_app_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+clawkb-core = { path = "../crates/clawkb-core" }
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

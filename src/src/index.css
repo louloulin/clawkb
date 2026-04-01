@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: hsl(210 20% 98%);
+  --color-foreground: hsl(224 64% 12%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(224 64% 12%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(224 64% 12%);
+  --color-primary: hsl(217 75% 50%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(210 30% 96%);
+  --color-secondary-foreground: hsl(224 40% 18%);
+  --color-muted: hsl(210 24% 95%);
+  --color-muted-foreground: hsl(220 12% 46%);
+  --color-accent: hsl(214 60% 95%);
+  --color-accent-foreground: hsl(217 75% 40%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(214 20% 90%);
+  --color-input: hsl(214 20% 92%);
+  --color-ring: hsl(217 75% 50%);
+  --radius: 0.625rem;
+}
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 224 64% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 224 64% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 224 64% 12%;
+  --primary: 217 75% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 30% 96%;
+  --secondary-foreground: 224 40% 18%;
+  --muted: 210 24% 95%;
+  --muted-foreground: 220 12% 46%;
+  --accent: 214 60% 95%;
+  --accent-foreground: 217 75% 40%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 20% 90%;
+  --input: 214 20% 92%;
+  --ring: 217 75% 50%;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: 224 50% 7%;
+  --foreground: 210 30% 95%;
+  --card: 224 44% 10%;
+  --card-foreground: 210 30% 95%;
+  --popover: 224 44% 10%;
+  --popover-foreground: 210 30% 95%;
+  --primary: 217 80% 60%;
+  --primary-foreground: 224 50% 7%;
+  --secondary: 224 30% 15%;
+  --secondary-foreground: 210 30% 95%;
+  --muted: 224 28% 14%;
+  --muted-foreground: 215 18% 58%;
+  --accent: 224 35% 18%;
+  --accent-foreground: 217 80% 70%;
+  --destructive: 0 62% 40%;
+  --destructive-foreground: 210 30% 95%;
+  --border: 224 26% 16%;
+  --input: 224 26% 16%;
+  --ring: 217 80% 60%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  margin: 0;
+  font-family: 'Google Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* NotebookLM-style scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
+
+/* NotebookLM-style selection */
+::selection {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+/* Smooth focus rings */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}

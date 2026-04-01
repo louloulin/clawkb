@@ -1,0 +1,31 @@
+[package]
+name = "clawkb-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core library for ClawKB — local-first personal secure knowledge base"
+
+[features]
+default = []
+evif-mcp = ["dep:rmcp", "dep:tokio"]
+http-server = ["evif-mcp", "axum", "tower-http"]
+
+[dependencies]
+memvid-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+reqwest = { workspace = true }
+
+# MCP (Model Context Protocol) support for skill exposure
+rmcp = { version = "0.8", optional = true }
+tokio = { workspace = true, optional = true }
+
+# HTTP server (optional)
+axum = { version = "0.7", optional = true }
+tower-http = { version = "0.6", optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
