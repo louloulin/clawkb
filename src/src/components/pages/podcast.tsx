@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { api } from '@/api/commands';
+import type { SearchHit } from '@/api';
 
 // Podcast script segment
 interface PodcastSegment {
@@ -174,7 +175,12 @@ class PodcastRecorder {
   }
 }
 
-export function PodcastPage() {
+interface PodcastPageProps {
+  embedded?: boolean;
+  sourceDoc?: SearchHit | null;
+}
+
+export function PodcastPage({ embedded = false, sourceDoc = null }: PodcastPageProps) {
   const [topic, setTopic] = useState('');
   const [hostName, setHostName] = useState('小播');
   const [guestName, setGuestName] = useState('嘉宾');
@@ -215,6 +221,12 @@ export function PodcastPage() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
   }, []);
+
+  useEffect(() => {
+    if (!sourceDoc) return;
+    setTopic(sourceDoc.title);
+    setKbContent(`【${sourceDoc.title}】${sourceDoc.content}`);
+  }, [sourceDoc?.id]);
 
   const searchKbForTopic = useCallback(async (q: string): Promise<string> => {
     if (!q.trim()) return '';
@@ -389,6 +401,7 @@ export function PodcastPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
+      {!embedded && (
       <div className="px-6 py-4 border-b shrink-0">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Mic className="h-5 w-5 text-primary" />
@@ -398,6 +411,7 @@ export function PodcastPage() {
           基于知识库内容生成播客脚本并语音朗读
         </p>
       </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left panel: config */}

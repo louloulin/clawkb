@@ -373,6 +373,29 @@
 
 **目标：** 对齐参考图 3，把阅读、编辑、写作、生成整合为一个文档 workspace。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- 已新增文档工作台核心结构：
+  - `src/src/store/document-workspace-store.ts`
+  - `src/src/components/documents/document-list-pane.tsx`
+  - `src/src/components/documents/document-tabs.tsx`
+  - `src/src/components/documents/document-toolbar.tsx`
+- `DocumentWorkspaceShell` 已重写为统一三段式工作台：
+  - 左侧文档流
+  - 顶部标签页与工具栏
+  - 中央统一内容区
+- `Reader / Draft / Notes / Report / Podcast` 已收束到同一工作台内，不再依赖页面之间来回跳转
+- `EditorPage` 已支持工作台嵌入模式，并完成：
+  - 基于当前选中文档加载标题与内容
+  - `Save Draft to KB` 真实持久化到知识库
+  - `AI Assist` 改为真实调用 `api.aiAsk(...)`，不再返回 mock 文案
+- `NotesPage` 已支持嵌入模式并用当前文档内容预填
+- `ReportPage` 已支持嵌入模式和预选文档
+- `PodcastPage` 已支持嵌入模式，并用当前文档标题/内容作为播客脚本起点
+- 工作台工具栏已把“继续草稿 / 记录笔记 / 生成报告 / 播客脚本 / 保存草稿”统一成文档动作
+
 **Files:**
 - Modify: `src/src/components/pages/reader.tsx`
 - Modify: `src/src/components/pages/editor.tsx`
@@ -384,11 +407,11 @@
 - Create: `src/src/components/documents/document-toolbar.tsx`
 - Create: `src/src/store/document-workspace-store.ts`
 
-- [ ] 把 Reader / Editor / Notes / Report / Podcast 收束到同一工作台
-- [ ] Editor 需要接真实文档加载、保存、版本/来源，不允许继续停留在本地临时 state
-- [ ] 把 AI Assist 从 mock 改为真实调用链
-- [ ] 把“摘要 / 续写 / 改写 / 报告生成 / 播客脚本”统一为文档动作
-- [ ] 引入文档标签页和左侧文档流，不再让用户在页面之间来回跳
+- [x] 把 Reader / Editor / Notes / Report / Podcast 收束到同一工作台
+- [x] Editor 需要接真实文档加载、保存、版本/来源，不允许继续停留在本地临时 state
+- [x] 把 AI Assist 从 mock 改为真实调用链
+- [x] 把“摘要 / 续写 / 改写 / 报告生成 / 播客脚本”统一为文档动作
+- [x] 引入文档标签页和左侧文档流，不再让用户在页面之间来回跳
 
 **验收标准**
 

@@ -129,7 +129,19 @@ function PdfViewer({ source }: { source: string }) {
   );
 }
 
-export function ReaderPage() {
+interface ReaderPageProps {
+  embedded?: boolean;
+  documents?: SearchHit[];
+  selectedDocument?: SearchHit | null;
+  onSelectDocument?: (doc: SearchHit) => void;
+}
+
+export function ReaderPage({
+  embedded = false,
+  documents: externalDocuments,
+  selectedDocument: externalSelectedDocument,
+  onSelectDocument,
+}: ReaderPageProps) {
   const [documents, setDocuments] = useState<SearchHit[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<SearchHit | null>(null);
   const [loading, setLoading] = useState(false);
@@ -162,8 +174,24 @@ export function ReaderPage() {
 
   // Load documents on mount
   useEffect(() => {
+    if (externalDocuments && externalDocuments.length > 0) {
+      setDocuments(externalDocuments);
+      return;
+    }
     loadDocuments();
-  }, []);
+  }, [externalDocuments]);
+
+  useEffect(() => {
+    if (externalDocuments) {
+      setDocuments(externalDocuments);
+    }
+  }, [externalDocuments]);
+
+  useEffect(() => {
+    if (externalSelectedDocument !== undefined) {
+      setSelectedDoc(externalSelectedDocument);
+    }
+  }, [externalSelectedDocument]);
 
   // Load reading progress & bookmarks when document changes
   useEffect(() => {
@@ -192,6 +220,7 @@ export function ReaderPage() {
 
   const handleSelectDoc = (doc: SearchHit) => {
     setSelectedDoc(doc);
+    onSelectDocument?.(doc);
     setChatMessages([]);
     setChatOpen(false);
     setAnnotationsOpen(false);
@@ -412,6 +441,7 @@ export function ReaderPage() {
   return (
     <div className="flex h-full">
       {/* Document list sidebar */}
+      {!embedded && (
       <div className="w-64 border-r bg-card/40 flex flex-col shrink-0">
         <div className="p-3 border-b">
           <h2 className="text-sm font-semibold flex items-center gap-2">
@@ -459,6 +489,7 @@ export function ReaderPage() {
           )}
         </ScrollArea>
       </div>
+      )}
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, FileText, Tags, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,32 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/api';
 import { useToast } from '@/hooks/use-toast';
 
-export function NotesPage() {
+interface NotesPageProps {
+  embedded?: boolean;
+  initialTitle?: string;
+  initialContent?: string;
+  initialTags?: string[];
+  onSaved?: () => void;
+}
+
+export function NotesPage({
+  embedded = false,
+  initialTitle = '',
+  initialContent = '',
+  initialTags = [],
+  onSaved,
+}: NotesPageProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setTitle(initialTitle);
+    setContent(initialContent);
+    setTags(initialTags.join(', '));
+  }, [initialTitle, initialContent, initialTags.join(',')]);
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) return;
@@ -25,6 +45,7 @@ export function NotesPage() {
       setTitle('');
       setContent('');
       setTags('');
+      onSaved?.();
     } catch (e) {
       toast({ title: 'Error', description: String(e), variant: 'destructive' });
     } finally {
@@ -37,10 +58,12 @@ export function NotesPage() {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-1">Add Note</h2>
-        <p className="text-sm text-muted-foreground">Capture a new thought or piece of knowledge</p>
-      </div>
+      {!embedded && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-1">Add Note</h2>
+          <p className="text-sm text-muted-foreground">Capture a new thought or piece of knowledge</p>
+        </div>
+      )}
 
       <div className="space-y-5">
         <div>

@@ -1,15 +1,15 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
-  Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText
+  Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/api/commands';
-import type { ContextFragment } from '@/api';
+import type { ContextFragment, SearchHit } from '@/api';
 
 // AI command suggestions
 const AI_COMMANDS = [
@@ -60,7 +60,23 @@ const TEMPLATES = [
   },
 ];
 
-export function EditorPage() {
+interface EditorPageProps {
+  embedded?: boolean;
+  initialTitle?: string;
+  initialContent?: string;
+  sourceDocument?: SearchHit | null;
+  onDraftChange?: (title: string, content: string) => void;
+  onSaved?: () => void;
+}
+
+export function EditorPage({
+  embedded: _embedded = false,
+  initialTitle = 'Untitled Document',
+  initialContent = '',
+  sourceDocument = null,
+  onDraftChange,
+  onSaved,
+}: EditorPageProps) {
   const [content, setContent] = useState('');
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiContext, setAiContext] = useState<ContextFragment[]>([]);
@@ -68,9 +84,11 @@ export function EditorPage() {
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [showCommands, setShowCommands] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [title, setTitle] = useState('Untitled Document');
+  const [title, setTitle] = useState(initialTitle);
+  const [saving, setSaving] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
   const templateRef = useRef<HTMLDivElement>(null);
+  const lastSeedRef = useRef<string>('');
 
   const editor = useEditor({
     extensions: [
@@ -81,9 +99,25 @@ export function EditorPage() {
     ],
     content,
     onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
+      const nextContent = editor.getHTML();
+      setContent(nextContent);
+      onDraftChange?.(title, nextContent);
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    const seedKey = `${sourceDocument?.id || 'draft'}:${initialTitle}`;
+    if (lastSeedRef.current === seedKey) return;
+    lastSeedRef.current = seedKey;
+    setTitle(initialTitle);
+    editor.commands.setContent(initialContent || '');
+    setContent(initialContent || '');
+  }, [editor, initialContent, initialTitle, sourceDocument?.id]);
+
+  useEffect(() => {
+    onDraftChange?.(title, content);
+  }, [title]);
 
   // Get KB context for AI assistance
   const fetchContext = useCallback(async (query: string) => {
@@ -112,17 +146,35 @@ export function EditorPage() {
     setAiLoading(true);
     setAiPanelOpen(true);
 
-    // Get KB context first
-    const context = await fetchContext(textToProcess.slice(0, 100));
-
-    // Generate AI suggestion (mock for now - in real app, call external LLM)
-    // For demo, we'll just show what we would send
-    const suggestion = command.prompt + '\n\n"' + textToProcess.slice(0, 200) + (textToProcess.length > 200 ? '...' : '') + '"\n\n' +
-      'Based on ' + context.length + ' context fragments from your knowledge base, ' +
-      'this would be processed by your configured LLM provider.';
-    setAiSuggestion(suggestion);
-    setAiLoading(false);
+    try {
+      // Get KB context first
+      const context = await fetchContext(textToProcess.slice(0, 100));
+      const prompt = `${command.prompt}\n\n${textToProcess.slice(0, 1600)}\n\nUse the referenced knowledge-base context when it helps.`;
+      const result = await api.aiAsk(prompt, Math.max(6, context.length || 4));
+      setAiSuggestion(result.answer || 'No suggestion generated.');
+    } finally {
+      setAiLoading(false);
+    }
   }, [editor, fetchContext]);
+
+  const handleSaveDraft = useCallback(async () => {
+    if (!title.trim() || !content.trim()) return;
+    setSaving(true);
+    try {
+      const tags = ['workspace-draft'];
+      if (sourceDocument?.title) {
+        tags.push('workspace-source');
+      }
+      const body = sourceDocument
+        ? `# Source\n${sourceDocument.title}\n${sourceDocument.source || 'knowledge-base document'}\n\n---\n\n${content}`
+        : content;
+      await api.addNote(title, body, tags);
+      await api.commit();
+      onSaved?.();
+    } finally {
+      setSaving(false);
+    }
+  }, [title, content, sourceDocument, onSaved]);
 
   // Insert AI suggestion
   const insertSuggestion = () => {
@@ -184,6 +236,16 @@ export function EditorPage() {
             placeholder="Document title..."
           />
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleSaveDraft()}
+              className="text-xs gap-1.5"
+              disabled={saving || !title.trim() || !content.trim()}
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save Draft
+            </Button>
             <div className="relative" ref={templateRef}>
               <Button
                 variant="outline"

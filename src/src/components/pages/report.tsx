@@ -11,7 +11,12 @@ import { useEffect } from 'react';
 
 type Step = 'select' | 'outline' | 'content' | 'export';
 
-export function ReportPage() {
+interface ReportPageProps {
+  embedded?: boolean;
+  preselectedDocs?: SearchHit[];
+}
+
+export function ReportPage({ embedded = false, preselectedDocs = [] }: ReportPageProps) {
   const [step, setStep] = useState<Step>('select');
   const [docs, setDocs] = useState<SearchHit[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -33,6 +38,15 @@ export function ReportPage() {
   useEffect(() => {
     loadDocs();
   }, []);
+
+  useEffect(() => {
+    if (!embedded) return;
+    clearDocs();
+    preselectedDocs.forEach((doc) => selectDoc(doc));
+    if (preselectedDocs.length > 0) {
+      setStep('outline');
+    }
+  }, [embedded, preselectedDocs]);
 
   const loadDocs = async () => {
     setLoadingDocs(true);
@@ -92,6 +106,7 @@ export function ReportPage() {
   return (
     <div className="flex h-full">
       {/* Left Panel — Document Selection */}
+      {!embedded && (
       <div className="w-80 border-r flex flex-col shrink-0">
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center gap-2">
@@ -199,6 +214,7 @@ export function ReportPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Right Panel — Report Editor */}
       <div className="flex-1 flex flex-col min-w-0">
