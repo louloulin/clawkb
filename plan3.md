@@ -325,6 +325,29 @@
 
 **目标：** 让首页成为真正的 AI 入口，而不是配置页跳板。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- 已新增首页组件拆分：
+  - `src/src/components/home/home-hero.tsx`
+  - `src/src/components/home/home-composer.tsx`
+  - `src/src/components/home/home-quick-actions.tsx`
+- `WorkbenchShell` 已改成真正的首页工作台，而不是单块大组件
+- 首页中心输入区已支持真实状态：
+  - `mode`：`Conversation / Research / Context Only`
+  - `model`：直接读取并切换 `ai-store` 的 Ask model
+  - `mention`：当前 KB / 已注册空间 / 全部已注册空间
+  - `attachment`：File / URL / Media / Screenshot，能真实跳转到 `ImportPage` 对应标签
+- `ChatPage` 已降级为迁移提示页，明确主聊天能力进入 `Workbench`
+- 快捷动作已收束为首页能力：
+  - `录音纪要` → `Import` 的 `Media` 标签
+  - `文档解读` → `Documents` 的 `Reader Workspace`
+  - `智能写作` → `Documents` 的 `Draft Lab`
+  - `快速访问` → `Spaces`
+- 首页已实现来源预览区，会对最近 assistant 返回的 context 片段做预览
+- Recent Stream 已展示 `mode / model / mention scope`，模型切换不再只存在于 Settings
+
 **Files:**
 - Create: `src/src/components/home/home-hero.tsx`
 - Create: `src/src/components/home/home-composer.tsx`
@@ -333,11 +356,11 @@
 - Modify: `src/src/store/chat-store.ts`
 - Modify: `src/src/store/ai-store.ts`
 
-- [ ] 把首页中心改成统一输入框，支持 mode / model / attachment / mention 的 UI 占位与真实状态
-- [ ] 将 `ChatPage` 的能力下沉为首页能力或空间页能力，而不是独立孤岛
-- [ ] 把录音纪要 / 文档解读 / 智能写作 / 快速访问做成 quick action，而非多个并列一级页面
-- [ ] 把模型切换从 Settings-only 搬到对话上下文中
-- [ ] 为引用来源、上下文预览设计统一交互
+- [x] 把首页中心改成统一输入框，支持 mode / model / attachment / mention 的 UI 占位与真实状态
+- [x] 将 `ChatPage` 的能力下沉为首页能力或空间页能力，而不是独立孤岛
+- [x] 把录音纪要 / 文档解读 / 智能写作 / 快速访问做成 quick action，而非多个并列一级页面
+- [x] 把模型切换从 Settings-only 搬到对话上下文中
+- [x] 为引用来源、上下文预览设计统一交互
 
 **验收标准**
 

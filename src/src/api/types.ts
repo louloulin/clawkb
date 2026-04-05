@@ -47,6 +47,7 @@ export interface ImportResult {
 }
 
 export type SearchMode = 'hybrid' | 'lex' | 'sem';
+export type ChatMode = 'conversation' | 'research' | 'context';
 export type Page =
   | 'home'
   | 'spaces'
@@ -107,6 +108,9 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  mode?: ChatMode;
+  modelLabel?: string;
+  scopeLabel?: string;
   citations?: AskCitation[];
   context?: ContextFragment[];
 }

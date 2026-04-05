@@ -362,10 +362,11 @@ export const api = {
         n.content.toLowerCase().includes(q) ||
         n.tags.some(t => t.includes(q))
       );
+      const hits = results.length > 0 ? results : DEMO_NOTES;
       return {
         answer: null,
         citations: [],
-        context: results.slice(0, topK || 10).map((hit, idx) => ({
+        context: hits.slice(0, topK || 10).map((hit, idx) => ({
           rank: idx + 1,
           frame_id: hit.id,
           uri: hit.source || '',
@@ -757,7 +758,21 @@ export const api = {
   },
 
   searchMultiKb: async (query: string, kbPaths: string[], topK?: number, mode?: SearchMode): Promise<SearchHit[]> => {
-    if (!isTauri()) return [];
+    if (!isTauri()) {
+      const q = query.toLowerCase();
+      const prefix = kbPaths.length > 1 ? '[Multi]' : `[${kbPaths[0]?.split('/').pop() || 'KB'}]`;
+      const hits = _demoNotes
+        .filter((note) =>
+          q === '*' ||
+          note.title.toLowerCase().includes(q) ||
+          note.content.toLowerCase().includes(q) ||
+          note.tags.some((tag) => tag.includes(q))
+        );
+      const results = hits.length > 0 ? hits : _demoNotes;
+      return results
+        .slice(0, topK || 10)
+        .map((note) => ({ ...note, source: note.source || prefix }));
+    }
     const invoke = await getInvoke();
     return invoke('search_multi_kb', { query, kbPaths, topK: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
   },

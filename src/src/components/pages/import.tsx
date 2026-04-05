@@ -15,8 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useWorkspaceStore } from '@/store/workspace-store';
 
 export function ImportPage() {
+  const { preferredImportView, setPreferredImportView } = useWorkspaceStore();
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
@@ -25,7 +28,10 @@ export function ImportPage() {
         <p className="text-sm text-muted-foreground">Import files, directories, or web pages into your knowledge base</p>
       </div>
 
-      <Tabs defaultValue="file">
+      <Tabs
+        value={preferredImportView}
+        onValueChange={(value) => setPreferredImportView(value as 'file' | 'url' | 'media' | 'screenshot')}
+      >
         <TabsList className="mb-6 bg-muted/40 rounded-xl">
           <TabsTrigger value="file" className="rounded-lg text-[13px] gap-1.5">
             <Upload className="h-3.5 w-3.5" /> File / Directory

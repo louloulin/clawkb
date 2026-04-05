@@ -4,6 +4,15 @@ import { api } from '@/api';
 export type EmbeddingProvider = 'local' | 'openai' | 'custom';
 export type AskModel = 'default' | 'gpt-4o-mini' | 'gpt-4o' | 'claude-3-haiku' | 'claude-3-sonnet' | 'custom';
 
+export const ASK_MODEL_OPTIONS: Array<{ value: AskModel; label: string }> = [
+  { value: 'default', label: 'Local Default' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+  { value: 'custom', label: 'Custom Model' },
+];
+
 interface EmbeddingConfig {
   provider: EmbeddingProvider;
   model: string;
