@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useKbStore } from '@/store/kb-store';
+import { FolderTree } from '@/components/folder-tree';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import { isTauri } from '@/api/platform';
 import { formatBytes } from '@/lib/format';
@@ -95,7 +96,7 @@ export function Sidebar() {
           </div>
         )}
 
-        <nav className="mt-6 flex flex-1 flex-col gap-2 px-3">
+        <nav className="mt-6 flex flex-col gap-2 px-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
@@ -143,6 +144,12 @@ export function Sidebar() {
             return button;
           })}
         </nav>
+
+        {!sidebarCollapsed && (
+          <div className="mt-4 min-h-0 flex-1 overflow-hidden border-t border-white/8 px-3 pt-4">
+            <FolderTree />
+          </div>
+        )}
 
         <div className="border-t border-white/8 px-4 py-4">
           {isKbOpen && stats ? (

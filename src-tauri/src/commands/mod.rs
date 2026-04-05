@@ -592,89 +592,60 @@ pub struct FolderInfo {
 }
 
 #[tauri::command]
-pub fn list_folders() -> Result<Vec<FolderInfo>, String> {
-    // Return demo folders - in a full implementation, this would read from KB metadata
-    Ok(vec![
-        FolderInfo {
-            id: "folder-work".to_string(),
-            name: "Work".to_string(),
-            parent_id: None,
-            path: "/Work".to_string(),
-            doc_count: 5,
-            created_at: chrono::Utc::now().timestamp() - 86400,
-        },
-        FolderInfo {
-            id: "folder-projectA".to_string(),
-            name: "Project A".to_string(),
-            parent_id: Some("folder-work".to_string()),
-            path: "/Work/Project A".to_string(),
-            doc_count: 3,
-            created_at: chrono::Utc::now().timestamp() - 72000,
-        },
-        FolderInfo {
-            id: "folder-projectB".to_string(),
-            name: "Project B".to_string(),
-            parent_id: Some("folder-work".to_string()),
-            path: "/Work/Project B".to_string(),
-            doc_count: 2,
-            created_at: chrono::Utc::now().timestamp() - 36000,
-        },
-        FolderInfo {
-            id: "folder-study".to_string(),
-            name: "Study".to_string(),
-            parent_id: None,
-            path: "/Study".to_string(),
-            doc_count: 8,
-            created_at: chrono::Utc::now().timestamp() - 172800,
-        },
-        FolderInfo {
-            id: "folder-life".to_string(),
-            name: "Life".to_string(),
-            parent_id: None,
-            path: "/Life".to_string(),
-            doc_count: 12,
-            created_at: chrono::Utc::now().timestamp() - 259200,
-        },
-    ])
+pub fn list_folders(state: State<'_, Mutex<AppState>>) -> Result<Vec<FolderInfo>, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.list_folders()
+        .map(|folders| folders.into_iter().map(|folder| FolderInfo {
+            id: folder.id,
+            name: folder.name,
+            parent_id: folder.parent_id,
+            path: folder.path,
+            doc_count: folder.doc_count,
+            created_at: folder.created_at,
+        }).collect())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn create_folder(
     name: String,
     parent_id: Option<String>,
+    state: State<'_, Mutex<AppState>>,
 ) -> Result<FolderInfo, String> {
-    let id = format!("folder-{}", uuid::Uuid::new_v4());
-    let path = if let Some(ref pid) = parent_id {
-        format!("/{}/{}", pid, name)
-    } else {
-        format!("/{}", name)
-    };
-
-    Ok(FolderInfo {
-        id,
-        name,
-        parent_id,
-        path,
-        doc_count: 0,
-        created_at: chrono::Utc::now().timestamp(),
-    })
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.create_folder(&name, parent_id.as_deref())
+        .map(|folder| FolderInfo {
+            id: folder.id,
+            name: folder.name,
+            parent_id: folder.parent_id,
+            path: folder.path,
+            doc_count: folder.doc_count,
+            created_at: folder.created_at,
+        })
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn rename_folder(
     folder_id: String,
     new_name: String,
+    state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    tracing::info!("Rename folder {} to {}", folder_id, new_name);
-    Ok(())
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.rename_folder(&folder_id, &new_name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn delete_folder(
     folder_id: String,
+    state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    tracing::info!("Delete folder {}", folder_id);
-    Ok(())
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.delete_folder(&folder_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -683,34 +654,10 @@ pub fn move_document(
     folder_id: Option<String>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    // Remove old folder tags and add new folder tag
     let mut app_state = state.lock().map_err(|e| e.to_string())?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
-
-    // Parse frame_id from doc_id
     let frame_id = doc_id.parse::<u64>().map_err(|e: std::num::ParseIntError| e.to_string())?;
-
-    // Get current frame tags
-    let old_tags: Vec<String> = kb.get_frame_tags(frame_id).map_err(|e| e.to_string())?;
-    let old_folder_tags: Vec<String> = old_tags.iter()
-        .filter(|t| t.starts_with("folder:"))
-        .cloned()
-        .collect();
-
-    // Build new tags list
-    let mut new_tags: Vec<String> = old_tags.into_iter()
-        .filter(|t| !t.starts_with("folder:"))
-        .collect();
-
-    // Add new folder tag if specified
-    if let Some(ref fid) = folder_id {
-        new_tags.push(format!("folder:{}", fid));
-    }
-
-    kb.update_frame_tags(frame_id, new_tags).map_err(|e| e.to_string())?;
-
-    tracing::info!("Moved document {} from {:?} to {:?}", doc_id, old_folder_tags, folder_id);
-    Ok(())
+    kb.move_document_to_folder(frame_id, folder_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -721,7 +668,6 @@ pub fn search_in_folder(
     mode: Option<String>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<SearchHit>, String> {
-    // For now, search normally and filter by tag
     let mut app_state = state.lock().map_err(|e| e.to_string())?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
 
@@ -732,9 +678,21 @@ pub fn search_in_folder(
         _ => SearchMode::Hybrid,
     };
 
-    // Search and return results - in full implementation, filter by folder_id tag
-    kb.search(&query, top_k, search_mode)
+    kb.search_in_folder(&folder_id, &query, top_k, search_mode)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_document_tags(
+    doc_id: String,
+    tags: Vec<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    let frame_id = doc_id.parse::<u64>().map_err(|e: std::num::ParseIntError| e.to_string())?;
+    kb.update_frame_tags(frame_id, tags).map_err(|e| e.to_string())?;
+    kb.commit().map_err(|e| e.to_string())
 }
 
 // ── Screenshot OCR Commands ────────────────────────────────────────────

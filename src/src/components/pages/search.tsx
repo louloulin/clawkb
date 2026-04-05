@@ -12,6 +12,7 @@ import {
 import { useSearch } from '@/hooks';
 import { useTags } from '@/hooks';
 import { useKbStore } from '@/store/kb-store';
+import { useFolderStore } from '@/store/folder-store';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/api';
 import type { SearchHit, SearchMode } from '@/api';
@@ -28,10 +29,16 @@ export function SearchPage() {
   const { results, loading, search } = useSearch();
   const { tags } = useTags();
   const openDocument = useKbStore(s => s.openDocument);
+  const { selectedFolder, selectFolder } = useFolderStore();
   const { toast } = useToast();
 
   const handleSearch = useCallback(async () => {
     setSelectedIds(new Set());
+    if (selectedFolder) {
+      const hits = await api.searchInFolder(selectedFolder.id, query || '*', 20, mode);
+      setGraphResults(hits);
+      return;
+    }
     // Use graph-enhanced search if pattern is provided
     if (graphPattern.trim()) {
       const hits = await api.searchWithGraph(query, graphPattern, 20, mode);
@@ -84,13 +91,13 @@ export function SearchPage() {
       const selected = filteredResults.filter(r => selectedIds.has(r.id));
       for (const doc of selected) {
         const allTags = [...new Set([...doc.tags, ...tagList])];
-        await api.addNote(doc.title + ' [updated]', doc.content, allTags);
+        await api.setDocumentTags(doc.id, allTags);
       }
       await api.commit();
       toast({ title: 'Tags added', description: `${selected.length} documents tagged with ${tagList.join(', ')}.` });
       setBatchTag('');
       setSelectedIds(new Set());
-      search(query, mode);
+      await handleSearch();
     } catch (e) {
       toast({ title: 'Error', description: String(e), variant: 'destructive' });
     } finally {
@@ -105,6 +112,23 @@ export function SearchPage() {
         <h2 className="text-xl font-semibold mb-1">Search</h2>
         <p className="text-sm text-muted-foreground">Find documents across your knowledge base</p>
       </div>
+
+      {selectedFolder && (
+        <div className="mb-4 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">
+            Folder: {selectedFolder.path}
+          </span>
+          <button
+            onClick={() => {
+              selectFolder(null);
+              void handleSearch();
+            }}
+            className="rounded-full bg-muted/40 px-2 py-1 hover:bg-muted/60"
+          >
+            Clear folder
+          </button>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="flex gap-2 mb-4">

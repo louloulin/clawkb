@@ -6,6 +6,7 @@ export type ExploreView =
   | 'notes'
   | 'timeline'
   | 'tags'
+  | 'entities'
   | 'graph'
   | 'mindmap'
   | 'report'

@@ -123,6 +123,7 @@ pub fn run() {
             commands::delete_folder,
             commands::move_document,
             commands::search_in_folder,
+            commands::set_document_tags,
             commands::scan_obsidian_vault,
             commands::import_obsidian_vault,
             commands::ocr_image,

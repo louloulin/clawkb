@@ -45,6 +45,26 @@ type RawFolderInfo = {
   created_at: number;
 };
 
+const DEMO_FOLDERS_KEY = 'clawkb-browser-folders';
+
+function loadDemoFolders(): FolderInfo[] {
+  try {
+    const raw = localStorage.getItem(DEMO_FOLDERS_KEY);
+    if (raw) return JSON.parse(raw) as FolderInfo[];
+  } catch {
+    // ignore storage failures
+  }
+  return [];
+}
+
+function saveDemoFolders(folders: FolderInfo[]) {
+  try {
+    localStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify(folders));
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function createImportResult(partial: Omit<ImportResult, 'auto_tags'> & { auto_tags?: string[] }): ImportResult {
   return {
     auto_tags: [],
@@ -554,6 +574,9 @@ export const api = {
 
   listFolders: async (): Promise<FolderInfo[]> => {
     if (!isTauri()) {
+      const folders = loadDemoFolders();
+      if (folders.length > 0) return folders;
+      saveDemoFolders(_demoFolders);
       return _demoFolders;
     }
     const invoke = await getInvoke();
@@ -563,15 +586,19 @@ export const api = {
 
   createFolder: async (name: string, parentId?: string | null): Promise<FolderInfo> => {
     if (!isTauri()) {
+      const existing = loadDemoFolders();
+      const parent = parentId ? existing.find((folder) => folder.id === parentId) : null;
       const id = `folder-${Date.now()}`;
-      return {
+      const folder = {
         id,
         name,
         parentId: parentId || null,
-        path: `/${name}`,
+        path: parent ? `${parent.path}/${name}` : `/${name}`,
         docCount: 0,
         createdAt: Date.now() / 1000,
       };
+      saveDemoFolders([...existing, folder]);
+      return folder;
     }
     const invoke = await getInvoke();
     const folder = await invoke('create_folder', { name, parent_id: parentId || null }) as RawFolderInfo;
@@ -579,33 +606,106 @@ export const api = {
   },
 
   renameFolder: async (folderId: string, newName: string): Promise<void> => {
-    if (!isTauri()) return;
+    if (!isTauri()) {
+      const folders = loadDemoFolders();
+      const target = folders.find((folder) => folder.id === folderId);
+      if (!target) return;
+      const oldPath = target.path;
+      const parent = target.parentId ? folders.find((folder) => folder.id === target.parentId) : null;
+      const nextPath = parent ? `${parent.path}/${newName}` : `/${newName}`;
+      const updatedFolders = folders.map((folder) => {
+        if (folder.path === oldPath || folder.path.startsWith(`${oldPath}/`)) {
+          return {
+            ...folder,
+            name: folder.id === folderId ? newName : folder.name,
+            path: folder.path.replace(oldPath, nextPath),
+          };
+        }
+        return folder;
+      });
+      _demoNotes = _demoNotes.map((note) => ({
+        ...note,
+        tags: note.tags.map((tag) =>
+          tag.startsWith('folder_path:') ? tag.replace(oldPath, nextPath) : tag,
+        ),
+      }));
+      saveDemoFolders(updatedFolders);
+      return;
+    }
     const invoke = await getInvoke();
     return invoke('rename_folder', { folder_id: folderId, new_name: newName }) as Promise<void>;
   },
 
   deleteFolder: async (folderId: string): Promise<void> => {
-    if (!isTauri()) return;
+    if (!isTauri()) {
+      const folders = loadDemoFolders();
+      const target = folders.find((folder) => folder.id === folderId);
+      if (!target) return;
+      const affected = folders.filter((folder) => folder.path === target.path || folder.path.startsWith(`${target.path}/`));
+      const ids = new Set(affected.map((folder) => folder.id));
+      const remaining = folders.filter((folder) => !ids.has(folder.id));
+      _demoNotes = _demoNotes.map((note) => ({
+        ...note,
+        tags: note.tags.filter((tag) => {
+          if (tag.startsWith('folder:')) return !ids.has(tag.slice('folder:'.length));
+          if (tag.startsWith('folder_path:')) {
+            const path = tag.slice('folder_path:'.length);
+            return !(path === target.path || path.startsWith(`${target.path}/`));
+          }
+          return true;
+        }),
+      }));
+      saveDemoFolders(remaining);
+      return;
+    }
     const invoke = await getInvoke();
     return invoke('delete_folder', { folder_id: folderId }) as Promise<void>;
   },
 
   moveDocument: async (docId: string, folderId: string | null): Promise<void> => {
-    if (!isTauri()) return;
+    if (!isTauri()) {
+      const folders = loadDemoFolders();
+      const folder = folderId ? folders.find((item) => item.id === folderId) : null;
+      _demoNotes = _demoNotes.map((note) => {
+        if (note.id !== docId) return note;
+        const nextTags = note.tags.filter((tag) => !tag.startsWith('folder:') && !tag.startsWith('folder_path:'));
+        if (folder) {
+          nextTags.push(`folder:${folder.id}`);
+          nextTags.push(`folder_path:${folder.path}`);
+        }
+        return { ...note, tags: nextTags };
+      });
+      return;
+    }
     const invoke = await getInvoke();
     return invoke('move_document', { doc_id: docId, folder_id: folderId }) as Promise<void>;
   },
 
   searchInFolder: async (folderId: string, query: string, topK?: number, mode?: SearchMode): Promise<SearchHit[]> => {
     if (!isTauri()) {
+      const folders = loadDemoFolders();
+      const folder = folders.find((item) => item.id === folderId);
+      if (!folder) return [];
       const q = query.toLowerCase();
       return _demoNotes.filter(n =>
-        (n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) &&
-        n.tags.some(t => t.includes(folderId))
+        (q === '*' || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) &&
+        n.tags.some((tag) => {
+          const path = tag.startsWith('folder_path:') ? tag.slice('folder_path:'.length) : null;
+          return !!path && (path === folder.path || path.startsWith(`${folder.path}/`));
+        })
       ).slice(0, topK || 10);
     }
     const invoke = await getInvoke();
     return invoke('search_in_folder', { folder_id: folderId, query, top_k: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
+  },
+
+  setDocumentTags: async (docId: string, tags: string[]): Promise<void> => {
+    if (!isTauri()) {
+      _demoNotes = _demoNotes.map((note) => (note.id === docId ? { ...note, tags } : note));
+      return;
+    }
+    const invoke = await getInvoke();
+    return invoke('set_document_tags', { doc_id: docId, tags }) as Promise<void>;
   },
 
   // ── Obsidian Sync ──

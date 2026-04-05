@@ -16,12 +16,17 @@ use crate::entity::{
 };
 use crate::error::{KbError, Result};
 use crate::export::{ExportData, ExportDocument, ExportFormat};
+use crate::folder::{
+    extract_tag_value, has_tag, FolderInfo, FOLDER_CREATED_PREFIX, FOLDER_DELETED_TAG,
+    FOLDER_ID_PREFIX, FOLDER_META_TAG, FOLDER_NAME_PREFIX, FOLDER_PARENT_PREFIX, FOLDER_PATH_PREFIX,
+};
 use crate::import::ImportResult;
 use crate::parsers::{self, DocumentFormat};
 use crate::replay::{CompareHit, CompareResult};
 use crate::search::{SearchHit, SearchMode};
 use crate::tag::TagInfo;
 use crate::timeline::{TimelineEntry, TimelineQuery};
+use std::collections::HashMap;
 
 /// Result of a tag operation (rename/merge/delete).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -818,6 +823,316 @@ impl KnowledgeBase {
             }
         }
         Ok(cards)
+    }
+
+    fn folder_meta_frames(&mut self) -> Result<Vec<(u64, FolderInfo)>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        let mut folders = Vec::new();
+
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+
+            if !has_tag(&frame.tags, FOLDER_META_TAG) || has_tag(&frame.tags, FOLDER_DELETED_TAG) {
+                continue;
+            }
+
+            let id = match extract_tag_value(&frame.tags, FOLDER_ID_PREFIX) {
+                Some(id) => id,
+                None => continue,
+            };
+
+            let name = extract_tag_value(&frame.tags, FOLDER_NAME_PREFIX).unwrap_or_else(|| id.clone());
+            let parent_id = extract_tag_value(&frame.tags, FOLDER_PARENT_PREFIX)
+                .filter(|value| !value.is_empty());
+            let path = extract_tag_value(&frame.tags, FOLDER_PATH_PREFIX)
+                .unwrap_or_else(|| format!("/{}", name));
+            let created_at = extract_tag_value(&frame.tags, FOLDER_CREATED_PREFIX)
+                .and_then(|value| value.parse::<i64>().ok())
+                .unwrap_or_default();
+
+            folders.push((
+                frame_id,
+                FolderInfo {
+                    id,
+                    name,
+                    parent_id,
+                    path,
+                    doc_count: 0,
+                    created_at,
+                },
+            ));
+        }
+
+        Ok(folders)
+    }
+
+    fn folder_doc_counts(&mut self) -> Result<HashMap<String, usize>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        let mut counts = HashMap::new();
+
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+
+            if has_tag(&frame.tags, FOLDER_META_TAG) {
+                continue;
+            }
+
+            for tag in &frame.tags {
+                if let Some(folder_id) = tag.strip_prefix("folder:") {
+                    *counts.entry(folder_id.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        Ok(counts)
+    }
+
+    fn replace_or_insert_tag(tags: &mut Vec<String>, prefix: &str, value: Option<String>) {
+        tags.retain(|tag| !tag.starts_with(prefix));
+        if let Some(value) = value {
+            tags.push(format!("{prefix}{value}"));
+        }
+    }
+
+    pub fn list_folders(&mut self) -> Result<Vec<FolderInfo>> {
+        let folder_frames = self.folder_meta_frames()?;
+        let counts = self.folder_doc_counts()?;
+
+        Ok(folder_frames
+            .into_iter()
+            .map(|(_, mut folder)| {
+                folder.doc_count = counts.get(&folder.id).copied().unwrap_or(0);
+                folder
+            })
+            .collect())
+    }
+
+    pub fn create_folder(&mut self, name: &str, parent_id: Option<&str>) -> Result<FolderInfo> {
+        let existing = self.list_folders()?;
+        let parent = match parent_id {
+            Some(id) => Some(
+                existing
+                    .iter()
+                    .find(|folder| folder.id == id)
+                    .cloned()
+                    .ok_or_else(|| KbError::Config(format!("Parent folder not found: {id}")))?,
+            ),
+            None => None,
+        };
+
+        let id = format!("folder-{}", uuid::Uuid::new_v4());
+        let path = match parent {
+            Some(ref parent_folder) => format!("{}/{}", parent_folder.path.trim_end_matches('/'), name),
+            None => format!("/{}", name),
+        };
+        let created_at = chrono::Utc::now().timestamp();
+        let payload = format!("folder:{name}\npath:{path}");
+
+        let mut builder = PutOptions::builder()
+            .title(format!("Folder {}", name))
+            .kind("folder_meta".to_string())
+            .push_tag(FOLDER_META_TAG.to_string())
+            .push_tag(format!("{FOLDER_ID_PREFIX}{id}"))
+            .push_tag(format!("{FOLDER_NAME_PREFIX}{name}"))
+            .push_tag(format!("{FOLDER_PATH_PREFIX}{path}"))
+            .push_tag(format!("{FOLDER_CREATED_PREFIX}{created_at}"));
+
+        if let Some(parent_folder) = parent {
+            builder = builder.push_tag(format!("{FOLDER_PARENT_PREFIX}{}", parent_folder.id));
+        }
+
+        let _ = self.mem
+            .put_bytes_with_options(payload.as_bytes(), builder.build())
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+        self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(FolderInfo {
+            id,
+            name: name.to_string(),
+            parent_id: parent_id.map(ToString::to_string),
+            path,
+            doc_count: 0,
+            created_at,
+        })
+    }
+
+    pub fn rename_folder(&mut self, folder_id: &str, new_name: &str) -> Result<()> {
+        let folder_frames = self.folder_meta_frames()?;
+        let target = folder_frames
+            .iter()
+            .find(|(_, folder)| folder.id == folder_id)
+            .cloned()
+            .ok_or_else(|| KbError::Config(format!("Folder not found: {folder_id}")))?;
+
+        let old_path = target.1.path.clone();
+        let parent_path = target
+            .1
+            .parent_id
+            .as_ref()
+            .and_then(|parent_id| folder_frames.iter().find(|(_, folder)| &folder.id == parent_id))
+            .map(|(_, folder)| folder.path.clone());
+        let new_path = parent_path
+            .map(|path: String| format!("{}/{}", path.trim_end_matches('/'), new_name))
+            .unwrap_or_else(|| format!("/{}", new_name));
+
+        for (frame_id, folder) in &folder_frames {
+            let current_path = folder.path.clone();
+            if current_path == old_path || current_path.starts_with(&(old_path.clone() + "/")) {
+                let mut tags = self.get_frame_tags(*frame_id)?;
+                let updated_path = current_path.replacen(&old_path, &new_path, 1);
+                let updated_name = if folder.id == folder_id {
+                    new_name.to_string()
+                } else {
+                    folder.name.clone()
+                };
+                Self::replace_or_insert_tag(&mut tags, FOLDER_NAME_PREFIX, Some(updated_name));
+                Self::replace_or_insert_tag(&mut tags, FOLDER_PATH_PREFIX, Some(updated_path));
+                self.update_frame_tags(*frame_id, tags)?;
+            }
+        }
+
+        let frame_ids = self.collect_all_frame_ids()?;
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+
+            if has_tag(&frame.tags, FOLDER_META_TAG) {
+                continue;
+            }
+
+            let mut tags = frame.tags.clone();
+            let mut changed = false;
+            for tag in &frame.tags {
+                if let Some(existing_path) = tag.strip_prefix(FOLDER_PATH_PREFIX) {
+                    if existing_path == old_path || existing_path.starts_with(&(old_path.clone() + "/")) {
+                        let updated_path = existing_path.replacen(&old_path, &new_path, 1);
+                        Self::replace_or_insert_tag(&mut tags, FOLDER_PATH_PREFIX, Some(updated_path));
+                        changed = true;
+                    }
+                }
+            }
+
+            if changed {
+                self.update_frame_tags(frame_id, tags)?;
+            }
+        }
+
+        self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn delete_folder(&mut self, folder_id: &str) -> Result<()> {
+        let folder_frames = self.folder_meta_frames()?;
+        let target = folder_frames
+            .iter()
+            .find(|(_, folder)| folder.id == folder_id)
+            .cloned()
+            .ok_or_else(|| KbError::Config(format!("Folder not found: {folder_id}")))?;
+        let root_path = target.1.path.clone();
+        let affected_ids: Vec<String> = folder_frames
+            .iter()
+            .filter(|(_, folder)| folder.path == root_path || folder.path.starts_with(&(root_path.clone() + "/")))
+            .map(|(_, folder)| folder.id.clone())
+            .collect();
+
+        for (frame_id, folder) in &folder_frames {
+            if affected_ids.contains(&folder.id) {
+                let mut tags = self.get_frame_tags(*frame_id)?;
+                if !has_tag(&tags, FOLDER_DELETED_TAG) {
+                    tags.push(FOLDER_DELETED_TAG.to_string());
+                    self.update_frame_tags(*frame_id, tags)?;
+                }
+            }
+        }
+
+        let frame_ids = self.collect_all_frame_ids()?;
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+
+            if has_tag(&frame.tags, FOLDER_META_TAG) {
+                continue;
+            }
+
+            let mut tags = frame.tags.clone();
+            let original_len = tags.len();
+            tags.retain(|tag| {
+                if let Some(id) = tag.strip_prefix("folder:") {
+                    return !affected_ids.iter().any(|candidate| candidate == id);
+                }
+                if let Some(path) = tag.strip_prefix(FOLDER_PATH_PREFIX) {
+                    return !(path == root_path || path.starts_with(&(root_path.clone() + "/")));
+                }
+                true
+            });
+
+            if tags.len() != original_len {
+                self.update_frame_tags(frame_id, tags)?;
+            }
+        }
+
+        self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn move_document_to_folder(&mut self, frame_id: u64, folder_id: Option<&str>) -> Result<()> {
+        let mut tags = self.get_frame_tags(frame_id)?;
+        tags.retain(|tag| !tag.starts_with("folder:") && !tag.starts_with(FOLDER_PATH_PREFIX));
+
+        if let Some(folder_id) = folder_id {
+            let folders = self.list_folders()?;
+            let folder = folders
+                .into_iter()
+                .find(|folder| folder.id == folder_id)
+                .ok_or_else(|| KbError::Config(format!("Folder not found: {folder_id}")))?;
+            tags.push(format!("folder:{}", folder.id));
+            tags.push(format!("{FOLDER_PATH_PREFIX}{}", folder.path));
+        }
+
+        self.update_frame_tags(frame_id, tags)?;
+        self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn search_in_folder(&mut self, folder_id: &str, query: &str, top_k: usize, mode: SearchMode) -> Result<Vec<SearchHit>> {
+        let folder = self
+            .list_folders()?
+            .into_iter()
+            .find(|folder| folder.id == folder_id)
+            .ok_or_else(|| KbError::Config(format!("Folder not found: {folder_id}")))?;
+        let all_results = self.search(query, top_k * 4, mode)?;
+
+        let mut filtered = Vec::new();
+        for hit in all_results {
+            let frame_id = match hit.id.parse::<u64>() {
+                Ok(id) => id,
+                Err(_) => continue,
+            };
+            let tags = self.get_frame_tags(frame_id)?;
+            let in_folder = tags.iter().any(|tag| {
+                tag.strip_prefix(FOLDER_PATH_PREFIX)
+                    .map(|path| path == folder.path || path.starts_with(&(folder.path.clone() + "/")))
+                    .unwrap_or(false)
+            });
+            if in_folder {
+                filtered.push(hit);
+            }
+            if filtered.len() >= top_k {
+                break;
+            }
+        }
+
+        Ok(filtered)
     }
 
     /// Commit pending changes.

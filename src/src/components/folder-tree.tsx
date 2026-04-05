@@ -13,14 +13,13 @@ import { Input } from '@/components/ui/input';
 import { useFolderStore, buildFolderTree, type FolderTreeNode } from '@/store/folder-store';
 import { useKbStore } from '@/store/kb-store';
 import { useToast } from '@/hooks/use-toast';
-import { api } from '@/api';
 
 interface FolderTreeProps {
   onFolderSelect?: (folderId: string | null) => void;
 }
 
 export function FolderTree({ onFolderSelect }: FolderTreeProps) {
-  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand } = useFolderStore();
+  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand, moveDocument, deleteFolder } = useFolderStore();
   const setPage = useKbStore(s => s.setPage);
   const { toast } = useToast();
 
@@ -65,13 +64,13 @@ export function FolderTree({ onFolderSelect }: FolderTreeProps) {
     if (!docId) return;
 
     try {
-      await api.moveDocument(docId, folderId);
+      await moveDocument(docId, folderId);
       const folder = folders.find(f => f.id === folderId);
       toast({ title: 'Moved', description: `Document moved to "${folder?.name || 'folder'}"` });
     } catch (err) {
       toast({ title: 'Move failed', description: String(err), variant: 'destructive' });
     }
-  }, [folders, toast]);
+  }, [folders, moveDocument, toast]);
 
   return (
     <div className="py-2">
@@ -181,7 +180,10 @@ export function FolderTree({ onFolderSelect }: FolderTreeProps) {
             </button>
             <div className="h-px bg-border my-1" />
             <button
-              onClick={() => setContextMenu(null)}
+              onClick={() => {
+                void deleteFolder(contextMenu.folderId);
+                setContextMenu(null);
+              }}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />

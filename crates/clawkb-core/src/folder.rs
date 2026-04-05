@@ -6,6 +6,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub const FOLDER_META_TAG: &str = "__folder_meta__";
+pub const FOLDER_DELETED_TAG: &str = "__folder_deleted__";
+pub const FOLDER_ID_PREFIX: &str = "folder_meta_id:";
+pub const FOLDER_NAME_PREFIX: &str = "folder_name:";
+pub const FOLDER_PARENT_PREFIX: &str = "folder_parent:";
+pub const FOLDER_PATH_PREFIX: &str = "folder_path:";
+pub const FOLDER_CREATED_PREFIX: &str = "folder_created_at:";
+
 /// Folder information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FolderInfo {
@@ -35,6 +43,15 @@ pub fn parse_folder_tag(tag: &str) -> Option<(String, String)> {
     } else {
         None
     }
+}
+
+pub fn extract_tag_value(tags: &[String], prefix: &str) -> Option<String> {
+    tags.iter()
+        .find_map(|tag| tag.strip_prefix(prefix).map(ToString::to_string))
+}
+
+pub fn has_tag(tags: &[String], value: &str) -> bool {
+    tags.iter().any(|tag| tag == value)
 }
 
 /// Build folder hierarchy from flat list

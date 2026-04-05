@@ -7,6 +7,7 @@ import { NotesPage } from '@/components/pages/notes';
 import { PodcastPage } from '@/components/pages/podcast';
 import { ReportPage } from '@/components/pages/report';
 import { SearchPage } from '@/components/pages/search';
+import { EntitiesPage } from '@/components/pages/entities';
 import { TagsPage } from '@/components/pages/tags';
 import { TimelinePage } from '@/components/pages/timeline';
 import { useWorkspaceStore, type ExploreView } from '@/store/workspace-store';
@@ -21,6 +22,7 @@ const VIEWS: Array<{
   { id: 'notes', label: 'Notes', shortLabel: 'Notes' },
   { id: 'timeline', label: 'Timeline', shortLabel: 'Timeline' },
   { id: 'tags', label: 'Tags', shortLabel: 'Tags' },
+  { id: 'entities', label: 'Entities', shortLabel: 'Entities' },
   { id: 'graph', label: 'Graph', shortLabel: 'Graph' },
   { id: 'mindmap', label: 'Mind Map', shortLabel: 'Mind Map' },
   { id: 'report', label: 'Report', shortLabel: 'Report' },
@@ -33,6 +35,7 @@ const viewRenderers: Record<ExploreView, React.ReactNode> = {
   notes: <NotesPage />,
   timeline: <TimelinePage />,
   tags: <TagsPage />,
+  entities: <EntitiesPage />,
   graph: <GraphPage />,
   mindmap: <MindMapPage />,
   report: <ReportPage />,

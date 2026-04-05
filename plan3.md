@@ -423,6 +423,29 @@
 
 **目标：** 把当前最危险的“假实现”清掉。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- `EntitiesPage` 已改为真实图谱页：
+  - 基于 `api.listEntities()` 拉实体
+  - 基于 `api.getEntityEdges()` 拉关系
+  - 基于 `api.searchWithGraph()` 拉图谱上下文文档
+- `SearchPage` 的批量标签行为已改为真实更新文档标签，不再通过 `addNote(...[updated])` 复制新文档
+- 已新增 `set_document_tags` 命令并在前端 `api.setDocumentTags()` 中接通
+- `FolderTree` 已重新启用，不再显示“Folders hidden for now”占位
+- `folder-store` 已改为真实 API 驱动，不再以自身 localStorage 作为主数据源
+- `Folder` 后端能力已接通：
+  - `list_folders`
+  - `create_folder`
+  - `rename_folder`
+  - `delete_folder`
+  - `move_document`
+  - `search_in_folder`
+- KB 内的 folder metadata 已改为真实持久化标签/元数据帧，不再是 Tauri command 里的静态 demo 列表
+- 浏览器模式下的 folder 行为也已改为本地持久化，不再使用写死 demo folders
+- `ExploreShell` 已重新加入 `Entities` 标签页入口
+
 **Files:**
 - Modify: `src/src/components/pages/entities.tsx`
 - Modify: `src/src/components/pages/search.tsx`
@@ -430,10 +453,10 @@
 - Modify: `src/src/store/folder-store.ts`
 - Modify: `src-tauri/src/commands/mod.rs`
 
-- [ ] `EntitiesPage` 改用真实 `listEntities/getEntityEdges`，不再用 timeline 正则抽词
-- [ ] Search 的批量标签行为改为“更新现有文档标签”，不能再复制新 note
-- [ ] Folder tree 需要真实 folder metadata 存储与搜索过滤，去掉 demo folders
-- [ ] 对未准备好的功能明确降级或隐藏，不再“看起来像能用”
+- [x] `EntitiesPage` 改用真实 `listEntities/getEntityEdges`，不再用 timeline 正则抽词
+- [x] Search 的批量标签行为改为“更新现有文档标签”，不能再复制新 note
+- [x] Folder tree 需要真实 folder metadata 存储与搜索过滤，去掉 demo folders
+- [x] 对未准备好的功能明确降级或隐藏，不再“看起来像能用”
 
 **验收标准**
 
