@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Hash, Tag as TagIcon, Search, FolderOpen, X, Edit3, Trash2, GitMerge, MoreHorizontal, Check } from 'lucide-react';
+import { Hash, Tag as TagIcon, Search, FolderOpen, X, Edit3, Trash2, GitMerge, MoreHorizontal } from 'lucide-react';
 import { useSearch } from '@/hooks';
 import { useTags } from '@/hooks';
 import { useKbStore } from '@/store/kb-store';
@@ -40,7 +40,7 @@ export function TagsPage() {
   const [mergeModal, setMergeModal] = useState<MergeModalState>({ open: false, sourceTag: '', destTag: '' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; tag: string }>({ open: false, tag: '' });
   const [manageMode, setManageMode] = useState(false);
-  const [managingTag, setManagingTag] = useState<string | null>(null);
+  const [, setManagingTag] = useState<string | null>(null);
   const [opLoading, setOpLoading] = useState(false);
   const { toast } = useToast();
   const menuRef = useRef<HTMLDivElement>(null);

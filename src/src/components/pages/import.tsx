@@ -630,7 +630,7 @@ function MediaImportTab() {
         <ResultSummary
           successCount={results.filter(r => r.success).length}
           failCount={results.length - results.filter(r => r.success).length}
-          results={results.map(r => ({ title: r.title, success: r.success, error: r.error }))}
+          results={results.map(r => ({ title: r.title, success: r.success, error: r.error, auto_tags: r.auto_tags }))}
         />
       )}
     </>
@@ -640,7 +640,7 @@ function MediaImportTab() {
 function ResultSummary({ successCount, failCount, results }: {
   successCount: number;
   failCount: number;
-  results: { title: string; success: boolean; error?: string }[];
+  results: { title: string; success: boolean; error?: string; auto_tags?: string[] }[];
 }) {
   return (
     <div>

@@ -1,4 +1,29 @@
-import type { KbStats, SearchHit, TagInfo, TimelineEntry, ImportResult, FetchUrlResult, SearchMode, AskResult, EntityInfo, RelationEdge, MeshStats, MemoryCardInfo, SessionSummary, AsOfResult, SelectionResult, CompareResult, WebdavConfig, WebdavServerInfo, RemoteFile, SyncStatus, KbRegistration } from './types';
+import type {
+  KbStats,
+  SearchHit,
+  TagInfo,
+  TimelineEntry,
+  ImportResult,
+  FetchUrlResult,
+  SearchMode,
+  AskResult,
+  EntityInfo,
+  RelationEdge,
+  MeshStats,
+  MemoryCardInfo,
+  SessionSummary,
+  AsOfResult,
+  SelectionResult,
+  CompareResult,
+  WebdavConfig,
+  WebdavServerInfo,
+  RemoteFile,
+  SyncStatus,
+  FolderInfo,
+  VaultSummary,
+  ObsidianImportResult,
+  OcrResult,
+} from './types';
 import { isTauri } from './platform';
 
 // Lazy-loaded Tauri invoke — only imported when running inside Tauri
@@ -9,6 +34,33 @@ async function getInvoke() {
   const { invoke } = await import('@tauri-apps/api/core');
   _invoke = invoke;
   return invoke;
+}
+
+type RawFolderInfo = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  path: string;
+  doc_count: number;
+  created_at: number;
+};
+
+function createImportResult(partial: Omit<ImportResult, 'auto_tags'> & { auto_tags?: string[] }): ImportResult {
+  return {
+    auto_tags: [],
+    ...partial,
+  };
+}
+
+function toFolderInfo(folder: RawFolderInfo): FolderInfo {
+  return {
+    id: folder.id,
+    name: folder.name,
+    parentId: folder.parent_id,
+    path: folder.path,
+    docCount: folder.doc_count,
+    createdAt: folder.created_at,
+  };
 }
 
 // ── Mock data for browser / preview mode ──────────────────────────────────
@@ -193,7 +245,7 @@ export const api = {
   importFile: async (path: string, tags: string[]): Promise<ImportResult> => {
     if (!isTauri()) {
       const title = path.split('/').pop() || path;
-      return { path, title, chunks: 1, tags, success: true };
+      return createImportResult({ path, title, chunks: 1, tags, success: true });
     }
     const invoke = await getInvoke();
     return invoke('import_file', { path, tags }) as Promise<ImportResult>;
@@ -201,7 +253,13 @@ export const api = {
 
   importDirectory: async (dirPath: string, tags: string[], recursive = false): Promise<ImportResult[]> => {
     if (!isTauri()) {
-      return [{ path: dirPath, title: dirPath.split('/').pop() || dirPath, chunks: 3, tags, success: true }];
+      return [createImportResult({
+        path: dirPath,
+        title: dirPath.split('/').pop() || dirPath,
+        chunks: 3,
+        tags,
+        success: true,
+      })];
     }
     const invoke = await getInvoke();
     return invoke('import_directory', { dirPath, tags, recursive }) as Promise<ImportResult[]>;
@@ -460,7 +518,7 @@ export const api = {
   importAudio: async (path: string, tags: string[]): Promise<ImportResult> => {
     if (!isTauri()) {
       const title = path.split('/').pop() || 'audio';
-      return { path, title, chunks: 1, tags, success: true };
+      return createImportResult({ path, title, chunks: 1, tags, success: true });
     }
     const invoke = await getInvoke();
     return invoke('import_audio', { path, tags }) as Promise<ImportResult>;
@@ -469,7 +527,7 @@ export const api = {
   importImage: async (path: string, tags: string[]): Promise<ImportResult> => {
     if (!isTauri()) {
       const title = path.split('/').pop() || 'image';
-      return { path, title, chunks: 1, tags, success: true };
+      return createImportResult({ path, title, chunks: 1, tags, success: true });
     }
     const invoke = await getInvoke();
     return invoke('import_image', { path, tags }) as Promise<ImportResult>;
@@ -498,16 +556,25 @@ export const api = {
       return _demoFolders;
     }
     const invoke = await getInvoke();
-    return invoke('list_folders', {}) as Promise<FolderInfo[]>;
+    const folders = await invoke('list_folders', {}) as RawFolderInfo[];
+    return folders.map(toFolderInfo);
   },
 
   createFolder: async (name: string, parentId?: string | null): Promise<FolderInfo> => {
     if (!isTauri()) {
       const id = `folder-${Date.now()}`;
-      return { id, name, parent_id: parentId || null, path: `/${name}`, doc_count: 0, created_at: Date.now() / 1000 };
+      return {
+        id,
+        name,
+        parentId: parentId || null,
+        path: `/${name}`,
+        docCount: 0,
+        createdAt: Date.now() / 1000,
+      };
     }
     const invoke = await getInvoke();
-    return invoke('create_folder', { name, parent_id: parentId || null }) as Promise<FolderInfo>;
+    const folder = await invoke('create_folder', { name, parent_id: parentId || null }) as RawFolderInfo;
+    return toFolderInfo(folder);
   },
 
   renameFolder: async (folderId: string, newName: string): Promise<void> => {
@@ -576,7 +643,13 @@ export const api = {
 
   importScreenshot: async (imageData: string, title: string, tags: string[], language?: string): Promise<ImportResult> => {
     if (!isTauri()) {
-      return { path: 'clipboard:screenshot', title: title || 'Screenshot', chunks: 1, tags: ['screenshot', 'ocr', ...tags], success: true };
+      return createImportResult({
+        path: 'clipboard:screenshot',
+        title: title || 'Screenshot',
+        chunks: 1,
+        tags: ['screenshot', 'ocr', ...tags],
+        success: true,
+      });
     }
     const invoke = await getInvoke();
     return invoke('import_screenshot', {
@@ -633,7 +706,17 @@ export const api = {
 
   webdavSync: async (): Promise<SyncStatus> => {
     if (!isTauri()) {
-      return { last_sync: Date.now() / 1000 - 3600, remote_count: 1, local_count: 1, pending_uploads: 0, pending_downloads: 0, last_error: null };
+      return {
+        last_sync: Date.now() / 1000 - 3600,
+        remote_count: 1,
+        local_count: 1,
+        pending_uploads: 0,
+        pending_downloads: 0,
+        last_error: null,
+        uploads: [],
+        downloads: [],
+        skipped: [],
+      };
     }
     const invoke = await getInvoke();
     return invoke('webdav_sync_kb', {}) as Promise<SyncStatus>;
@@ -690,9 +773,9 @@ export const api = {
 
 // Demo data for folders
 const _demoFolders: FolderInfo[] = [
-  { id: 'folder-work', name: 'Work', parent_id: null, path: '/Work', doc_count: 5, created_at: Date.now() / 1000 - 86400 },
-  { id: 'folder-projectA', name: 'Project A', parent_id: 'folder-work', path: '/Work/Project A', doc_count: 3, created_at: Date.now() / 1000 - 72000 },
-  { id: 'folder-projectB', name: 'Project B', parent_id: 'folder-work', path: '/Work/Project B', doc_count: 2, created_at: Date.now() / 1000 - 36000 },
-  { id: 'folder-study', name: 'Study', parent_id: null, path: '/Study', doc_count: 8, created_at: Date.now() / 1000 - 172800 },
-  { id: 'folder-life', name: 'Life', parent_id: null, path: '/Life', doc_count: 12, created_at: Date.now() / 1000 - 259200 },
+  { id: 'folder-work', name: 'Work', parentId: null, path: '/Work', docCount: 5, createdAt: Date.now() / 1000 - 86400 },
+  { id: 'folder-projectA', name: 'Project A', parentId: 'folder-work', path: '/Work/Project A', docCount: 3, createdAt: Date.now() / 1000 - 72000 },
+  { id: 'folder-projectB', name: 'Project B', parentId: 'folder-work', path: '/Work/Project B', docCount: 2, createdAt: Date.now() / 1000 - 36000 },
+  { id: 'folder-study', name: 'Study', parentId: null, path: '/Study', docCount: 8, createdAt: Date.now() / 1000 - 172800 },
+  { id: 'folder-life', name: 'Life', parentId: null, path: '/Life', docCount: 12, createdAt: Date.now() / 1000 - 259200 },
 ];

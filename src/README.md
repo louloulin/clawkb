@@ -1,73 +1,58 @@
-# React + TypeScript + Vite
+# ClawKB Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ClawKB is a local-first knowledge base app built with React, TypeScript, Vite, and Tauri.
 
-Currently, two official plugins are available:
+## Current Scope
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend currently exposes these stable surfaces:
 
-## React Compiler
+- `Dashboard`
+- `Search`
+- `Chat`
+- `Reader`
+- `Notes`
+- `Import`
+- `Timeline`
+- `Tags`
+- `Graph`
+- `Settings`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+These surfaces still exist in the codebase, but are not treated as production-ready yet:
 
-## Expanding the ESLint configuration
+- `Editor`: AI assistance is still a mock flow and is not wired to real document persistence.
+- `Entities`: the page does not yet use the real entity pipeline end to end.
+- `Folders`: the sidebar folder tree is temporarily hidden because it still depends on demo metadata.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Default local URL:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+http://127.0.0.1:5173
 ```
+
+## Verification
+
+```bash
+npm run build
+```
+
+## Tauri Integration
+
+When the app runs inside Tauri, it tries to open the last-used knowledge base path first.
+If no previous path is stored, it falls back to:
+
+```text
+$HOME/.clawkb/knowledge.mv2
+```
+
+## Known Limitations
+
+- Browser mode still uses demo data for many data-heavy capabilities.
+- The new workbench shell and knowledge-space model from `plan3.md` are not implemented yet.
+- Some generation-heavy flows still need to be consolidated into the future document workspace.

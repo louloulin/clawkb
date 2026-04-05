@@ -47,7 +47,26 @@ export interface ImportResult {
 }
 
 export type SearchMode = 'hybrid' | 'lex' | 'sem';
-export type Page = 'dashboard' | 'search' | 'notes' | 'import' | 'timeline' | 'tags' | 'settings' | 'chat' | 'graph' | 'reader' | 'editor' | 'mindmap' | 'report' | 'podcast';
+export type Page =
+  | 'home'
+  | 'spaces'
+  | 'documents'
+  | 'explore'
+  | 'settings'
+  | 'dashboard'
+  | 'search'
+  | 'notes'
+  | 'import'
+  | 'timeline'
+  | 'tags'
+  | 'chat'
+  | 'graph'
+  | 'reader'
+  | 'editor'
+  | 'mindmap'
+  | 'report'
+  | 'podcast'
+  | 'entities';
 
 export interface FetchUrlResult {
   url: string;
@@ -171,10 +190,10 @@ export interface CompareResult {
 export interface FolderInfo {
   id: string;
   name: string;
-  parent_id: string | null;
+  parentId: string | null;
   path: string;
-  doc_count: number;
-  created_at: number;
+  docCount: number;
+  createdAt: number;
 }
 
 // Obsidian sync types

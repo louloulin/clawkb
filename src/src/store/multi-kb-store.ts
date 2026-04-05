@@ -1,12 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { KbStats } from '@/api';
 
 export interface KbRegistration {
   id: string;
   name: string;
   path: string;
   description: string;
+  collection: 'created' | 'joined' | 'shared';
   addedAt: number;
+  lastOpenedAt: number | null;
+  stats: Pick<KbStats, 'frame_count' | 'size_bytes'> | null;
 }
 
 interface MultiKbState {
@@ -18,12 +22,16 @@ interface MultiKbState {
   multiKbEnabled: boolean;
 
   // Actions
-  registerKb: (path: string, name: string, description?: string) => void;
+  registerKb: (path: string, name: string, description?: string, collection?: KbRegistration['collection']) => KbRegistration | undefined;
   unregisterKb: (id: string) => void;
   renameKb: (id: string, name: string) => void;
+  updateKb: (id: string, updates: Partial<Pick<KbRegistration, 'description' | 'collection'>>) => void;
+  recordStats: (id: string, stats: KbStats) => void;
+  markOpened: (id: string) => void;
   setActiveKb: (id: string | null) => void;
   setMultiKbEnabled: (enabled: boolean) => void;
   getKb: (id: string) => KbRegistration | undefined;
+  getKbsByCollection: (collection: KbRegistration['collection']) => KbRegistration[];
 }
 
 export const useMultiKbStore = create<MultiKbState>()(
@@ -33,18 +41,22 @@ export const useMultiKbStore = create<MultiKbState>()(
       activeKbId: null,
       multiKbEnabled: false,
 
-      registerKb: (path, name, description = '') => {
+      registerKb: (path, name, description = '', collection = 'created') => {
         const existing = get().registeredKbs.find(k => k.path === path);
-        if (existing) return;
+        if (existing) return existing;
 
         const kb: KbRegistration = {
           id: `kb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           name,
           path,
           description,
+          collection,
           addedAt: Date.now() / 1000,
+          lastOpenedAt: null,
+          stats: null,
         };
         set(state => ({ registeredKbs: [...state.registeredKbs, kb] }));
+        return kb;
       },
 
       unregisterKb: (id) => {
@@ -62,6 +74,38 @@ export const useMultiKbStore = create<MultiKbState>()(
         }));
       },
 
+      updateKb: (id, updates) => {
+        set(state => ({
+          registeredKbs: state.registeredKbs.map(k =>
+            k.id === id ? { ...k, ...updates } : k
+          ),
+        }));
+      },
+
+      recordStats: (id, stats) => {
+        set(state => ({
+          registeredKbs: state.registeredKbs.map(k =>
+            k.id === id
+              ? {
+                  ...k,
+                  stats: {
+                    frame_count: stats.frame_count,
+                    size_bytes: stats.size_bytes,
+                  },
+                }
+              : k
+          ),
+        }));
+      },
+
+      markOpened: (id) => {
+        set(state => ({
+          registeredKbs: state.registeredKbs.map(k =>
+            k.id === id ? { ...k, lastOpenedAt: Date.now() / 1000 } : k
+          ),
+        }));
+      },
+
       setActiveKb: (id) => {
         set({ activeKbId: id });
       },
@@ -72,6 +116,10 @@ export const useMultiKbStore = create<MultiKbState>()(
 
       getKb: (id) => {
         return get().registeredKbs.find(k => k.id === id);
+      },
+
+      getKbsByCollection: (collection) => {
+        return get().registeredKbs.filter(k => k.collection === collection);
       },
     }),
     {

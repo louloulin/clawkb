@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Trash2, Filter, GitBranch } from 'lucide-react';
+import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Filter, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {

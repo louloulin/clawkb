@@ -5,13 +5,10 @@ import {
   ChevronRight,
   ChevronDown,
   Plus,
-  MoreHorizontal,
   Trash2,
-  Edit3,
   Search,
   Upload,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useFolderStore, buildFolderTree, type FolderTreeNode } from '@/store/folder-store';
 import { useKbStore } from '@/store/kb-store';
@@ -23,7 +20,7 @@ interface FolderTreeProps {
 }
 
 export function FolderTree({ onFolderSelect }: FolderTreeProps) {
-  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand, moveDocument } = useFolderStore();
+  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand } = useFolderStore();
   const setPage = useKbStore(s => s.setPage);
   const { toast } = useToast();
 
@@ -75,13 +72,6 @@ export function FolderTree({ onFolderSelect }: FolderTreeProps) {
       toast({ title: 'Move failed', description: String(err), variant: 'destructive' });
     }
   }, [folders, toast]);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes('application/x-clawkb-doc')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
 
   return (
     <div className="py-2">

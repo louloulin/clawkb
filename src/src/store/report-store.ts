@@ -41,15 +41,6 @@ interface ReportState {
   reset: () => void;
 }
 
-const TEMPLATE_PROMPTS: Record<ReportTemplate, string> = {
-  blank: 'Generate a blank report outline with placeholders for sections.',
-  article: 'Generate a structured article outline with introduction, body sections, and conclusion.',
-  meeting: 'Generate a meeting minutes outline with attendees, agenda, discussions, and action items.',
-  proposal: 'Generate a business proposal outline with executive summary, problem statement, solution, and pricing.',
-  research: 'Generate a research report outline with abstract, background, methodology, results, and conclusion.',
-  summary: 'Generate a comprehensive summary report outline covering key findings, analysis, and recommendations.',
-};
-
 export const useReportStore = create<ReportState>((set, get) => ({
   selectedDocs: [],
   template: 'article',
@@ -112,7 +103,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
     }
   },
 
-  generateSection: async (sectionTitle, baseContext?: string) => {
+  generateSection: async (sectionTitle, _baseContext?: string) => {
     const { selectedDocs, sections } = get();
     set({ isGenerating: true });
 
@@ -155,10 +146,7 @@ Write comprehensive, well-structured content for this section.`;
   deleteSection: (sectionId) => {
     set({
       sections: get().sections.filter(s => s.id !== sectionId),
-      outline: get().outline.filter((_, i) => {
-        // Match by index
-        return true;
-      }),
+      outline: get().outline,
     });
   },
 

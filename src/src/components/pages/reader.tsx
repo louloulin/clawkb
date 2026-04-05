@@ -6,7 +6,6 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
 import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
@@ -152,7 +151,7 @@ export function ReaderPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Bookmark & progress stores
-  const { bookmarks: allBookmarks, loadBookmarks, addBookmark, removeBookmark, updateBookmarkNote, getBookmarksForDoc } = useBookmarkStore();
+  const { loadBookmarks, addBookmark, removeBookmark, getBookmarksForDoc } = useBookmarkStore();
   const { loadProgress, saveProgress, getProgress } = useReadingProgressStore();
 
   // Load bookmarks & progress on mount

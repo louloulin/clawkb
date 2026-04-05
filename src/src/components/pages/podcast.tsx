@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  Mic, Square, Play, Pause, Download, RefreshCw,
+  Mic, Square, Play, Download, RefreshCw,
   Loader2, ChevronDown, ChevronUp, Plus, Trash2,
-  Settings2, User, Hash, FileText, Copy, Check, AlertCircle,
+  Settings2, User, FileText, Copy, Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,8 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { api } from '@/api/commands';
-import type { SearchHit } from '@/api';
-import { useEffect as useReactEffect } from 'react';
 
 // Podcast script segment
 interface PodcastSegment {
@@ -31,14 +29,6 @@ interface TtsConfig {
 }
 
 const VOICES: Record<string, { label: string; lang: string; gender: 'male' | 'female' }> = {};
-
-const SEGMENT_TEMPLATES = [
-  { label: '开场白', prompt: '开场白，主持人介绍自己和播客名称，欢迎听众' },
-  { label: '话题引入', prompt: '引入今天的话题，简述背景和重要性' },
-  { label: '核心讨论', prompt: '深入讨论主题的各个方面，提供洞见' },
-  { label: '案例分析', prompt: '分享具体案例或实践中的应用' },
-  { label: '总结收尾', prompt: '总结要点，给听众行动建议，预告下期内容' },
-];
 
 function detectVoices(): void {
   if (!window.speechSynthesis) return;
@@ -192,7 +182,7 @@ export function PodcastPage() {
   const [generating, setGenerating] = useState(false);
   const [segments, setSegments] = useState<PodcastSegment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [speechUtterance, setSpeechUtterance] = useState<SpeechSynthesisUtterance | null>(null);
+  const [, setSpeechUtterance] = useState<SpeechSynthesisUtterance | null>(null);
   const [ttsConfig, setTtsConfig] = useState<TtsConfig>({
     voice: '',
     rate: 1.0,
@@ -206,14 +196,13 @@ export function PodcastPage() {
   const [showAddSegment, setShowAddSegment] = useState(false);
   const [newSegmentText, setNewSegmentText] = useState('');
   const [newSegmentSpeaker, setNewSegmentSpeaker] = useState<'host' | 'guest'>('host');
-  const [loadingDocs, setLoadingDocs] = useState(false);
   const [kbContent, setKbContent] = useState('');
   const [copied, setCopied] = useState(false);
 
   const recorderRef = useRef<PodcastRecorder | null>(null);
 
   // Load available voices
-  useReactEffect(() => {
+  useEffect(() => {
     if (window.speechSynthesis) {
       const loadVoices = () => {
         const voices = getAvailableVoices();

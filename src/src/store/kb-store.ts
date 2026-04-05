@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { api } from '@/api';
-import type { KbStats, SearchHit } from '@/api';
+import type { KbStats, Page, SearchHit } from '@/api';
+
+const LAST_KB_PATH_KEY = 'clawkb-last-kb-path';
 
 interface KbState {
   // KB state
@@ -11,7 +13,7 @@ interface KbState {
   error: string | null;
 
   // Navigation
-  currentPage: string;
+  currentPage: Page;
   sidebarCollapsed: boolean;
 
   // Document detail panel
@@ -25,7 +27,7 @@ interface KbState {
   openKb: (path: string) => Promise<void>;
   createKb: (path: string) => Promise<void>;
   refreshStats: () => Promise<void>;
-  setPage: (page: string) => void;
+  setPage: (page: Page) => void;
   toggleSidebar: () => void;
   toggleDarkMode: () => void;
   setError: (error: string | null) => void;
@@ -41,12 +43,17 @@ export const useKbStore = create<KbState>((set, get) => ({
   isKbOpen: false,
   isLoading: false,
   error: null,
-  currentPage: 'dashboard',
-  sidebarCollapsed: false,
+  currentPage: 'home',
+  sidebarCollapsed: true,
   selectedDocument: null,
   detailLoading: false,
   darkMode: (() => {
-    try { return localStorage.getItem('clawkb-dark') === 'true'; } catch { return false; }
+    try {
+      const stored = localStorage.getItem('clawkb-dark');
+      return stored === null ? true : stored === 'true';
+    } catch {
+      return true;
+    }
   })(),
 
   // Actions
@@ -54,6 +61,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const s = await api.openKb(path);
+      try { localStorage.setItem(LAST_KB_PATH_KEY, path); } catch {}
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
@@ -64,6 +72,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const s = await api.createKb(path);
+      try { localStorage.setItem(LAST_KB_PATH_KEY, path); } catch {}
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
@@ -78,7 +87,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     } catch {}
   },
 
-  setPage: (page: string) => set({ currentPage: page }),
+  setPage: (page: Page) => set({ currentPage: page }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleDarkMode: () => {
     const newDark = !get().darkMode;

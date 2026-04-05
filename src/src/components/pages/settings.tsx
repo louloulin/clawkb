@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, CloudOff, Trash2, Server } from 'lucide-react';
+import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, Trash2, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -514,6 +514,7 @@ export function SettingsPage() {
                     syncStore.setWebdavSyncStatus({
                       last_sync: null, remote_count: 0, local_count: 0,
                       pending_uploads: 0, pending_downloads: 0, last_error: String(e),
+                      uploads: [], downloads: [], skipped: [],
                     });
                     toast({ title: 'Sync Failed', description: String(e), variant: 'destructive' });
                   } finally {

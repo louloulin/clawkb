@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { FileText, Loader2, Download, Plus, Trash2, Sparkles, Copy, Check, RotateCcw, FileDown, BookOpen, X, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ export function ReportPage() {
   const {
     selectedDocs, template, outline, sections,
     selectDoc, deselectDoc, clearDocs, setTemplate,
-    generateOutline, generateSection, updateSectionContent,
+    generateOutline, generateSection,
     deleteSection, addCustomSection, exportMarkdown, reset,
   } = useReportStore();
 
@@ -112,7 +112,7 @@ export function ReportPage() {
               variant="ghost"
               size="sm"
               className="h-6 px-1.5 text-[10px]"
-              onClick={() => { selectDoc({ id: 'all', title: 'All Documents', content: '', score: 1, tags: [], created_at: '' }); setStep('outline'); }}
+              onClick={() => { selectDoc({ id: 'all', title: 'All Documents', content: '', score: 1, tags: [], created_at: '', source: null }); setStep('outline'); }}
             >
               Select All
             </Button>
@@ -334,7 +334,7 @@ export function ReportPage() {
                       id: sections[i]?.id || `outline-${i}`,
                       title,
                       content: sections[i]?.content || '',
-                    })) : sections).map((section, i) => (
+                    })) : sections).map((section) => (
                       <div key={section.id} className="p-3 rounded-lg border bg-card">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">

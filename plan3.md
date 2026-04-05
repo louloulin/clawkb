@@ -202,6 +202,16 @@
 
 **目标：** 先把“前端 build 失败、类型漂移、文档失真”收回来，建立可信基线。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- 前端类型出口、API 导出、demo/mock 结构已修到可构建状态
+- `App.tsx` 已改为优先打开最近使用的 KB，其次回落到 `$HOME/.clawkb/knowledge.mv2`
+- `Editor` / `Entities` 已从主导航暂时隐藏，`Folders` 已改为隐藏并给出说明文案
+- `src/README.md` 已更新为当前真实前端说明
+- 已执行真实验证：`cargo check`、`cd src && npm run build`、dev server 页面巡检
+
 **Files:**
 - Modify: `src/src/api/types.ts`
 - Modify: `src/src/api/index.ts`
@@ -215,12 +225,12 @@
 - Modify: `src/src/components/folder-tree.tsx`
 - Modify: `src/README.md`
 
-- [ ] 修正所有前端导出类型、mock 类型、API 类型不一致问题
-- [ ] 修正 `App.tsx` 默认 KB 路径策略，至少与 CLI 默认路径保持一致
-- [ ] 标记或临时隐藏 folder/entity/editor 这类伪实现入口，避免继续误导
-- [ ] 更新 `src/README.md`，写清当前真实模块、启动方式、限制项
-- [ ] 运行 `cargo check`
-- [ ] 运行 `cd src && npm run build`
+- [x] 修正所有前端导出类型、mock 类型、API 类型不一致问题
+- [x] 修正 `App.tsx` 默认 KB 路径策略，至少与 CLI 默认路径保持一致
+- [x] 标记或临时隐藏 folder/entity/editor 这类伪实现入口，避免继续误导
+- [x] 更新 `src/README.md`，写清当前真实模块、启动方式、限制项
+- [x] 运行 `cargo check`
+- [x] 运行 `cd src && npm run build`
 
 **验收标准**
 
@@ -232,6 +242,21 @@
 
 **目标：** 从“多页面工具箱”切换成“工作台 + 空间 + 文档”的骨架。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- 已新增 `Workbench / Spaces / Documents / Explore / Settings` 五个一级入口
+- 首页已替换为 chat-first 的 `WorkbenchShell`，不再以统计卡片作为主入口
+- 已新增 `KnowledgeSpaceShell`、`DocumentWorkspaceShell`、`ExploreShell`，把旧页面能力重新挂到新壳层下
+- 顶层侧边栏已收束为 icon rail 风格，并默认以窄轨形态启动
+- `Search / Chat / Reader / Editor` 已迁移到新壳结构：
+  - `Chat` 融入 `Workbench`
+  - `Search` 融入 `Explore`
+  - `Reader` 融入 `Documents`
+  - `Editor` 以 `Draft Lab` 次级标签并入 `Documents`
+- 已完成第一轮视觉校准：整体转为 dark-first、工作台导向的视觉语气
+
 **Files:**
 - Modify: `src/src/App.tsx`
 - Modify: `src/src/components/layout.tsx`
@@ -240,12 +265,12 @@
 - Create: `src/src/components/shell/document-workspace-shell.tsx`
 - Create: `src/src/store/workspace-store.ts`
 
-- [ ] 将一级导航压缩为 `home` / `spaces` / `documents` / `explore` / `settings`
-- [ ] 首页改为对话主入口，不再以 dashboard stats 为中心
-- [ ] 引入双层壳结构：窄 icon rail + workspace pane + main canvas
-- [ ] 重新定义页面跳转逻辑，减少独立页面直达
-- [ ] 将现有 Search / Chat / Reader / Editor 迁移到新的壳结构下
-- [ ] 用 dev server 对照参考图做第一轮视觉校准
+- [x] 将一级导航压缩为 `home` / `spaces` / `documents` / `explore` / `settings`
+- [x] 首页改为对话主入口，不再以 dashboard stats 为中心
+- [x] 引入双层壳结构：窄 icon rail + workspace pane + main canvas
+- [x] 重新定义页面跳转逻辑，减少独立页面直达
+- [x] 将现有 Search / Chat / Reader / Editor 迁移到新的壳结构下
+- [x] 用 dev server 对照参考图做第一轮视觉校准
 
 **验收标准**
 
@@ -257,6 +282,24 @@
 
 **目标：** 让“知识库”从一个路径，升级成一个可浏览、可切换、可进入的空间对象。
 
+**状态：** 已完成（2026-04-05）
+
+**本轮实际完成：**
+
+- 已把 `multi-kb-store.ts` 升级为正式 registry 数据源，支持 collection、lastOpenedAt、缓存 stats 等元数据
+- 已新增 [src/src/store/kb-registry-store.ts](/Users/louloulin/Documents/linchong/claw/kb/src/src/store/kb-registry-store.ts) 统一 current KB 与 registered KB 的读取模型
+- 已新增空间页拆分组件：
+  - [src/src/components/spaces/kb-list-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-list-pane.tsx)
+  - [src/src/components/spaces/kb-detail-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-detail-pane.tsx)
+  - [src/src/components/spaces/kb-chat-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-chat-pane.tsx)
+- `KnowledgeSpaceShell` 现已支持：
+  - `personal / created / joined / shared` 分类浏览
+  - 注册当前 KB 与自定义本地 KB 路径
+  - 选中某个 KB 后展示详情、缓存 stats
+  - 选中某个 KB 后在右侧 console 中提问
+  - 选中某个 KB 后浏览该空间的文档结果
+- 已明确将 Phase 2 限定为“本地 registry + 多 KB 切换”，`joined/shared` 仅作为真实协作能力的占位，不伪造多人数据
+
 **Files:**
 - Modify: `src/src/store/multi-kb-store.ts`
 - Create: `src/src/store/kb-registry-store.ts`
@@ -266,11 +309,11 @@
 - Modify: `src/src/api/commands.ts`
 - Optional Modify: `src-tauri/src/commands/mod.rs`
 
-- [ ] 把 `multi-kb-store.ts` 从“隐藏辅助 store”升级为正式 KB registry
-- [ ] 增加 `personal / shared / created / joined` 分类视图
-- [ ] 在 UI 上实现知识库列表、详情卡、内容列表、右侧提问区
-- [ ] 明确第一阶段只做“本地 registry + 多 KB 切换”，不伪造真实多人协作
-- [ ] 如果需要真实共享/加入语义，单独开协作后端计划，不与本阶段混写
+- [x] 把 `multi-kb-store.ts` 从“隐藏辅助 store”升级为正式 KB registry
+- [x] 增加 `personal / shared / created / joined` 分类视图
+- [x] 在 UI 上实现知识库列表、详情卡、内容列表、右侧提问区
+- [x] 明确第一阶段只做“本地 registry + 多 KB 切换”，不伪造真实多人协作
+- [x] 如果需要真实共享/加入语义，单独开协作后端计划，不与本阶段混写
 
 **验收标准**
 

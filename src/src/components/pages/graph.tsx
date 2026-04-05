@@ -108,8 +108,8 @@ function ForceGraph({ entities, edges, onSelect }: {
     const ids = new Set<number>();
     ids.add(nodeId);
     links.forEach(l => {
-      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : Number(l.source);
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : Number(l.target);
       if (s === nodeId) ids.add(t);
       if (t === nodeId) ids.add(s);
     });
@@ -125,7 +125,7 @@ function ForceGraph({ entities, edges, onSelect }: {
         {links.map((link, i) => {
           const s = link.source as GraphNode;
           const t = link.target as GraphNode;
-          if (!s || !t || typeof s.x !== 'number') return null;
+          if (!s || !t || typeof s.x !== 'number' || typeof s.y !== 'number' || typeof t.x !== 'number' || typeof t.y !== 'number') return null;
           const dimmed = highlightedIds && (!highlightedIds.has(s.id) && !highlightedIds.has(t.id));
           return (
             <g key={i}>
