@@ -1,0 +1,23 @@
+:root {
+  --kb-shell: 228 36% 9%;
+  --kb-shell-elevated: 228 30% 13%;
+  --kb-panel: 220 24% 12%;
+  --kb-panel-strong: 220 22% 16%;
+  --kb-panel-soft: 220 18% 20%;
+  --kb-outline: 220 18% 24%;
+  --kb-chip: 220 20% 18%;
+  --kb-glow: 39 84% 73%;
+  --kb-shadow: 0 0% 0%;
+}
+
+.dark {
+  --kb-shell: 228 36% 9%;
+  --kb-shell-elevated: 228 30% 13%;
+  --kb-panel: 220 24% 12%;
+  --kb-panel-strong: 220 22% 16%;
+  --kb-panel-soft: 220 18% 20%;
+  --kb-outline: 220 18% 24%;
+  --kb-chip: 220 20% 18%;
+  --kb-glow: 39 84% 73%;
+  --kb-shadow: 0 0% 0%;
+}

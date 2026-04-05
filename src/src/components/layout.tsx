@@ -56,12 +56,12 @@ export function Sidebar() {
     <aside
       className={`${
         sidebarCollapsed ? 'w-[86px]' : 'w-[220px]'
-      } shrink-0 border-r border-white/10 bg-[linear-gradient(180deg,_rgba(12,14,20,0.96)_0%,_rgba(9,11,17,0.96)_100%)] text-white transition-all duration-200 ease-out`}
+      } kb-shell shrink-0 border-r border-white/10 text-white transition-all duration-200 ease-out`}
     >
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between px-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/6 text-amber-200">
+            <div className="kb-chip flex h-11 w-11 items-center justify-center rounded-2xl text-amber-200">
               <Sparkles className="h-5 w-5" />
             </div>
             {!sidebarCollapsed && (
@@ -153,7 +153,7 @@ export function Sidebar() {
 
         <div className="border-t border-white/8 px-4 py-4">
           {isKbOpen && stats ? (
-            <div className={`rounded-2xl border border-white/10 bg-white/4 p-3 ${sidebarCollapsed ? 'text-center' : ''}`}>
+            <div className={`kb-panel-strong rounded-2xl p-3 ${sidebarCollapsed ? 'text-center' : ''}`}>
               <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : ''}`}>
                 <div className="h-2 w-2 rounded-full bg-emerald-400" />
                 {!sidebarCollapsed && (
@@ -170,7 +170,7 @@ export function Sidebar() {
               )}
             </div>
           ) : (
-            <div className={`rounded-2xl border border-dashed border-white/8 bg-white/3 p-3 text-[11px] text-slate-500 ${sidebarCollapsed ? 'text-center' : ''}`}>
+            <div className={`kb-panel-strong rounded-2xl border-dashed p-3 text-[11px] text-slate-500 ${sidebarCollapsed ? 'text-center' : ''}`}>
               {sidebarCollapsed ? 'KB' : 'Open a knowledge base to activate the workspace.'}
             </div>
           )}
@@ -190,10 +190,10 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-black/20 px-5 text-white backdrop-blur-xl">
+    <header className="kb-panel-strong flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-5 text-white">
       <button
         onClick={handleSearchClick}
-        className="flex h-10 w-full max-w-sm items-center gap-2.5 rounded-full border border-white/10 bg-white/6 px-4 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
+        className="kb-chip flex h-10 w-full max-w-sm items-center gap-2.5 rounded-full px-4 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="truncate">Search your knowledge base…</span>

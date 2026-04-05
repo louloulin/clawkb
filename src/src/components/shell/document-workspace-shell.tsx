@@ -69,7 +69,7 @@ export function DocumentWorkspaceShell() {
   };
 
   return (
-    <div className="flex h-full min-h-full bg-[linear-gradient(180deg,_rgba(15,17,23,1)_0%,_rgba(21,24,33,1)_100%)] text-white">
+    <div className="kb-shell flex h-full min-h-full text-white">
       <DocumentListPane
         documents={documents}
         selectedDocument={selectedDocument}

@@ -1,0 +1,38 @@
+.kb-shell {
+  background:
+    radial-gradient(circle at top, hsl(var(--kb-glow) / 0.12), transparent 24%),
+    radial-gradient(circle at 78% 18%, hsl(217 82% 70% / 0.08), transparent 18%),
+    linear-gradient(180deg, hsl(var(--kb-shell)) 0%, hsl(var(--kb-shell-elevated)) 100%);
+}
+
+.kb-panel {
+  background: hsl(var(--kb-panel) / 0.76);
+  border: 1px solid hsl(var(--kb-outline) / 0.75);
+  box-shadow: 0 24px 80px hsl(var(--kb-shadow) / 0.28);
+  backdrop-filter: blur(24px);
+}
+
+.kb-panel-strong {
+  background: hsl(var(--kb-panel-strong) / 0.88);
+  border: 1px solid hsl(var(--kb-outline) / 0.8);
+  box-shadow: 0 18px 48px hsl(var(--kb-shadow) / 0.24);
+}
+
+.kb-chip {
+  background: hsl(var(--kb-chip) / 0.88);
+  border: 1px solid hsl(var(--kb-outline) / 0.7);
+}
+
+.kb-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.1;
+  background-image:
+    linear-gradient(transparent 0%, hsl(var(--kb-glow) / 0.04) 100%),
+    radial-gradient(circle at 20% 20%, hsl(0 0% 100% / 0.06) 0 1px, transparent 1px),
+    radial-gradient(circle at 80% 40%, hsl(0 0% 100% / 0.05) 0 1px, transparent 1px);
+  background-size: auto, 18px 18px, 22px 22px;
+  border-radius: inherit;
+}

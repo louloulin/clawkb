@@ -114,7 +114,7 @@ export function WorkbenchShell() {
   };
 
   return (
-    <div className="min-h-full bg-[radial-gradient(circle_at_top,_rgba(190,147,89,0.22),_transparent_28%),radial-gradient(circle_at_80%_18%,_rgba(99,102,241,0.14),_transparent_18%),linear-gradient(180deg,_rgba(12,14,20,1)_0%,_rgba(17,19,27,1)_100%)] text-white">
+    <div className="kb-shell min-h-full text-white">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-8 md:px-8 lg:py-12">
         <HomeHero
           kbName={isKbOpen ? kbPath.split('/').pop() || 'Current KB' : 'Not open'}

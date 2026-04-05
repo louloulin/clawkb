@@ -100,7 +100,7 @@ export function KnowledgeSpaceShell() {
       : 'Select or register a knowledge space to begin.';
 
   return (
-    <div className="flex h-full min-h-full bg-[linear-gradient(180deg,_rgba(10,11,16,1)_0%,_rgba(16,18,26,1)_100%)] text-white">
+    <div className="kb-shell flex h-full min-h-full text-white">
       <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-black/20 p-4 md:flex md:flex-col">
         <div>
           <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Knowledge Spaces</div>
@@ -137,10 +137,10 @@ export function KnowledgeSpaceShell() {
           })}
         </div>
 
-        <div className="mt-auto rounded-[1.5rem] border border-white/10 bg-white/4 px-4 py-3 text-xs leading-6 text-slate-400">
-          {placeholderMessage}
-        </div>
-      </aside>
+          <div className="kb-panel-strong mt-auto rounded-[1.5rem] px-4 py-3 text-xs leading-6 text-slate-400">
+            {placeholderMessage}
+          </div>
+        </aside>
 
       <div className="grid flex-1 min-w-0 grid-cols-1 border-l border-white/5 xl:grid-cols-[340px_minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <KbListPane

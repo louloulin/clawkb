@@ -467,6 +467,37 @@
 
 **目标：** 让产品从“能跑”变成“像一个产品”。
 
+**状态：** 已完成（2026-04-06）
+
+**本轮实际完成：**
+
+- 已新增 `src/src/styles/tokens.css` 与 `src/src/styles/workbench.css`，为工作台壳层提供统一视觉 token 与 surface class
+- `index.css` 已引入新 styles，核心 UI 控件已统一圆角、表面层级与 dark-first 语气：
+  - `src/src/components/ui/button.tsx`
+  - `src/src/components/ui/tabs.tsx`
+  - `src/src/components/ui/select.tsx`
+- 顶层壳层与主要 workspace 已切到统一视觉语言：
+  - `layout.tsx`
+  - `workbench-shell.tsx`
+  - `knowledge-space-shell.tsx`
+  - `document-workspace-shell.tsx`
+  - `explore-shell.tsx`
+- 浏览器 demo 模式下的导入链路已补强，导入文件/目录/网页后可进入 demo KB 继续搜索或提问
+- 已产出当前产品基线截图：
+  - `docs/ui-baseline/workbench-home.png`
+  - `docs/ui-baseline/spaces-registry.png`
+  - `docs/ui-baseline/document-workspace.png`
+- 已新增基线文档：
+  - `docs/ui-baseline/README.md`
+  - `docs/ui-baseline/verification.md`
+- 历史顶层探索截图已统一归档到 `docs/ui-baseline/archive/`，避免仓库继续混放多套命名和阶段产物
+- 已完成并记录关键流程验证：
+  - 打开 KB
+  - 搜索并打开文档
+  - 在 KB 空间提问
+  - 导入文件并继续提问
+  - 打开文档并编辑保存
+
 **Files:**
 - Modify: `src/src/index.css`
 - Modify: `src/src/components/layout.tsx`
@@ -474,15 +505,15 @@
 - Create: `src/src/styles/tokens.css`
 - Create: `src/src/styles/workbench.css`
 
-- [ ] 统一 dark-first 视觉主题、层级、间距、圆角、输入框规范
-- [ ] 为首页、空间页、文档页各出一版稳定截图
-- [ ] 增加最少量的关键流程验证：
+- [x] 统一 dark-first 视觉主题、层级、间距、圆角、输入框规范
+- [x] 为首页、空间页、文档页各出一版稳定截图
+- [x] 增加最少量的关键流程验证：
   - 打开 KB
   - 搜索并打开文档
   - 在 KB 空间提问
   - 导入文件并继续提问
   - 打开文档并编辑保存
-- [ ] 清理历史命名漂移和无效截图资产，保留最新设计基线
+- [x] 清理历史命名漂移和无效截图资产，保留最新设计基线
 
 **验收标准**
 

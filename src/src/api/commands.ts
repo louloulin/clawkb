@@ -196,6 +196,10 @@ const DEMO_MEMORIES: MemoryCardInfo[] = [
   { entity: 'clawkb', slot: 'framework', value: 'Tauri v2', kind: 'fact', confidence: 0.85 },
 ];
 
+function pushDemoNote(note: SearchHit) {
+  _demoNotes = [note, ..._demoNotes.filter((existing) => existing.id !== note.id)];
+}
+
 // ── API implementation ────────────────────────────────────────────────────
 
 export const api = {
@@ -265,6 +269,15 @@ export const api = {
   importFile: async (path: string, tags: string[]): Promise<ImportResult> => {
     if (!isTauri()) {
       const title = path.split('/').pop() || path;
+      pushDemoNote({
+        id: `demo-import-${Date.now()}`,
+        title,
+        content: `Imported from ${path}\n\nThis is a demo import placeholder stored in browser mode so follow-up search and ask flows can see the imported source.`,
+        score: 1,
+        tags,
+        created_at: new Date().toISOString(),
+        source: path,
+      });
       return createImportResult({ path, title, chunks: 1, tags, success: true });
     }
     const invoke = await getInvoke();
@@ -273,9 +286,19 @@ export const api = {
 
   importDirectory: async (dirPath: string, tags: string[], recursive = false): Promise<ImportResult[]> => {
     if (!isTauri()) {
+      const title = dirPath.split('/').pop() || dirPath;
+      pushDemoNote({
+        id: `demo-dir-${Date.now()}`,
+        title: `${title} index`,
+        content: `Imported directory ${dirPath}${recursive ? ' recursively' : ''}.\n\nBrowser mode stores a synthetic directory note so search and ask can continue from this import action.`,
+        score: 1,
+        tags,
+        created_at: new Date().toISOString(),
+        source: dirPath,
+      });
       return [createImportResult({
         path: dirPath,
-        title: dirPath.split('/').pop() || dirPath,
+        title,
         chunks: 3,
         tags,
         success: true,
@@ -334,6 +357,15 @@ export const api = {
 
   fetchUrl: async (url: string, tags: string[]): Promise<FetchUrlResult> => {
     if (!isTauri()) {
+      pushDemoNote({
+        id: `demo-url-${Date.now()}`,
+        title: url,
+        content: `Fetched ${url}\n\nBrowser demo mode stores the fetched page as a placeholder note for follow-up asking.`,
+        score: 1,
+        tags,
+        created_at: new Date().toISOString(),
+        source: url,
+      });
       return { url, title: url, content_length: 1024, success: true };
     }
     const invoke = await getInvoke();

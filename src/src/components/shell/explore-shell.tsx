@@ -46,7 +46,7 @@ export function ExploreShell() {
   const { activeExploreView, setActiveExploreView } = useWorkspaceStore();
 
   return (
-    <div className="flex h-full flex-col bg-[linear-gradient(180deg,_rgba(14,16,22,1)_0%,_rgba(20,22,31,1)_100%)] text-white">
+    <div className="kb-shell flex h-full flex-col text-white">
       <div className="border-b border-white/10 bg-black/20 px-5 py-4 backdrop-blur-xl">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">

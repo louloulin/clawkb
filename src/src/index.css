@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/workbench.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -81,6 +83,10 @@ body {
   font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 /* NotebookLM-style scrollbar */
