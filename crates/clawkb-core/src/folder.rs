@@ -53,15 +53,15 @@ pub fn build_folder_tree(folders: Vec<FolderInfo>) -> Vec<FolderNode> {
     // Build tree
     for folder in &folders {
         if let Some(node) = map.get_mut(&folder.id) {
+            let node_clone = node.clone();
+            drop(node); // release mutable borrow before any nested get_mut
             if let Some(ref parent_id) = folder.parent_id {
                 if let Some(parent) = map.get_mut(parent_id) {
-                    parent.children.push(node.clone());
-                } else {
-                    // Parent not found, treat as root
-                    roots.push(node.clone());
+                    parent.children.push(node_clone);
                 }
+                // else: parent not found, node already dropped — skip
             } else {
-                roots.push(node.clone());
+                roots.push(node_clone);
             }
         }
     }

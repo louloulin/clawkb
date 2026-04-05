@@ -12,7 +12,7 @@ pub fn parse_rtf(bytes: &[u8]) -> Result<ParsedDocument, String> {
     let mut result = String::new();
     let mut chars: Vec<char> = content.chars().collect();
     let mut i = 0;
-    let mut in_group = 0;
+    let mut in_group: usize = 0;
     let mut skip_next = false;
 
     while i < chars.len() {
@@ -36,7 +36,7 @@ pub fn parse_rtf(bytes: &[u8]) -> Result<ParsedDocument, String> {
                 }
             }
             '}' => {
-                in_group = in_group.saturating_sub(1);
+                in_group = in_group.saturating_sub(1usize);
             }
             '\\' => {
                 // Control word

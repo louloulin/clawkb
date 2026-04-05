@@ -273,9 +273,16 @@ export function SearchPage() {
 function SearchResultCard({ hit, rank, selected, onClick, onToggleSelect }: {
   hit: SearchHit; rank: number; selected: boolean; onClick: () => void; onToggleSelect: () => void;
 }) {
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/x-clawkb-doc', hit.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
-      className={`w-full rounded-xl border p-4 transition-colors group ${
+      draggable
+      onDragStart={handleDragStart}
+      className={`w-full rounded-xl border p-4 transition-colors group cursor-grab active:cursor-grabbing ${
         selected
           ? 'bg-primary/5 border-primary/30'
           : 'bg-card border-border/50 hover:bg-muted/20 hover:border-border'

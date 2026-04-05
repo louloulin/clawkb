@@ -23,6 +23,12 @@ export interface TagInfo {
   count: number;
 }
 
+export interface TagOperationResult {
+  updated: number;
+  tag: string;
+  related_tag: string | null;
+}
+
 export interface TimelineEntry {
   id: string;
   title: string;
@@ -35,12 +41,13 @@ export interface ImportResult {
   title: string;
   chunks: number;
   tags: string[];
+  auto_tags: string[];
   success: boolean;
   error?: string;
 }
 
 export type SearchMode = 'hybrid' | 'lex' | 'sem';
-export type Page = 'dashboard' | 'search' | 'notes' | 'import' | 'timeline' | 'tags' | 'settings' | 'chat' | 'graph' | 'reader' | 'editor' | 'mindmap';
+export type Page = 'dashboard' | 'search' | 'notes' | 'import' | 'timeline' | 'tags' | 'settings' | 'chat' | 'graph' | 'reader' | 'editor' | 'mindmap' | 'report' | 'podcast';
 
 export interface FetchUrlResult {
   url: string;
@@ -143,6 +150,23 @@ export interface AsOfResult {
   timestamp_cutoff: number;
 }
 
+export interface CompareHit {
+  id: string;
+  title: string;
+  snippet: string;
+  score: number;
+  status: 'added' | 'removed' | 'changed' | 'unchanged';
+  score_change: number | null;
+}
+
+export interface CompareResult {
+  earlier_timestamp: number;
+  later_timestamp: number;
+  earlier_hits: CompareHit[];
+  later_hits: CompareHit[];
+  query: string;
+}
+
 // Folder types — multi-level folder system
 export interface FolderInfo {
   id: string;
@@ -151,4 +175,72 @@ export interface FolderInfo {
   path: string;
   doc_count: number;
   created_at: number;
+}
+
+// Obsidian sync types
+export interface VaultSummary {
+  root_path: string;
+  total_notes: number;
+  total_tags: number;
+  folders: string[];
+  sample_tags: string[];
+}
+
+export interface ObsidianImportResult {
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+// OCR types
+export interface OcrResult {
+  text: string;
+  success: boolean;
+  error: string | null;
+  language: string;
+  confidence: number | null;
+}
+
+// Selection AI types
+export interface SelectionResult {
+  action: string;
+  input: string;
+  output: string;
+  success: boolean;
+  error: string | null;
+}
+
+// WebDAV Sync types
+export interface WebdavConfig {
+  url: string;
+  username: string;
+  password: string;
+  remote_path: string;
+  enabled: boolean;
+}
+
+export interface WebdavServerInfo {
+  url: string;
+  server_type: string;
+  supports_sync: boolean;
+}
+
+export interface RemoteFile {
+  path: string;
+  name: string;
+  size: number;
+  modified: string | null;
+  is_dir: boolean;
+}
+
+export interface SyncStatus {
+  last_sync: number | null;
+  remote_count: number;
+  local_count: number;
+  pending_uploads: number;
+  pending_downloads: number;
+  last_error: string | null;
+  uploads: string[];
+  downloads: string[];
+  skipped: string[];
 }

@@ -12,6 +12,12 @@ pub mod tag;
 pub mod web;
 pub mod replay;
 pub mod folder;
+pub mod ai_config;
+pub mod llm;
+pub mod sync;
+pub mod ocr;
+pub mod selection;
+pub mod classify;
 #[cfg(feature = "evif-mcp")]
 pub mod evif_mcp;
 
@@ -27,3 +33,9 @@ pub use export::{ExportData, ExportDocument, ExportFormat};
 pub use tag::TagInfo;
 pub use web::FetchUrlResult;
 pub use replay::{SessionSummary, Checkpoint, AsOfResult};
+pub use ai_config::{AiProvider, EmbeddingConfig, LlmConfig, set_embedding_config, set_llm_config, get_llm_config};
+pub use llm::{synthesize_with_config, test_llm_connection};
+pub use ocr::{ocr_image, test_ocr, OcrResult};
+pub use selection::{selection_ai, SelectionResult};
+pub use sync::webdav::{WebdavConfig, WebdavServerInfo, RemoteFile, SyncStatus,
+    SyncManifest, IncrementalSyncResult};

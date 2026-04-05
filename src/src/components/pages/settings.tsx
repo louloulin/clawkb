@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, Slider, Save } from 'lucide-react';
+import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, CloudOff, Trash2, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useKbStore } from '@/store/kb-store';
 import { useAiStore } from '@/store/ai-store';
+import { useSyncStore } from '@/store/sync-store';
 import { formatBytes } from '@/lib/format';
 import { downloadFile } from '@/lib/format';
 import { api } from '@/api';
@@ -20,7 +21,17 @@ import {
 export function SettingsPage() {
   const { stats, kbPath, isKbOpen, openKb, createKb } = useKbStore();
   const aiStore = useAiStore();
+  const syncStore = useSyncStore();
   const [path, setPath] = useState('');
+  const [obsidianPath, setObsidianPath] = useState(syncStore.obsidianConfig.vaultPath);
+  const [syncTags, setSyncTags] = useState(syncStore.obsidianConfig.syncTags.join(', '));
+  const [scanning, setScanning] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [remoteFiles, setRemoteFiles] = useState<{ path: string; name: string; size: number; modified: string | null; is_dir: boolean }[]>([]);
   const { toast } = useToast();
 
   const handleApplyAiConfig = async () => {
@@ -59,6 +70,8 @@ export function SettingsPage() {
         <TabsList className="mb-6 bg-muted/40 rounded-xl">
           <TabsTrigger value="general" className="rounded-lg text-[13px]">General</TabsTrigger>
           <TabsTrigger value="ai" className="rounded-lg text-[13px]">AI Models</TabsTrigger>
+          <TabsTrigger value="sync" className="rounded-lg text-[13px]">WebDAV Sync</TabsTrigger>
+          <TabsTrigger value="obsidian" className="rounded-lg text-[13px]">Obsidian</TabsTrigger>
           <TabsTrigger value="export" className="rounded-lg text-[13px]">Export</TabsTrigger>
           <TabsTrigger value="about" className="rounded-lg text-[13px]">About</TabsTrigger>
         </TabsList>
@@ -279,7 +292,7 @@ export function SettingsPage() {
               {/* Temperature */}
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5 flex items-center gap-1">
-                  <Slider className="h-3 w-3" /> Temperature: {aiStore.ask.temperature.toFixed(1)}
+                  <SlidersHorizontal className="h-3 w-3" /> Temperature: {aiStore.ask.temperature.toFixed(1)}
                 </label>
                 <input
                   type="range"
@@ -323,6 +336,371 @@ export function SettingsPage() {
             <Save className="h-4 w-4" />
             Apply AI Configuration
           </Button>
+        </TabsContent>
+
+        {/* WebDAV Sync Tab */}
+        <TabsContent value="sync" className="space-y-4">
+          {/* WebDAV Server Config */}
+          <div className="rounded-xl bg-card border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Cloud className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">WebDAV Sync</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Sync your knowledge base to a WebDAV server (Nextcloud, ownCloud, Synology NAS, etc.)
+            </p>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-[11px] text-muted-foreground block mb-1">Server URL</label>
+                  <Input
+                    value={syncStore.webdavConfig.url}
+                    onChange={e => syncStore.setWebdavUrl(e.target.value)}
+                    placeholder="https://your-nextcloud.example.com/remote.php/dav/files/user"
+                    className="text-xs h-8"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Username</label>
+                  <Input
+                    value={syncStore.webdavConfig.username}
+                    onChange={e => syncStore.setWebdavUsername(e.target.value)}
+                    placeholder="user"
+                    className="text-xs h-8"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Password / App Token</label>
+                  <Input
+                    type="password"
+                    value={syncStore.webdavConfig.password}
+                    onChange={e => syncStore.setWebdavPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="text-xs h-8"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[11px] text-muted-foreground block mb-1">Remote Path</label>
+                  <Input
+                    value={syncStore.webdavConfig.remotePath}
+                    onChange={e => syncStore.setWebdavRemotePath(e.target.value)}
+                    placeholder="/ClawKB"
+                    className="text-xs h-8"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Connection Test */}
+          <div className="rounded-xl bg-card border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Server className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Connection Test</h3>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const config = syncStore.getWebdavConfig();
+                  if (!config.url) {
+                    toast({ title: 'Please enter server URL', variant: 'destructive' });
+                    return;
+                  }
+                  setTesting(true);
+                  setTestResult(null);
+                  try {
+                    const info = await api.webdavTestConnection(config);
+                    setTestResult({ ok: true, message: `Connected to ${info.server_type}` });
+                    toast({ title: 'Connection OK', description: `Server: ${info.server_type}` });
+                  } catch (e) {
+                    setTestResult({ ok: false, message: String(e) });
+                    toast({ title: 'Connection Failed', description: String(e), variant: 'destructive' });
+                  } finally {
+                    setTesting(false);
+                  }
+                }}
+                disabled={testing}
+                className="text-xs gap-1"
+              >
+                {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Cloud className="h-3 w-3" />}
+                Test Connection
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const config = syncStore.getWebdavConfig();
+                  try {
+                    const files = await api.webdavListRemote(config);
+                    setRemoteFiles(files);
+                    toast({ title: 'Connected', description: `${files.length} items found` });
+                  } catch (e) {
+                    toast({ title: 'Browse failed', description: String(e), variant: 'destructive' });
+                  }
+                }}
+                className="text-xs gap-1"
+              >
+                <FolderOpen className="h-3 w-3" /> Browse Remote
+              </Button>
+            </div>
+
+            {testResult && (
+              <div className={`mt-3 p-2 rounded-md text-xs flex items-center gap-1.5 ${
+                testResult.ok ? 'bg-green-500/10 text-green-600' : 'bg-destructive/10 text-destructive'
+              }`}>
+                {testResult.ok ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <AlertCircle className="h-3 w-3 shrink-0" />}
+                {testResult.message}
+              </div>
+            )}
+
+            {remoteFiles.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <div className="text-[11px] text-muted-foreground mb-1">Remote files:</div>
+                {remoteFiles.slice(0, 10).map(f => (
+                  <div key={f.path} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    {f.is_dir ? <FolderOpen className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                    <span className="truncate">{f.name}</span>
+                    <span className="ml-auto shrink-0">{f.size > 0 ? formatBytes(f.size) : ''}</span>
+                  </div>
+                ))}
+                {remoteFiles.length > 10 && (
+                  <div className="text-[11px] text-muted-foreground">... and {remoteFiles.length - 10} more</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sync Actions */}
+          <div className="rounded-xl bg-card border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Upload className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Sync</h3>
+            </div>
+
+            {syncStore.webdavConfig.lastSync && (
+              <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                Last synced: {new Date(syncStore.webdavConfig.lastSync * 1000).toLocaleString()}
+              </div>
+            )}
+            {syncStore.webdavConfig.lastError && (
+              <div className="text-xs text-destructive mb-3 p-2 rounded bg-destructive/10">
+                {syncStore.webdavConfig.lastError}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (!kbPath) {
+                    toast({ title: 'No knowledge base open', variant: 'destructive' });
+                    return;
+                  }
+                  const config = syncStore.getWebdavConfig();
+                  if (!config.url) {
+                    toast({ title: 'Please configure WebDAV server first', variant: 'destructive' });
+                    return;
+                  }
+                  setSyncing(true);
+                  try {
+                    await api.webdavSaveConfig(config, kbPath);
+                    const status = await api.webdavSync();
+                    syncStore.setWebdavSyncStatus(status);
+                    toast({ title: 'Sync Complete', description: 'Knowledge base synced to WebDAV server' });
+                  } catch (e) {
+                    syncStore.setWebdavSyncStatus({
+                      last_sync: null, remote_count: 0, local_count: 0,
+                      pending_uploads: 0, pending_downloads: 0, last_error: String(e),
+                    });
+                    toast({ title: 'Sync Failed', description: String(e), variant: 'destructive' });
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                disabled={syncing}
+                size="sm"
+                className="text-xs gap-1"
+              >
+                {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await api.webdavClearConfig();
+                  syncStore.resetWebdav();
+                  setTestResult(null);
+                  setRemoteFiles([]);
+                  toast({ title: 'WebDAV config cleared' });
+                }}
+                className="text-xs gap-1 text-destructive"
+              >
+                <Trash2 className="h-3 w-3" /> Clear Config
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Obsidian Sync Tab */}
+        <TabsContent value="obsidian" className="space-y-4">
+          {/* Vault Path */}
+          <div className="rounded-xl bg-card border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <FolderSearch className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Obsidian Vault</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Import notes from an Obsidian vault. Supports Markdown files with YAML frontmatter, tags, and aliases.
+            </p>
+
+            {/* Vault Path Input */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Vault Path</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={obsidianPath}
+                    onChange={e => setObsidianPath(e.target.value)}
+                    placeholder="/path/to/your-vault"
+                    className="flex-1 rounded-xl border-border/50 h-9 text-[13px]"
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      if (!obsidianPath || scanning) return;
+                      setScanning(true);
+                      setImportResult(null);
+                      try {
+                        const summary = await api.scanObsidianVault(obsidianPath);
+                        syncStore.setObsidianPath(obsidianPath);
+                        syncStore.setLastScanned(summary);
+                        toast({ title: 'Vault Scanned', description: `${summary.total_notes} notes, ${summary.total_tags} tags found` });
+                      } catch (e) {
+                        toast({ title: 'Scan Failed', description: String(e), variant: 'destructive' });
+                      } finally {
+                        setScanning(false);
+                      }
+                    }}
+                    disabled={!obsidianPath || scanning}
+                    className="rounded-xl h-9 text-[13px] gap-1.5"
+                  >
+                    {scanning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    Scan
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Extra Tags (comma-separated)</label>
+                <Input
+                  value={syncTags}
+                  onChange={e => setSyncTags(e.target.value)}
+                  placeholder="obsidian, imported"
+                  className="rounded-xl border-border/50 h-9 text-[13px]"
+                />
+              </div>
+
+              {/* Scan Summary */}
+              {syncStore.obsidianConfig.lastScanned && (
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
+                  <div className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    Vault Ready to Import
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-[12px] text-muted-foreground">
+                    <div>
+                      <span className="font-medium text-foreground">{syncStore.obsidianConfig.lastScanned.total_notes}</span> notes
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">{syncStore.obsidianConfig.lastScanned.total_tags}</span> tags
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">{syncStore.obsidianConfig.lastScanned.folders.length}</span> folders
+                    </div>
+                  </div>
+                  {syncStore.obsidianConfig.lastScanned.sample_tags.length > 0 && (
+                    <div className="text-[11px] text-muted-foreground">
+                      Sample tags: {syncStore.obsidianConfig.lastScanned.sample_tags.slice(0, 8).join(', ')}
+                      {syncStore.obsidianConfig.lastScanned.sample_tags.length > 8 && '...'}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Import Button */}
+              <Button
+                onClick={async () => {
+                  if (!obsidianPath || !isKbOpen || importing) return;
+                  setImporting(true);
+                  setImportResult(null);
+                  const tags = syncTags.split(',').map(t => t.trim()).filter(Boolean);
+                  try {
+                    const result = await api.importObsidianVault(obsidianPath, tags);
+                    setImportResult(result);
+                    syncStore.setObsidianPath(obsidianPath);
+                    syncStore.setSyncTags(tags);
+                    if (result.errors.length === 0) {
+                      toast({ title: 'Import Complete', description: `${result.imported} notes imported successfully` });
+                    } else {
+                      toast({ title: 'Import Partially Complete', description: `${result.imported} imported, ${result.skipped} skipped` });
+                    }
+                  } catch (e) {
+                    toast({ title: 'Import Failed', description: String(e), variant: 'destructive' });
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+                disabled={!obsidianPath || !isKbOpen || !syncStore.obsidianConfig.lastScanned || importing}
+                className="w-full gap-2 rounded-xl h-10"
+              >
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderSearch className="h-4 w-4" />}
+                {importing ? 'Importing...' : 'Import Vault to Knowledge Base'}
+              </Button>
+              {!isKbOpen && (
+                <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="h-3 w-3" />
+                  Open a knowledge base first to import notes
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Import Result */}
+          {importResult && (
+            <div className="rounded-xl bg-card border border-border/50 p-5">
+              <h3 className="text-sm font-medium mb-3">Import Result</h3>
+              <div className="grid grid-cols-3 gap-3 text-[13px] mb-3">
+                <div className="text-center p-3 rounded-lg bg-green-500/10">
+                  <div className="text-lg font-semibold text-green-600 dark:text-green-400">{importResult.imported}</div>
+                  <div className="text-[11px] text-muted-foreground">Imported</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-muted/40">
+                  <div className="text-lg font-semibold text-foreground">{importResult.skipped}</div>
+                  <div className="text-[11px] text-muted-foreground">Skipped</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-red-500/10">
+                  <div className="text-lg font-semibold text-red-600 dark:text-red-400">{importResult.errors.length}</div>
+                  <div className="text-[11px] text-muted-foreground">Errors</div>
+                </div>
+              </div>
+              {importResult.errors.length > 0 && (
+                <div className="text-[11px] text-muted-foreground space-y-1 max-h-32 overflow-auto">
+                  {importResult.errors.slice(0, 10).map((err, i) => (
+                    <div key={i} className="text-red-500/80">• {err}</div>
+                  ))}
+                  {importResult.errors.length > 10 && (
+                    <div className="text-muted-foreground">...and {importResult.errors.length - 10} more errors</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         {/* Export Tab */}

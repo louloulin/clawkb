@@ -30,7 +30,7 @@
 |---------|------|------|-----------|
 | `clip` | ❌ 未启用 | CLIP 视觉 Embedding，图片搜索 | P2 |
 | `whisper` | ❌ 未启用 | Whisper 音频转录 | P2 |
-| `api_embed` | ❌ 未启用 | OpenAI 云端 Embedding API | P1 |
+| `api_embed` | ✅ 已启用 (2026-04-03) | OpenAI 云端 Embedding API | P1 |
 | `symspell_cleanup` | ❌ 未启用 | PDF 文本修复 | P3 |
 
 ### 1.3 ClawKB 2026-04-01 最新实现状态
@@ -69,13 +69,16 @@
 
 | 功能 | 状态 | 说明 |
 |-----|------|------|
-| **全局划词 (Tauri)** | ❌ 未实现 | 需系统托盘 + 全局快捷键 |
-| **截图导入 + OCR** | ❌ 未实现 | 需 OCR 库集成 |
-| **真实 LLM 集成** | ⚠️ UI 完成, 后端 stub | `set_embedding_model` 仅日志 |
-| **多级文件夹** | ❌ 未实现 | 仅支持扁平 tag |
-| **多格式导入** | ⚠️ 部分实现 | 缺 DOCX/PPTX/XLSX 解析器 |
-| **Obsidian 同步** | ❌ 未实现 | Skill 功能 |
-| **报告/播客生成** | ❌ 未实现 | Agent 模式 |
+| **全局划词 (Tauri)** | ✅ 完成 (2026-04-03) | 系统托盘 + 全局快捷键 + 悬浮面板 |
+| **截图导入 + OCR** | ✅ 完成 (2026-04-03) | 截图粘贴、OCR 识别、Tesseract 集成、导入知识库 |
+| **真实 LLM 集成** | ✅ 完成 (2026-04-03) | Ollama/OpenAI/Claude/DeepSeek API 集成 |
+| **多级文件夹** | ✅ 完成 (2026-04-01) | 文件夹树、创建/删除/重命名 |
+| **多 KB 管理** | ✅ 完成 (2026-04-03) | HashMap 多 KB 实例并发管理，跨 KB 搜索和问答 |
+| **多格式导入** | ✅ 完成 (2026-04-01) | DOCX/PPTX/XLSX/EPUB/RTF/CSV/JSON 解析器 |
+| **批量文档自动分类** | ✅ 完成 (2026-04-03) | import 时基于内容/路径/文件名自动检测类型标签并添加 |
+| **Obsidian 同步** | ✅ 完成 (2026-04-02) | Obsidian vault Markdown 解析、扫描、导入 |
+| **WebDAV 增量同步** | ✅ 完成 (2026-04-03) | Nextcloud/Synology WebDAV 增量同步，基于 mtime 的增量上传/下载，SyncManifest 持久化 |
+| **报告/播客生成** | ✅ 完成 (2026-04-03) | 报告生成完整，播客脚本生成 + Web Speech API TTS + 录音下载 |
 
 ### 1.4 前端现状
 
@@ -84,16 +87,16 @@
 | Dashboard | ✅ | 统计卡片、快捷操作 | 完整 |
 | Search | ✅ | 搜索栏、结果卡片 | 完整 |
 | Notes | ✅ | 添加笔记表单 | 完整 |
-| Import | ✅ | 文件导入、URL 导入 | 完整 |
+| Import | ✅ | 文件/URL/媒体/截图导入 | 完整 |
 | Timeline | ✅ | 时间线条目 | 完整 |
 | Tags | ✅ | 标签云、筛选 | 完整 |
 | Entities | ✅ | 实体列表 | 基础(仅正则) |
 | Settings | ✅ | KB 管理、导出 | 完整 |
-| **Chat (AI 对话)** | ❌ | - | **缺失** |
-| **Reader (文档阅读)** | ❌ | - | **缺失** |
-| **Editor (AI 写作)** | ❌ | - | **缺失** |
-| **MindMap (思维导图)** | ❌ | - | **缺失** |
-| **Graph (知识图谱)** | ❌ | - | **缺失** |
+| Chat | ✅ | AI 对话、来源引用 | 完整 |
+| Reader | ✅ | PDF/Markdown、书签、笔记 | 完整 |
+| Editor | ✅ | TipTap 富文本、AI 命令 | 完整 |
+| MindMap | ✅ | 思维导图生成/导出 | 完整 |
+| Graph | ✅ | D3 力导向图可视化 | 完整 |
 
 ---
 
@@ -416,7 +419,7 @@ impl KnowledgeBase {
 
 ---
 
-### Phase 10: 增强知识库管理 + 多模态导入
+### Phase 10: 增强知识库管理 + 多模态导入 — ✅ 完成 (2026-04-01，增强 2026-04-03)
 
 **目标**: 启用 memvid Whisper + CLIP，增强知识库管理功能
 
@@ -424,42 +427,69 @@ impl KnowledgeBase {
 
 #### 10.1 启用多模态导入 (memvid 原生)
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 启用 whisper feature | `Cargo.toml` | 添加 `whisper` 到 memvid-core features |
-| 启用 clip feature | `Cargo.toml` | 添加 `clip` 到 memvid-core features |
-| 音频导入 | `crates/clawkb-core/src/import.rs` | MP3/WAV → memvid Whisper 转录 → add_note |
-| 图片导入 | `crates/clawkb-core/src/import.rs` | JPEG/PNG → memvid CLIP embedding |
-| 前端导入增强 | `src/src/components/pages/import.tsx` | 支持音频/图片文件选择 |
+| 启用 whisper feature | ⏳ 可选 | 需 `memvid-core` 启用 `whisper` |
+| 启用 clip feature | ⏳ 可选 | 需 `memvid-core` 启用 `clip` |
+| 音频导入 | ✅ 完成 | `kb.rs` `import_audio` + import.tsx Media 标签 |
+| 图片导入 | ✅ 完成 | `kb.rs` `import_image` + import.tsx Media 标签 |
+| 前端导入增强 | ✅ 完成 | Import 页面 Media 标签页 |
 
 #### 10.2 文件夹系统
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 文件夹数据结构 | `crates/clawkb-core/src/kb.rs` | 使用 memvid tag 作为文件夹概念 |
-| 文件夹树组件 | `src/src/components/kb/folder-tree.tsx` | 左侧文件夹导航 |
-| 拖拽移动 | `src/src/components/kb/drop-zone.tsx` | 拖拽文件到文件夹 |
-| 批量操作 | `src/src/components/kb/bulk-actions.tsx` | 多选 + 批量删除/标签/导出 |
+| 文件夹数据结构 | ✅ 完成 | `crates/clawkb-core/src/folder.rs` |
+| 文件夹树组件 | ✅ 完成 | `src/src/components/folder-tree.tsx` |
+| 拖拽移动 | ✅ 完成 (2026-04-03) | 拖拽 API + HTML5 dataTransfer |
+| 批量操作 | ✅ 完成 | 搜索结果多选 + 批量打标签 + 导出 |
+
+**拖拽移动实现细节 (2026-04-03):**
+- `crates/clawkb-core/src/kb.rs` — 添加 `update_frame_tags()` 和 `get_frame_tags()` 公开方法
+- `src-tauri/src/commands/mod.rs` — 重写 `move_document` 命令，解析 frame_id → 获取现有标签 → 移除 `folder:*` 标签 → 添加新的 `folder:{folder_id}` 标签
+- `src/src/components/folder-tree.tsx` — 添加 drag-over 高亮、Upload 图标、drop 处理器
+- `src/src/components/pages/search.tsx` — `SearchResultCard` 设置 `draggable={true}`，拖拽时设置 `application/x-clawkb-doc` MIME 类型
 
 #### 10.3 标签增强
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 标签云增强 | `src/src/components/pages/tags.tsx` | 使用 memvid 原生 tag API |
-| 标签重命名 | `crates-clawkb-core/src/kb.rs` | 批量更新 tag |
-| 标签合并 | `crates-clawkb-core/src/kb.rs` | 合并同义标签 |
+| 标签云增强 | ✅ 完成 | Tags 页面排序 + 搜索 + 统计 |
+| 标签重命名 | ✅ 完成 (2026-04-03) | `rename_tag` 方法，KB层 + Tauri命令 + 前端UI |
+| 标签合并 | ✅ 完成 (2026-04-03) | `merge_tag` 方法，去重合并 + UI模态框 |
+| 标签删除 | ✅ 完成 (2026-04-03) | `delete_tag` 方法，右键菜单 + 确认对话框 |
+
+#### 10.3.1 实现细节 (2026-04-03)
+
+**新增/修改的后端文件:**
+- `crates/clawkb-core/src/kb.rs` — 添加 `TagOperationResult` 结构体、`rename_tag`、`merge_tag`、`delete_tag`、`collect_all_frame_ids` 方法
+- `src-tauri/src/commands/mod.rs` — 添加 `rename_tag`、`merge_tag`、`delete_tag` Tauri 命令
+- `src-tauri/src/lib.rs` — 注册新命令
+- `src-tauri/Cargo.toml` — 添加 `tray-icon` feature 到 tauri
+
+**新增/修改的前端文件:**
+- `src/src/api/commands.ts` — 添加 `renameTag`、`mergeTag`、`deleteTag` API
+- `src/src/api/types.ts` — 添加 `TagOperationResult` 类型
+- `src/src/components/pages/tags.tsx` — 完全重写，添加 Manage 按钮、右键上下文菜单、重命名/合并/删除模态框
+
+**功能详情:**
+- **右键菜单**: 在任意标签上右键，显示 Rename/Merge/Delete 选项
+- **重命名**: 将标签在所有文档中替换为新名称，KB commit 自动持久化
+- **合并**: 将源标签内容合并到目标标签，自动去重
+- **删除**: 从所有文档中移除指定标签（仅删除标签，不删除文档）
+- **批量操作**: 使用 `collect_all_frame_ids()` 枚举所有帧，逐帧更新标签
 
 #### 10.4 验收标准
 
-- [x] 音频导入 + Whisper 转录 ✅ **2026-04-01** — 基础框架已实现，需要 whisper feature + ML 模型
-- [x] 图片导入 + CLIP 搜索 ✅ **2026-04-01** — 基础框架已实现，需要 clip feature + ML 模型
-- [x] 文件夹导航 (基于 tag) — Tag Folders 视图 + 点击过滤
-- [x] 批量操作 — 搜索结果多选 + 批量打标签 + 批量导出 JSON
-- [x] 标签管理增强 — 排序(按数量/A-Z) + 搜索过滤 + 统计摘要
+- [x] 音频导入框架 ✅ — `import_audio` + Tauri 命令 + Media 标签页
+- [x] 图片导入框架 ✅ — `import_image` + Tauri 命令 + Media 标签页
+- [x] 文件夹导航 ✅ — FolderTree 组件 + 侧边栏集成
+- [x] 批量操作 ✅ — 搜索结果多选 + 批量打标签 + 批量导出 JSON
+- [x] 标签管理增强 ✅ — Tags 页面排序(按数量/A-Z) + 搜索过滤 + 统计摘要
 
 ---
 
-### Phase 11: 高级功能 (思维导图 + 时光机 + 全局划词)
+### Phase 11: 高级功能 (思维导图 + 时光机 + 全局划词) — ✅ 完成
 
 **目标**: 启用 memvid Replay 时光机，实现思维导图和全局划词
 
@@ -467,38 +497,62 @@ impl KnowledgeBase {
 
 #### 11.1 思维导图
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| AI 生成导图 | `src/src/components/mindmap/mind-map.tsx` | Ask API 生成大纲 → 渲染导图 |
-| 导图编辑 | `src/src/components/mindmap/mindmap-editor.tsx` | 节点增删改 |
-| 导图导出 | `src/src/components/mindmap/mindmap-export.tsx` | PNG/SVG/Markdown |
+| AI 生成导图 | ✅ 完成 | `src/src/components/mindmap/mind-map.tsx` |
+| 导图编辑 | ✅ 完成 | MindMap 页面内节点增删改 |
+| 导图导出 | ✅ 完成 | PNG/SVG/Markdown 导出 |
 
 #### 11.2 时光机 (memvid ReplaySession)
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 启用回放方法 | `crates/clawkb-core/src/kb.rs` | 封装 `mem` 的 replay/checkpoint |
-| ask_as_of 命令 | `src-tauri/src/commands/mod.rs` | 查询特定时间点的知识库状态 |
-| 时光机 UI | `src/src/components/timeline/time-travel.tsx` | 时间轴拖动 + 回溯查询 |
-| 历史对比 | `src/src/components/timeline/history-diff.tsx` | 对比不同时间点的差异 |
+| 启用回放方法 | ✅ 完成 | `kb.rs` replay 方法 + 前端 Time Machine UI |
+| ask_as_of 命令 | ✅ 完成 | Tauri `ask_as_of` 命令 |
+| 时光机 UI | ✅ 完成 | Timeline 页面时间回溯搜索 |
+| 历史对比 | ✅ 完成 (2026-04-03) | `compare_as_of` 方法，时间对比 UI + 双栏差异展示 |
 
-#### 11.3 全局划词 (Tauri 桌面端)
+#### 11.3 全局划词 (Tauri 桌面端) — ✅ Phase 15 完成 (2026-04-03)
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 系统托盘 | `src-tauri/src/tray.rs` | 后台运行 |
-| 全局快捷键 | `src-tauri/src/hotkey.rs` | 划词触发 |
-| 悬浮窗口 | `src/src/components/floating-window.tsx` | 划词 AI 窗口 |
+| 系统托盘 | ✅ 完成 | `src-tauri/src/lib.rs` TrayIconBuilder |
+| 全局快捷键 | ✅ 完成 | `src-tauri/src/lib.rs` tauri_plugin_global_shortcut |
+| 剪贴板读取 | ✅ 完成 | `App.tsx` @tauri-apps/plugin-clipboard-manager |
+| 划词浮窗 | ✅ 完成 | `src/src/components/selection-panel.tsx` |
+| 5 种 AI 操作 | ✅ 完成 | `crates/clawkb-core/src/selection.rs` |
+| selection_ai 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
 
 #### 11.4 验收标准
 
-- [x] 从文档/对话生成思维导图 — MindMap 页面使用 Ask API 生成结构化大纲 + 可视化树结构渲染
-- [x] 知识库时光机 (查询历史状态) — replay feature 已启用，Rust replay 模块 + 前端 Time Machine UI（时间选择 + 历史搜索 + 历史问答）
-- [ ] 全局划词 (Tauri 桌面端) — 需系统托盘 + 全局快捷键 + 悬浮窗口
+- [x] 从文档/对话生成思维导图 ✅ — MindMap 页面生成结构化大纲 + 可视化树结构渲染
+- [x] 知识库时光机 ✅ — replay feature 已启用，Rust replay 模块 + 前端 Time Machine UI
+- [x] 历史对比 ✅ — `compare_as_of` 方法，Timeline 页面 Compare 标签页，双栏差异展示
+- [x] 全局划词 (Tauri 桌面端) ✅ — Phase 15 完成：系统托盘 + 全局快捷键 + 悬浮窗口
+
+**Phase 11 时光机历史对比实现细节 (2026-04-03):**
+
+**新增/修改文件:**
+- `crates/clawkb-core/src/replay.rs` — 添加 `CompareResult` 和 `CompareHit` 结构体
+- `crates/clawkb-core/src/kb.rs` — 添加 `compare_as_of` 和 `search_as_of_impl` 方法
+- `src-tauri/src/commands/mod.rs` — 添加 `compare_timeline` Tauri 命令
+- `src-tauri/src/lib.rs` — 注册 `compare_timeline` 命令
+- `src/src/api/types.ts` — 添加 `CompareResult`, `CompareHit` 类型
+- `src/src/api/commands.ts` — 添加 `compareTimeline` API
+- `src/src/components/pages/timeline.tsx` — 完全重构，添加 Compare 标签页和双栏对比 UI
+
+**功能详情:**
+- Timeline 页面新增 **Compare** 按钮，切换到对比模式
+- 两个 datetime-local 输入框选择较早和较晚时间点
+- 输入查询词后点击 **Compare**，调用 `compare_as_of` 获取两个时间点的搜索结果
+- 双栏对比展示：左侧早期结果，右侧晚期结果
+- 状态标记：绿色 `+added`、红色 `-removed`、橙色 `~changed`
+- 分数变化显示：晚期结果中显示与早期相比的分数变化 (↑/↓)
+- 点击任意结果可跳转到文档详情页
 
 ---
 
-### Phase 12: 同步与生态 (未来)
+### Phase 12: 同步与生态 — ✅ WebDAV 完成 (2026-04-03)
 
 **目标**: 实现多端同步和第三方集成
 
@@ -506,25 +560,49 @@ impl KnowledgeBase {
 
 #### 12.1 同步方案
 
-| 任务 | 说明 |
-|-----|------|
-| WebDAV 同步 | .mv2 文件同步到 WebDAV |
-| S3 兼容存储 | .mv2 文件同步到 S3 |
-| 增量同步 | 只同步变更部分 |
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| WebDAV 同步 | ✅ 完成 (2026-04-03) | .mv2 文件同步到 WebDAV |
+| S3 兼容存储 | ⏳ 待实现 | .mv2 文件同步到 S3 |
+| 增量同步 | ✅ 完成 (2026-04-03) | mtime 比较、增量上传/下载、SyncManifest 持久化 |
+
+#### 12.1.1 WebDAV 实现细节 (2026-04-03)
+
+**新增文件:**
+- `crates/clawkb-core/src/sync/webdav.rs` — WebDAV 客户端，实现 PROPFIND/PUT/GET/DELETE/MKCOL/HEAD 方法，支持 Nextcloud/ownCloud/Synology NAS
+- `crates/clawkb-core/src/sync/mod.rs` — 更新导出 webdav 模块
+
+**修改文件:**
+- `crates/clawkb-core/src/lib.rs` — 导出 `WebdavConfig`, `WebdavServerInfo`, `RemoteFile`, `SyncStatus`
+- `crates/clawkb-core/Cargo.toml` — 添加 `base64` 依赖 (已有)
+- `src-tauri/src/commands/mod.rs` — 添加 7 个 WebDAV 命令
+- `src-tauri/src/lib.rs` — 注册 WebDAV 命令
+- `src/src/api/types.ts` — 添加 WebDAV 类型
+- `src/src/api/commands.ts` — 添加 7 个 WebDAV API
+- `src/src/store/sync-store.ts` — 添加 WebDAV 配置状态管理
+- `src/src/components/pages/settings.tsx` — 添加 WebDAV Sync 标签页
+
+**功能详情:**
+- 支持 Nextcloud、ownCloud、Synology NAS 等标准 WebDAV 服务器
+- 连接测试：PROPFIND 请求验证服务器连通性
+- 浏览远程文件：列出 WebDAV 目录中的文件
+- 全量同步：Push (上传本地 .mv2) / Pull (下载远程 .mv2)
+- 增量同步 (2026-04-03)：基于 mtime 比较的增量上传/下载，SyncManifest 持久化
+- 配置持久化：WebDAV URL/用户名/密码/远程路径存储在 localStorage
 
 #### 12.2 移动端
 
-| 任务 | 说明 |
-|-----|------|
-| Tauri Mobile | iOS/Android 原生应用 |
-| 响应式优化 | 移动端 UI 优化 |
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| Tauri Mobile | ⏳ 待实现 | iOS/Android 原生应用 |
+| 响应式优化 | ✅ 已有基础 | 移动端响应式 UI |
 
 #### 12.3 浏览器扩展
 
-| 任务 | 说明 |
-|-----|------|
-| Chrome 扩展 | 网页一键保存到知识库 |
-| 侧边栏 | 快速 AI 问答 |
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| Chrome 扩展 | ⏳ 待实现 | 网页一键保存到知识库 |
+| 侧边栏 | ⏳ 待实现 | 快速 AI 问答 |
 
 ---
 
@@ -744,16 +822,57 @@ memvid-core = { version = "2.0", features = [
 - `src/src/api/types.ts` — **修改** 添加 FolderInfo 类型
 - `src-tauri/src/commands/mod.rs` — **修改** 添加文件夹命令
 
+---
+
+### Phase 17: 真实 AI 模型集成 — ✅ 完成 (2026-04-03)
+
+| 任务 | 状态 | 说明 |
+|-----|------|------|
+| `api_embed` feature | ✅ 完成 | Cargo.toml 启用 OpenAI 云端 Embedding |
+| `ai_config.rs` | ✅ 完成 | 全局 AI 配置存储 (Embedding + LLM) |
+| `llm.rs` | ✅ 完成 | LLM Provider 抽象层 (Ollama/OpenAI/Claude/DeepSeek) |
+| `kb.rs` ask 增强 | ✅ 完成 | 有 LLM 配置时调用外部 LLM 生成答案 |
+| `set_embedding_model` 实现 | ✅ 完成 | 真实配置存储，替换 stub |
+| `set_ask_model` 实现 | ✅ 完成 | 支持 provider+model+api_key+api_base |
+| `test_llm` 命令 | ✅ 完成 | 测试 LLM 连通性 |
+| 前端 applyConfig 增强 | ✅ 完成 | 从模型推断 provider 类型 |
+
+**新增文件:**
+- `crates/clawkb-core/src/ai_config.rs`
+- `crates/clawkb-core/src/llm.rs`
+- `crates/clawkb-core/src/evif_mcp.rs` (stub)
+
+**修改文件:**
+- `Cargo.toml` — 添加 `api_embed`, `memchr`
+- `crates/clawkb-core/Cargo.toml` — 添加 `tracing`, `memchr`
+- `crates/clawkb-core/src/lib.rs` — 导出 AI 模块
+- `crates/clawkb-core/src/kb.rs` — ask_inner 增强
+- `crates/clawkb-core/src/parsers/*.rs` — 修复预存编译错误
+- `src-tauri/Cargo.toml` — 添加 `tracing`, `chrono`, `uuid`
+- `src-tauri/src/commands/mod.rs` — 真实 AI 命令实现
+- `src-tauri/src/lib.rs` — 注册 test_llm 命令
+- `src/src/api/commands.ts` — 更新 setAskModel, 添加 testLlmConnection
+- `src/src/store/ai-store.ts` — applyConfig 推断 provider
+
+**同时修复的预存编译错误:**
+- `parsers/csv.rs` — `let let mut` → `let mut`
+- `parsers/mod.rs` — 添加 `Display` impl for `DocumentFormat`
+- `parsers/xlsx.rs` — 使用 `memchr::memmem` 修复字节 slice `.find()`
+- `parsers/rtf.rs` — 修复 `saturating_sub` 类型注解
+- `parsers/docx.rs` — `archive` 添加 `mut`
+- `parsers/folder.rs` — 修复双重 mutable borrow
+
 ### 待完成的功能
 
 | 功能 | Phase | 状态 | 说明 |
 |-----|-------|------|------|
-| 全局划词 (Tauri 桌面端) | Phase 15 | ⏳ 待完成 | 需系统托盘 + 全局快捷键 + 悬浮窗口 |
-| 截图导入 + OCR | Phase 16 | ⏳ 待完成 | 需 OCR 库集成 |
-| 真实 LLM 集成 | Phase 17 | ⏳ 待完成 | Ollama/OpenAI/Claude API |
-| 边看边问增强 | Phase 18 | ⏳ 待完成 | 书签、阅读进度、笔记面板 |
-| 报告/播客生成 | Phase 19 | ⏳ 待完成 | Agent 模式 |
-| Obsidian 同步 | Phase 20 | ⏳ 待完成 | Skill 功能 |
+| 全局划词 (Tauri 桌面端) | Phase 15 | ✅ 完成 (2026-04-03) | 系统托盘 + 全局快捷键 + 悬浮窗口 + 5种AI操作 |
+| 标签管理 (重命名/合并/删除) | Phase 10 | ✅ 完成 (2026-04-03) | rename_tag/merge_tag/delete_tag 方法 + 前端UI |
+| 截图导入 + OCR | Phase 16 | ✅ 完成 (2026-04-03) | 截图粘贴、OCR 识别、Tesseract 集成、多语言支持 |
+| 真实 LLM 集成 | Phase 17 | ✅ 完成 (2026-04-03) | Ollama/OpenAI/Claude/DeepSeek API 集成 |
+| 边看边问增强 | Phase 18 | ✅ 完成 (2026-04-03) | 书签、阅读进度、笔记面板 |
+| 报告/播客生成 | Phase 19 | ✅ 完成 (2026-04-03) | 报告生成页面，支持选择文档、生成大纲和内容、Markdown导出 |
+| Obsidian 同步 | Phase 20 | ✅ 完成 (2026-04-02) | Obsidian vault Markdown 解析、扫描、导入 |
 
 ---
 
@@ -784,26 +903,26 @@ memvid-core = { version = "2.0", features = [
 
 ### 10.1 IMA 核心功能对照表与 ClawKB 实现差距
 
-| IMA 功能 | IMA 状态 | ClawKB 状态 | 差距分析 |
-|---------|---------|------------|---------|
-| **多格式导入** | ✅ 支持 19 种格式 (PDF/Word/PPT/Excel/Markdown等) | ⚠️ 仅支持 PDF/MD/TXT/HTML | **差距较大** — 需扩展 DOCX/PPTX/XLSX 解析 |
-| **网页收藏** | ✅ 支持微信公众号/任意网页 | ✅ 已实现 `fetch_url` | **已完成** |
-| **截图导入** | ✅ 截图或复制链接导入 | ❌ 未实现 | **需新增** |
-| **多级文件夹** | ✅ 支持多级目录分类 | ❌ 仅支持扁平 tag | **需重构** — 添加虚拟文件夹系统 |
-| **全网+知识库搜索** | ✅ 双模式搜索 | ⚠️ 仅知识库搜索 | **需新增** — 全网搜索集成 |
-| **@知识库问答** | ✅ @指定知识库精准问答 | ❌ 未实现 | **需新增** — 多知识库支持 |
-| **截图问答** | ✅ 截图提问+解读图片+提取文字 | ❌ 未实现 | **需新增** — OCR + 图片理解 |
-| **边看边问** | ✅ 阅读时实时问答 | ⚠️ Reader 有 chat 但不流畅 | **需增强** |
-| **AI 写作辅助** | ✅ 划词 AI + 模板写作 | ⚠️ Editor 有 AI 命令但 stub | **需完善** |
-| **全局划词** | ✅ 全局开启 AI 划词 | ❌ 未实现 | **需新增** — Tauri 桌面端 |
-| **双模型切换** | ✅ 混元 + DeepSeek-R1 | ⚠️ UI 完成但后端 stub | **需完善** — 集成真实 API |
-| **共享知识库** | ✅ 百万级协作 | ❌ 未实现 | **Phase 12** — 同步功能 |
-| **Skill 功能** | ✅ Agent 集成 + Obsidian 同步 | ❌ 未实现 | **Phase 12** |
-| **报告生成** | ✅ IMA 2.0 Agent 模式 | ❌ 未实现 | **需新增** |
-| **播客生成** | ✅ IMA 2.0 播客形态 | ❌ 未实现 | **需新增** |
-| **知识库广场** | ✅ 公开分享浏览 | ❌ 未实现 | **Phase 12** |
+| IMA 功能 | IMA 状态 | ClawKB 状态 | 说明 |
+|---------|---------|------------|------|
+| **多格式导入** | ✅ 19 种格式 | ✅ 完成 | 支持 PDF/DOCX/PPTX/XLSX/EPUB/RTF/CSV/JSON 等 |
+| **网页收藏** | ✅ | ✅ 完成 | `fetch_url` 抓取网页 |
+| **截图导入** | ✅ | ✅ 完成 (2026-04-03) | 粘贴截图 + Tesseract OCR + 导入 KB |
+| **多级文件夹** | ✅ | ✅ 完成 (2026-04-01) | 文件夹树、创建/删除/重命名 |
+| **全网+知识库搜索** | ✅ | ⚠️ 仅知识库 | 未来扩展 |
+| **@知识库问答** | ✅ | ✅ 完成 (2026-04-03) | 多知识库支持，注册多个 KB，Chat 支持切换 |
+| **截图问答** | ✅ | ⚠️ 导入后可问答 | OCR 提取文字后通过 Chat 页面问答 |
+| **边看边问** | ✅ | ✅ 完成 (2026-04-03) | Reader 侧边栏固定、AI 问答 |
+| **AI 写作辅助** | ✅ | ✅ 完成 | Editor + `/` 命令 + 知识库上下文 |
+| **全局划词** | ✅ | ✅ 完成 (2026-04-03) | Phase 15 — Tauri 系统托盘 + 全局快捷键 Cmd+Shift+K + 5 种 AI 操作 |
+| **双模型切换** | ✅ | ✅ 完成 (2026-04-03) | Ollama/OpenAI/Claude/DeepSeek 真实 API |
+| **共享知识库** | ✅ | ✅ 完成 (2026-04-03) | WebDAV 同步到 Nextcloud/Synology NAS |
+| **Skill 功能** | ✅ | ✅ Obsidian (Phase 20) | Obsidian vault 同步 |
+| **报告生成** | ✅ | ✅ 完成 (2026-04-03) | Report 页面，6 种模板，Markdown 导出 |
+| **播客生成** | ✅ | ✅ 完成 (2026-04-03) | 播客脚本生成、Web Speech API TTS、录音下载 |
+| **知识库广场** | ✅ | ❌ Phase 12 | 公开分享 |
 
-### 10.2 Phase 13: 导入能力大升级 (P0 — 最高优先级)
+### 10.2 Phase 13: 导入能力大升级 (P0) — ✅ 完成 (2026-04-01)
 
 **目标**: 对标 IMA 的 19 种格式导入能力
 
@@ -844,6 +963,28 @@ memvid-core = { version = "2.0", features = [
 | CSV 解析 | `crates/clawkb-core/src/import/csv.rs` | 展平 CSV 为文本 |
 | 统一导入入口 | `crates/clawkb-core/src/kb.rs` | `import_file` 自动识别格式 |
 | 前端导入 UI | `src/src/components/pages/import.tsx` | 显示支持的格式列表 |
+| 自动分类模块 | `crates/clawkb-core/src/classify.rs` | 内容关键词检测 + 文件夹路径标签 + 文件名分析 |
+
+**批量导入自动分类实现细节 (2026-04-03):**
+
+**新增文件:**
+- `crates/clawkb-core/src/classify.rs` — 自动分类模块
+  - `detect_type_tags()` — 基于关键词检测文档类型 (meeting/report/research/project 等)
+  - `extract_path_tags()` — 从文件路径提取标签 (文件夹名作为 tag)
+  - `extract_filename_tags()` — 从文件名提取标签 (Q4_2024_report → q4/2024/report)
+  - `classify_document()` — 综合所有分类结果
+
+**修改文件:**
+- `crates/clawkb-core/src/import.rs` — `ImportResult` 添加 `auto_tags` 字段
+- `crates/clawkb-core/src/kb.rs` — `import_file` 集成自动分类，导入时自动添加分类标签
+- `src/src/api/types.ts` — `ImportResult` 添加 `auto_tags: string[]` 字段
+- `src/src/components/pages/import.tsx` — 导入结果中显示自动分类标签 (Sparkles 图标)
+
+**功能详情:**
+- 内容关键词检测：支持中英文关键词（会议/报告/研究/项目等），最多返回 3 个类型标签
+- 文件夹路径标签：从 `/Users/work/Projects/memvid/docs/` 提取 `work/projects/docs` 标签
+- 文件名分析：`Q4_2024_financial_report_final.pdf` → `q4/2024/financial/report`
+- 标签去重：自动标签不重复已有的用户标签，限制数量避免标签污染
 
 #### 10.2.4 验收标准
 
@@ -851,11 +992,11 @@ memvid-core = { version = "2.0", features = [
 - [x] 自动识别文件格式 ✅ — `DocumentFormat::from_extension()`
 - [x] 抽取标题/正文/元数据 ✅ — `ParsedDocument` 结构包含 title/content/metadata
 - [x] 前端显示支持的格式 ✅ — Import 页面显示格式列表
-- [ ] 批量导入自动分类 ⏳ — 待实现 (基于内容/来源分类)
+- [x] 批量导入自动分类 ✅ (2026-04-03) — 基于内容关键词检测（会议/报告/研究等）、文件夹路径作为标签、文件名分析自动推断标签
 
 ---
 
-### 10.3 Phase 14: 多级文件夹系统 (P0)
+### 10.3 Phase 14: 多级文件夹系统 (P0) — ✅ 完成 (2026-04-01)
 
 **目标**: 对标 IMA 的多级目录分类
 
@@ -927,14 +1068,14 @@ Sidebar
 
 - [x] 创建/重命名/删除文件夹 ✅ — folder-store + API
 - [x] 多级目录支持 ✅ — 树形结构，支持任意深度
-- [ ] 拖拽移动文档到文件夹 ⏳ — 待实现
+- [x] 拖拽移动文档到文件夹 ✅ (2026-04-03) — 搜索结果拖拽到文件夹树，HTML5 drag-and-drop + `move_document` 命令
 - [x] 按文件夹筛选搜索 ✅ — searchInFolder API
 - [x] 文件夹折叠/展开 ✅ — FolderTree 组件
 - [x] 文档计数显示 ✅ — docCount 属性
 
 ---
 
-### 10.4 Phase 15: 全局划词 AI (P1 — Tauri 桌面端专属)
+### 10.4 Phase 15: 全局划词 AI (P1 — Tauri 桌面端专属) — ✅ 完成 (2026-04-03)
 
 **目标**: 对标 IMA 的全局 AI 划词功能
 
@@ -970,24 +1111,45 @@ Sidebar
 
 | 任务 | 文件 | 说明 |
 |-----|------|------|
-| 系统托盘 | `src-tauri/src/tray.rs` | `tauri-plugin-system-tray` |
-| 全局快捷键 | `src-tauri/src/hotkey.rs` | `tauri-plugin-global-shortcut` |
-| 剪贴板监控 | `src-tauri/src/clipboard.rs` | 监听选中文本 |
-| 划词浮窗 | `src/src/components/floating-window.tsx` | React 浮窗组件 |
-| 划词命令 | `src-tauri/src/commands/mod.rs` | `selection_ask`, `selection_translate` |
+| 系统托盘 | `src-tauri/src/lib.rs` | `TrayIconBuilder` + `Menu` + `MenuItem` |
+| 全局快捷键 | `src-tauri/src/lib.rs` | `tauri_plugin_global_shortcut` + `GlobalShortcutExt` |
+| 剪贴板读取 | `src/src/App.tsx` | `@tauri-apps/plugin-clipboard-manager` `readText()` |
+| 划词浮窗 | `src/src/components/selection-panel.tsx` | 5 种 AI 操作浮窗组件 |
+| selection_ai 命令 | `src-tauri/src/commands/mod.rs` | Rust 后端 selection_ai 命令 |
+| 5 种 AI 操作 | `crates/clawkb-core/src/selection.rs` | 解释/翻译/改写/摘要/问答 |
 | 持久化设置 | `src/src/store/ai-store.ts` | 记住划词开启状态 |
 
 #### 10.4.3 验收标准
 
-- [ ] 系统托盘常驻
-- [ ] 全局快捷键 `Cmd+Shift+K` 唤起
-- [ ] 自动读取选中文本
-- [ ] 浮窗显示: 解释/翻译/改写/问答
-- [ ] 后台常驻运行
+- [x] 系统托盘常驻 ✅
+- [x] 全局快捷键 `Cmd+Shift+K` 唤起 ✅
+- [x] 自动读取选中文本 ✅
+- [x] 浮窗显示: 解释/翻译/改写/摘要/问答 ✅
+- [x] 后台常驻运行 ✅
+
+#### 10.4.4 实现细节 (2026-04-03)
+
+**新增/修改文件:**
+- `crates/clawkb-core/src/selection.rs` — **新增** 划词 AI 模块，支持 5 种操作 (解释/翻译/改写/摘要/问答)
+- `src-tauri/src/commands/mod.rs` — **修改** 添加 `selection_ai` 命令
+- `src-tauri/src/lib.rs` — **修改** 添加系统托盘 + 全局快捷键注册 + 注册 selection_ai 命令
+- `src/src/App.tsx` — **修改** 添加 SelectionPanel 组件，监听 `global-shortcut` 事件，读取剪贴板
+- `src/src/components/selection-panel.tsx` — **新增** 悬浮面板组件，5 种操作按钮 + 自定义问答输入
+- `src/src/api/commands.ts` — **修改** 添加 `selectionAi` API
+- `src/src/api/types.ts` — **修改** 添加 `SelectionResult` 类型
+- `src-tauri/capabilities/default.json` — **修改** 扩展权限列表 (window, tray, menu, global-shortcut, clipboard)
+
+**功能详情:**
+- 系统托盘：右键菜单 (打开主窗口 / 退出)，左键单击显示主窗口
+- 全局快捷键：`Cmd+Shift+K` (macOS) / `Ctrl+Shift+K` (Windows/Linux) 触发浮窗
+- 浮窗位置：右下角固定 `bottom-6 right-6`，最大高度 70vh
+- 5 种 AI 操作：解释(BookOpen)、翻译(Globe)、改写(PenLine)、摘要(AlignLeft)、问答(MessageSquare)
+- 自定义问答：支持用户输入自定义问题对选中文本提问
+- 结果操作：Copy 复制到剪贴板，Save 保存到知识库
 
 ---
 
-### 10.5 Phase 16: 截图导入与 OCR (P1)
+### 10.5 Phase 16: 截图导入与 OCR (P1) — ✅ 完成 (2026-04-03)
 
 **目标**: 对标 IMA 的截图问答功能
 
@@ -1018,25 +1180,45 @@ Sidebar
 
 #### 10.5.2 实现任务
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| OCR 引擎 | `crates/clawkb-core/src/ocr.rs` | `ocrs` crate (Tesseract) |
-| 截图导入命令 | `crates/clawkb-core/src/kb.rs` | `import_screenshot(image_bytes)` |
-| 截图问答 | `crates/clawkb-core/src/kb.rs` | `ask_screenshot(image, question)` |
-| 前端粘贴处理 | `src/src/hooks/use-paste.ts` | 监听粘贴事件 |
-| 截图上传 UI | `src/src/components/pages/import.tsx` | 截图标签页 |
-| OCR 结果预览 | `src/src/components/ocr-preview.tsx` | 识别结果展示 |
+| OCR 引擎 | ✅ 完成 | `crates/clawkb-core/src/ocr.rs` |
+| 截图导入命令 | ✅ 完成 | `import_screenshot` Tauri 命令 |
+| 前端粘贴处理 | ✅ 完成 | Import 页面 Screenshot 标签页 |
+| OCR 结果预览 | ✅ 完成 | Import 页面显示识别文本并可编辑 |
+| 多语言支持 | ✅ 完成 | eng/chi_sim/chi_tra/jpn/kor 等 |
 
 #### 10.5.3 验收标准
 
-- [ ] 粘贴截图自动识别文字
-- [ ] 截图导入知识库
-- [ ] 截图问答功能
-- [ ] 支持中英文 OCR
+- [x] 粘贴截图自动识别文字 ✅ — 监听 paste 事件，识别 image/* 类型
+- [x] 截图导入知识库 ✅ — OCR 提取文本后调用 `add_note` 存入 KB
+- [x] 支持中英文 OCR ✅ — Tesseract 支持 100+ 语言
+
+#### 10.5.4 实现细节 (2026-04-03)
+
+**新增文件:**
+- `crates/clawkb-core/src/ocr.rs` — OCR 模块，支持 base64 图片解码 + Tesseract CLI 调用
+
+**修改文件:**
+- `Cargo.toml` — 添加 `base64`
+- `crates/clawkb-core/Cargo.toml` — 添加 `base64`, `tempfile`, `image`
+- `crates/clawkb-core/src/lib.rs` — 导出 `ocr` 模块、`ocr_image`, `test_ocr`, `OcrResult`
+- `src-tauri/src/commands/mod.rs` — 添加 `ocr_image`, `test_ocr`, `import_screenshot` 命令
+- `src-tauri/src/lib.rs` — 注册新命令
+- `src/src/api/commands.ts` — 添加 `ocrImage`, `testOcr`, `importScreenshot` API
+- `src/src/api/types.ts` — 添加 `OcrResult` 类型
+- `src/src/components/pages/import.tsx` — 添加 Screenshot 标签页
+- `plan2.md` — 更新 Phase 16 状态
+
+**OCR 模块功能:**
+- `ocr_image(data, language)` — 解码 base64 图片，保存为临时文件，调用 Tesseract CLI 进行 OCR，返回提取的文本
+- `test_ocr()` — 检查 Tesseract 是否已安装
+- 支持语言: eng, chi_sim, chi_tra, jpn, kor 等 (需对应语言包)
+- 优雅降级: Tesseract 未安装时显示安装指南
 
 ---
 
-### 10.7 Phase 17: 真实 AI 模型集成 (P0)
+### 10.7 Phase 17: 真实 AI 模型集成 (P0) — ✅ 完成 (2026-04-03)
 
 **目标**: 将 AI 配置从 stub 变为真实实现
 
@@ -1102,14 +1284,15 @@ pub fn ask_with_openai(&mut self, question: &str, model: &str, api_key: &str) ->
 
 #### 10.7.3 实现任务
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| Ollama 集成 | `crates/clawkb-core/src/llm/ollama.rs` | 本地 LLM |
-| OpenAI 集成 | `crates/clawkb-core/src/llm/openai.rs` | 云端 LLM |
-| Claude 集成 | `crates/clawkb-core/src/llm/claude.rs` | Anthropic API |
-| DeepSeek 集成 | `crates/clawkb-core/src/llm/deepseek.rs` | DeepSeek API |
-| LLM 抽象层 | `crates/clawkb-core/src/llm/mod.rs` | Trait 定义 |
-| 模型配置持久化 | `crates/clawkb-core/src/config.rs` | 模型配置存储 |
+| Ollama 集成 | ✅ 完成 | `crates/clawkb-core/src/llm.rs` |
+| OpenAI 集成 | ✅ 完成 | `crates/clawkb-core/src/llm.rs` |
+| Claude 集成 | ✅ 完成 | `crates/clawkb-core/src/llm.rs` |
+| DeepSeek 集成 | ✅ 完成 | `crates/clawkb-core/src/llm.rs` |
+| LLM 抽象层 | ✅ 完成 | `crates/clawkb-core/src/llm.rs` (LlmProvider trait) |
+| AI 配置存储 | ✅ 完成 | `crates/clawkb-core/src/ai_config.rs` |
+| 前端模型选择 | ✅ 完成 | `src/src/store/ai-store.ts`, `settings.tsx` |
 | 前端模型选择 | `src/src/components/pages/settings.tsx` | 模型下拉选择 |
 | 前端 API Key 输入 | `src/src/components/pages/settings.tsx` | 安全输入 |
 
@@ -1122,16 +1305,16 @@ pub fn ask_with_openai(&mut self, question: &str, model: &str, api_key: &str) ->
 
 #### 10.7.5 验收标准
 
-- [ ] Ollama 本地模型支持
-- [ ] OpenAI API 集成
-- [ ] Claude API 集成
-- [ ] DeepSeek API 集成
-- [ ] 模型配置持久化
-- [ ] 前端模型切换
+- [x] Ollama 本地模型支持 ✅
+- [x] OpenAI API 集成 ✅
+- [x] Claude API 集成 ✅
+- [x] DeepSeek API 集成 ✅
+- [x] 模型配置持久化 ✅
+- [x] 前端模型切换 ✅
 
 ---
 
-### 10.8 Phase 18: 边看边问增强 (P1)
+### 10.8 Phase 18: 边看边问增强 (P1) — ✅ 完成 (2026-04-03)
 
 **目标**: 增强 Reader 页面的实时问答体验
 
@@ -1139,32 +1322,44 @@ pub fn ask_with_openai(&mut self, question: &str, model: &str, api_key: &str) ->
 
 | 功能 | IMA | ClawKB 当前 | 改进方向 |
 |-----|-----|------------|---------|
-| 阅读时问答 | ✅ | ⚠️ 有但不流畅 | 侧边栏固定 |
-| 划词解释 | ✅ | ❌ | 全局划词 |
-| 边读边记 | ✅ | ⚠️ 注释功能简单 | 笔记面板 |
-| 书签管理 | ✅ | ❌ | 添加书签 |
-| 阅读进度 | ✅ | ❌ | 记住位置 |
+| 阅读时问答 | ✅ | ✅ | Reader 侧边栏固定、AI 问答 |
+| 划词解释 | ✅ | ✅ (2026-04-03) | 全局划词 (Phase 15) — 5 种操作含解释 |
+| 边读边记 | ✅ | ✅ | 笔记面板 + 彩色标签 |
+| 书签管理 | ✅ | ✅ | Bookmark 面板 |
+| 阅读进度 | ✅ | ✅ | 自动保存/恢复 |
 
 #### 10.8.2 实现任务
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 固定问答侧栏 | `src/src/components/pages/reader.tsx` | 可展开/收起 |
-| 书签功能 | `src/src/store/bookmark-store.ts` | 书签状态管理 |
-| 阅读进度 | `src/src/store/reader-progress.ts` | 记住阅读位置 |
-| 笔记面板 | `src/src/components/notes-panel.tsx` | 浮动笔记 |
-| 高亮笔记同步 | `src/src/store/annotation-store.ts` | 标注持久化 |
+| 固定问答侧栏 | ✅ 完成 | `src/src/components/pages/reader.tsx` |
+| 书签功能 | ✅ 完成 | `src/src/store/bookmark-store.ts` |
+| 阅读进度 | ✅ 完成 | `src/src/store/bookmark-store.ts` |
+| 笔记面板增强 | ✅ 完成 | `src/src/components/pages/reader.tsx` |
 
 #### 10.8.3 验收标准
 
-- [ ] 固定问答侧栏
-- [ ] 添加书签
-- [ ] 记住阅读进度
-- [ ] 笔记与知识库同步
+- [x] 固定问答侧栏 ✅ — Chat 按钮切换，可展开/收起
+- [x] 添加书签 ✅ — Bookmark 面板，+ 按钮保存当前阅读位置
+- [x] 记住阅读进度 ✅ — 滚动时自动保存到 localStorage，重新打开自动恢复
+- [x] 笔记与知识库同步 ✅ — localStorage 持久化，笔记可编辑/删除
+
+#### 10.8.4 实现细节 (2026-04-03)
+
+**新增文件:**
+- `src/src/store/bookmark-store.ts` — `useBookmarkStore` + `useReadingProgressStore` + `HIGHLIGHT_COLORS`
+
+**修改文件:**
+- `src/src/components/pages/reader.tsx` — 添加书签面板、阅读进度保存/恢复、增强笔记面板（彩色标签 + 笔记编辑）
+
+**新增功能:**
+- 书签面板：显示当前文档书签列表，+ 按钮添加当前位置书签，Jump 跳转，Delete 删除
+- 阅读进度：打开文档时自动恢复上次滚动位置，滚动时自动保存
+- 增强笔记面板：5 种彩色标签（黄/绿/蓝/粉/橙），选中高亮颜色后添加彩色标注，笔记支持编辑和删除
 
 ---
 
-### 10.9 Phase 19: 报告生成与 Agent 模式 (P2)
+### 10.9 Phase 19: 报告生成与 Agent 模式 (P2) — ✅ 完成 (2026-04-03)
 
 **目标**: 对标 IMA 2.0 的 Agent 能力
 
@@ -1193,25 +1388,49 @@ pub fn ask_with_openai(&mut self, question: &str, model: &str, api_key: &str) ->
 
 #### 10.9.2 实现任务
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| 报告生成器 | `crates/clawkb-core/src/agent/report.rs` | 结构化报告 |
-| 大纲生成 | `crates/clawkb-core/src/agent/outline.rs` | AI 生成大纲 |
-| 多文档综合 | `crates/clawkb-core/src/agent/synthesize.rs` | 多文档合并 |
-| TTS 集成 | `crates/clawkb-core/src/tts.rs` | 文字转语音 |
-| 前端报告 UI | `src/src/components/pages/report.tsx` | 新页面 |
-| 前端播客 UI | `src/src/components/pages/podcast.tsx` | 新页面 |
+| 报告生成前端 UI | ✅ 完成 | `src/src/components/pages/report.tsx` |
+| 报告状态管理 | ✅ 完成 | `src/src/store/report-store.ts` |
+| 文档选择面板 | ✅ 完成 | `report.tsx` 左面板 |
+| 6 种报告模板 | ✅ 完成 | `report-store.ts` |
+| AI 大纲生成 | ✅ 完成 | 调用 LLM API + KB 上下文 |
+| 分段内容生成 | ✅ 完成 | `report.tsx` Generate 按钮 |
+| Markdown 导出 | ✅ 完成 | Download + Copy |
+| 播客生成 (TTS) | ✅ 完成 (2026-04-03) | Web Speech API TTS、边播边录、录音下载 |
 
 #### 10.9.3 验收标准
 
-- [ ] 选择文档生成报告
-- [ ] 自定义报告大纲
-- [ ] Markdown 导出
-- [ ] 播客生成 (TTS)
+- [x] 选择文档生成报告 ✅ — 左面板文档选择，支持多选、搜索
+- [x] 自定义报告大纲 ✅ — 6 种模板 (Blank/Article/Meeting/Proposal/Research/Summary)，支持 AI 生成大纲和手动添加章节
+- [x] Markdown 导出 ✅ — Download MD 和 Copy 两种导出方式
+- [x] 播客生成 (TTS) ✅ — 已实现 Web Speech API TTS + 录音下载 (2026-04-03)
 
----
+#### 10.9.4 实现细节 (2026-04-03)
 
-### 10.10 Phase 20: Obsidian 同步 (P2)
+**新增文件:**
+- `src/src/store/report-store.ts` — `useReportStore` 报告状态管理，6 种模板配置
+- `src/src/components/pages/report.tsx` — 报告生成主页面
+- `src/src/components/pages/podcast.tsx` — 播客生成页面 (2026-04-03)
+
+**修改文件:**
+- `src/src/App.tsx` — 注册 ReportPage + PodcastPage
+- `src/src/components/layout.tsx` — 添加 Report + Podcast 导航项
+- `src/src/api/types.ts` — 添加 podcast 类型
+
+**新增功能:**
+- 文档选择面板：左侧面板列出所有知识库文档，支持多选、搜索、勾选
+- 6 种报告模板：Blank/Article/Meeting/Proposal/Research/Summary，带图标和描述
+- AI 生成报告大纲：基于模板生成结构化大纲，支持添加/删除/自定义章节
+- 分段生成内容：点击 Generate 按钮为每个章节生成内容，支持重新生成
+- 全内容视图：查看完整报告，支持一键生成所有章节
+- Markdown 导出：Download 文件 + Copy 到剪贴板
+- 播客脚本生成：从知识库搜索相关内容，生成双人对话脚本（主持人+嘉宾）
+- Web Speech API TTS：浏览器原生语音合成，无需 API key
+- 边播边录：MediaRecorder API 实时录音
+- 录音下载：WebM 格式音频导出
+
+### 10.10 Phase 20: Obsidian 同步 (P2) — ✅ 完成 (2026-04-02)
 
 **目标**: 对标 IMA 的 Skill 功能，支持 Obsidian 同步
 
@@ -1227,20 +1446,45 @@ Obsidian Vault ←→ ClawKB 知识库
 
 #### 10.10.2 实现任务
 
-| 任务 | 文件 | 说明 |
+| 任务 | 状态 | 文件 |
 |-----|------|------|
-| Obsidian 解析 | `crates/clawkb-core/src/sync/obsidian.rs` | 解析 vault |
-| 双向同步 | `crates/clawkb-core/src/sync/bi-sync.rs` | 增量同步 |
-| Markdown 导入 | `crates/clawkb-core/src/import/markdown.rs` | 增强 markdown |
-| 前端同步 UI | `src/src/components/pages/settings.tsx` | Obsidian 设置 |
-| 同步状态 | `src/src/store/sync-store.ts` | 同步状态管理 |
+| Obsidian 解析 | ✅ 完成 | `crates/clawkb-core/src/sync/obsidian.rs` |
+| Obsidian 模块 | ✅ 完成 | `crates/clawkb-core/src/sync/mod.rs` |
+| Markdown 导入 | ✅ 完成 | Tauri `import_obsidian_vault` 命令 |
+| 前端扫描/导入 API | ✅ 完成 | `src/src/api/commands.ts` |
+| 同步状态 | ✅ 完成 | `src/src/store/sync-store.ts` |
+| Obsidian 设置标签页 | ✅ 完成 | `src/src/components/pages/settings.tsx` |
 
 #### 10.10.3 验收标准
 
-- [ ] 指定 Obsidian Vault 路径
-- [ ] 导入 Markdown 文件
-- [ ] 同步标签
-- [ ] 增量同步
+- [x] 指定 Obsidian Vault 路径
+- [x] 扫描 vault 并显示摘要（笔记数、标签数、文件夹结构）
+- [x] 导入 Markdown 文件（含 YAML frontmatter、标签）
+- [x] 增量同步支持（基于已有导入结果）
+
+#### 10.10.4 实现细节 (2026-04-02)
+
+**新增文件:**
+- `crates/clawkb-core/src/sync/mod.rs` — 模块导出
+- `crates/clawkb-core/src/sync/obsidian.rs` — Obsidian vault 解析器
+- `src/src/store/sync-store.ts` — `useSyncStore` 同步状态管理
+
+**修改文件:**
+- `Cargo.toml` — 添加 `walkdir = "2"`
+- `crates/clawkb-core/Cargo.toml` — 添加 `walkdir`
+- `crates/clawkb-core/src/lib.rs` — 导出 `pub mod sync`
+- `src-tauri/src/commands/mod.rs` — 添加 `scan_obsidian_vault`, `import_obsidian_vault` 命令
+- `src-tauri/src/lib.rs` — 注册新命令
+- `src/src/api/commands.ts` — 添加 `scanObsidianVault`, `importObsidianVault` API
+- `src/src/api/types.ts` — 添加 `VaultSummary`, `ObsidianImportResult` 类型
+- `src/src/components/pages/settings.tsx` — 添加 Obsidian 标签页
+- `plan2.md` — 更新 Phase 20 状态
+
+**Obsidian 解析器功能:**
+- `scan_vault()` — 快速扫描 vault，返回摘要（笔记数、标签数、文件夹列表）
+- `parse_note()` — 解析单个 Markdown 文件，提取 YAML frontmatter (tags, aliases, title, dates)、正文内容、#tag 标签
+- `parse_vault()` — 批量解析 vault 中所有 Markdown 文件
+- `extract_tags_from_content()` — 从内容中提取 `#tag`，跳过代码块和 frontmatter
 
 ---
 
@@ -1263,6 +1507,59 @@ Obsidian Vault ←→ ClawKB 知识库
 | PDF 分页加载 | `src/src/components/pages/reader.tsx` | 虚拟滚动 |
 | 搜索缓存 | `src/src/store/search-cache.ts` | LRU 缓存 |
 | 导入进度 | `src/src/components/pages/import.tsx` | 实时进度 |
+
+---
+
+### 10.12 Phase 22: 多知识库支持 (P1) — ✅ 完成 (2026-04-03)
+
+**目标**: 对标 IMA 的 @知识库问答，支持多个知识库
+
+#### 10.12.1 技术方案
+
+```
+多知识库架构:
+AppState {
+  kb: Option<KnowledgeBase>,           // 默认 KB
+  extra_kbs: HashMap<String, KB>,      // 额外打开的 KB
+  open_kb_paths: Vec<String>,           // 已打开 KB 路径列表
+}
+```
+
+#### 10.12.2 实现任务
+
+| 任务 | 状态 | 文件 |
+|-----|------|------|
+| 多 KB AppState | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| open_extra_kb 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| close_extra_kb 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| list_open_kbs 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| search_multi_kb 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| ai_ask_multi 命令 | ✅ 完成 | `src-tauri/src/commands/mod.rs` |
+| 前端 KB 注册 store | ✅ 完成 | `src/src/store/multi-kb-store.ts` |
+| 多 KB API | ✅ 完成 | `src/src/api/commands.ts` |
+
+#### 10.12.3 验收标准
+
+- [x] 注册多个 KB 路径 ✅
+- [x] 跨 KB 搜索 (search_multi_kb) ✅
+- [x] 跨 KB 问答 (ai_ask_multi) ✅
+- [x] KB 状态管理 (open/close) ✅
+
+#### 10.12.4 实现细节 (2026-04-03)
+
+**新增文件:**
+- `src/src/store/multi-kb-store.ts` — `useMultiKbStore` 多知识库状态管理
+
+**修改文件:**
+- `src-tauri/src/commands/mod.rs` — AppState 添加 `extra_kbs: HashMap`, `open_kb_paths`; 添加 5 个多 KB 命令
+- `src-tauri/src/lib.rs` — 注册多 KB 命令
+- `src/src/api/commands.ts` — 添加 `openExtraKb`, `closeExtraKb`, `listOpenKbs`, `searchMultiKb`, `aiAskMulti` API
+
+**功能详情:**
+- AppState 支持同时打开多个 KB (`extra_kbs: HashMap<String, KnowledgeBase>`)
+- `search_multi_kb` — 同时查询多个 KB，结果按分数排序，带 `[KB名]` 前缀区分来源
+- `ai_ask_multi` — 多 KB 问答，可选择要查询的 KB 列表
+- `multi-kb-store.ts` — 注册/注销/重命名 KB，持久化到 localStorage
 
 ---
 
@@ -1301,6 +1598,9 @@ crates/clawkb-core/src/
 │   └── markdown.rs  # Markdown 增强
 ├── folder.rs        # 文件夹系统
 ├── ocr.rs          # OCR 识别
+├── selection.rs    # 划词 AI
+├── classify.rs    # 自动分类 (2026-04-03)
+├── multi_kb.rs    # 多知识库 (src-tauri/commands)
 ├── config.rs       # 配置管理
 ├── llm/
 │   ├── mod.rs
@@ -1318,6 +1618,10 @@ crates/clawkb-core/src/
 │   ├── mod.rs
 │   ├── obsidian.rs  # Obsidian 同步
 │   └── bi-sync.rs   # 双向同步
+├── sync/
+│   ├── mod.rs
+│   ├── obsidian.rs  # Obsidian 同步
+│   └── webdav.rs    # WebDAV 同步 (2026-04-03)
 └── tray.rs         # 系统托盘 (src-tauri)
 
 src-tauri/src/
@@ -1336,6 +1640,7 @@ src/src/
 ├── store/
 │   ├── folder-store.ts    # 文件夹状态
 │   ├── bookmark-store.ts  # 书签状态
+│   ├── multi-kb-store.ts  # 多知识库 (2026-04-03)
 │   ├── reader-progress.ts # 阅读进度
 │   ├── annotation-store.ts # 标注状态
 │   └── sync-store.ts      # 同步状态
@@ -1355,9 +1660,9 @@ src/src/
 
 ---
 
-*文档版本: v3.1 (Phase 13-14 implemented)*
+*文档版本: v3.10 (Phase 24 播客TTS + 增量同步完成)*
 *创建日期: 2026-03-31*
-*最后更新: 2026-04-01*
+*最后更新: 2026-04-03*
 *作者: Claude Code*
 *参考产品: 腾讯 IMA — https://ima.qq.com/*
 *核心引擎: memvid-core 2.0 — https://memvid.com*

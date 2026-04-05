@@ -4,6 +4,7 @@
 //! XLSX files are ZIP archives containing XML files for each sheet.
 
 use super::{ParsedDocument, DocumentMetadata};
+use memchr::memmem;
 
 /// Parse an XLSX file and extract text from all sheets
 pub fn parse_xlsx(bytes: &[u8]) -> Result<ParsedDocument, String> {
@@ -177,9 +178,9 @@ fn extract_sheet_data(xml: &str, shared_strings: &[String]) -> String {
                 in_cell = true;
                 // Extract cell reference
                 if rest.starts_with(b"<c ") {
-                    if let Some(r_start) = rest[3..].find("r=\"") {
-                        let r_value_start = 3 + r_start + 3;
-                        if let Some(r_end) = rest[r_value_start..].find('"') {
+                    if let Some(r_start) = memmem::find(rest, b"r=\"") {
+                        let r_value_start = r_start + 3;
+                        if let Some(r_end) = memchr::memchr(b'\"', &rest[r_value_start..]) {
                             cell_ref = String::from_utf8_lossy(&rest[r_value_start..r_value_start + r_end]).to_string();
                         }
                     }
@@ -224,16 +225,16 @@ fn extract_sheet_data(xml: &str, shared_strings: &[String]) -> String {
                 }
                 if rest.starts_with(b"<t ") {
                     // Check for inline string
-                    if let Some(is_start) = rest.find("t=\"inlineStr\"") {
+                    if let Some(is_start) = memmem::find(rest, b"t=\"inlineStr\"") {
                         // This is an inline string, skip to > then capture text
-                        if let Some(gt) = rest[is_start..].find('>') {
+                        if let Some(gt) = rest[is_start..].iter().position(|&c| c == b'>') {
                             let text_start = is_start + gt + 1;
-                            if let Some(text_end) = rest[text_start..].find("</is>") {
+                            if let Some(text_end) = memmem::find(&rest[text_start..], b"</is>") {
                                 let text = String::from_utf8_lossy(&rest[text_start..text_start + text_end]).to_string();
                                 current_cell.push_str(&text);
                             }
                         }
-                    } else if let Some(v_start) = rest.find('>') {
+                    } else if let Some(v_start) = rest.iter().position(|&c| c == b'>') {
                         // Regular text, continue to capture
                         in_t = true;
                         i += v_start + 1;
@@ -249,8 +250,8 @@ fn extract_sheet_data(xml: &str, shared_strings: &[String]) -> String {
             // Check for shared string reference <v> index </v>
             if rest.starts_with(b"<v>") && in_cell {
                 let value_start = i + 3;
-                if let Some(value_end) = rest[3..].find("</v>") {
-                    if let Ok(index) = String::from_utf8_lossy(&rest[value_start..value_start + value_end]).parse::<usize>() {
+                if let Some(value_end) = memmem::find(rest, b"</v>") {
+                    if let Ok(index) = String::from_utf8_lossy(&rest[value_start..value_end]).parse::<usize>() {
                         if index < shared_strings.len() {
                             current_cell.push_str(&shared_strings[index]);
                         }

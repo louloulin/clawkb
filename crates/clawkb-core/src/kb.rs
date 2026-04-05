@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::ask::{AskCitation, AskResult, ContextFragment};
+use crate::classify::classify_document;
 use crate::entity::{
     EntityInfo, MemoryCardInfo, MeshStats, RelationEdge, TraverseResult,
     list_mesh_entities, get_node_edges, find_mesh_entity, mesh_stats as get_mesh_stats,
@@ -17,9 +18,18 @@ use crate::error::{KbError, Result};
 use crate::export::{ExportData, ExportDocument, ExportFormat};
 use crate::import::ImportResult;
 use crate::parsers::{self, DocumentFormat};
+use crate::replay::{CompareHit, CompareResult};
 use crate::search::{SearchHit, SearchMode};
 use crate::tag::TagInfo;
 use crate::timeline::{TimelineEntry, TimelineQuery};
+
+/// Result of a tag operation (rename/merge/delete).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagOperationResult {
+    pub updated: usize,
+    pub tag: String,
+    pub related_tag: Option<String>,
+}
 
 /// Placeholder embedder used when no embedding model is configured.
 /// The ask pipeline gracefully handles this by falling back to lexical-only retrieval.
@@ -111,6 +121,24 @@ impl KnowledgeBase {
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
         Ok(format!("{}", seq))
+    }
+
+    /// Update the tags of an existing frame.
+    pub fn update_frame_tags(&mut self, frame_id: u64, new_tags: Vec<String>) -> Result<()> {
+        let opts = PutOptions {
+            tags: new_tags,
+            ..Default::default()
+        };
+        self.mem.update_frame(frame_id, None, opts, None)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Get the tags of a frame by its ID.
+    pub fn get_frame_tags(&self, frame_id: u64) -> Result<Vec<String>> {
+        let frame = self.mem.frame_by_id(frame_id)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(frame.tags)
     }
 
     /// Search the knowledge base.
@@ -265,6 +293,14 @@ impl KnowledgeBase {
             None => bytes,
         };
 
+        // Auto-classification: detect type tags from content + path tags from file path
+        let classification_text = content_for_indexing.as_deref().unwrap_or("");
+        let (auto_tags, _classification_summary) = classify_document(
+            classification_text,
+            file_path,
+            &[],
+        );
+
         let mut builder = PutOptions::builder()
             .title(title.clone())
             .kind(kind)
@@ -273,8 +309,14 @@ impl KnowledgeBase {
             .auto_tag(true)
             .extract_triplets(true);
 
+        // Add user-provided tags
         for tag in tags {
             builder = builder.push_tag(tag.to_string());
+        }
+
+        // Add auto-classification tags
+        for tag in &auto_tags {
+            builder = builder.push_tag(tag.clone());
         }
 
         let opts = builder.build();
@@ -283,11 +325,16 @@ impl KnowledgeBase {
             .put_bytes_with_options(&payload, opts)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
+        // Build combined tag list
+        let mut all_tags: Vec<String> = tags.iter().map(|s| s.to_string()).collect();
+        all_tags.extend(auto_tags.clone());
+
         Ok(ImportResult {
             path: file_path.to_string(),
             title,
             chunks: 1,
-            tags: tags.iter().map(|s| s.to_string()).collect(),
+            tags: all_tags,
+            auto_tags,
             success: true,
             error: None,
         })
@@ -343,6 +390,7 @@ impl KnowledgeBase {
                                     .to_string(),
                                 chunks: 0,
                                 tags: tags.iter().map(|s| s.to_string()).collect(),
+                                auto_tags: vec![],
                                 success: false,
                                 error: Some("File too large (>50MB), skipped".to_string()),
                             });
@@ -359,6 +407,7 @@ impl KnowledgeBase {
                             .to_string(),
                         chunks: 0,
                         tags: tags.iter().map(|s| s.to_string()).collect(),
+                        auto_tags: vec![],
                         success: false,
                         error: Some(e.to_string()),
                     }));
@@ -419,6 +468,7 @@ impl KnowledgeBase {
             title,
             chunks: 1,
             tags: tags.iter().map(|s| s.to_string()).collect(),
+            auto_tags: vec![],
             success: true,
             error: None,
         })
@@ -464,6 +514,7 @@ impl KnowledgeBase {
             title,
             chunks: 1,
             tags: tags.iter().map(|s| s.to_string()).collect(),
+            auto_tags: vec![],
             success: true,
             error: None,
         })
@@ -678,26 +729,36 @@ impl KnowledgeBase {
             .ask::<NoEmbedder>(request, None)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
-        let retriever_str = match response.retriever {
-            _ => format!("{:?}", response.retriever).to_lowercase(),
+        let retriever_str = format!("{:?}", response.retriever).to_lowercase();
+
+        let context: Vec<ContextFragment> = response.context_fragments.into_iter().map(|f| ContextFragment {
+            rank: f.rank,
+            frame_id: format!("{}", f.frame_id),
+            uri: f.uri,
+            title: f.title,
+            score: f.score,
+            text: f.text,
+        }).collect();
+
+        // When not in context-only mode, try LLM synthesis if configured.
+        let answer = if context_only {
+            None
+        } else {
+            match crate::llm::synthesize_with_config(question, &context, None)? {
+                Some(text) => Some(text),
+                None => response.answer, // Fall back to memvid's built-in concatenation
+            }
         };
 
         Ok(AskResult {
-            answer: response.answer,
+            answer,
             citations: response.citations.into_iter().map(|c| AskCitation {
                 index: c.index,
                 frame_id: format!("{}", c.frame_id),
                 uri: c.uri,
                 score: c.score,
             }).collect(),
-            context: response.context_fragments.into_iter().map(|f| ContextFragment {
-                rank: f.rank,
-                frame_id: format!("{}", f.frame_id),
-                uri: f.uri,
-                title: f.title,
-                score: f.score,
-                text: f.text,
-            }).collect(),
+            context,
             retriever: retriever_str,
             context_only,
         })
@@ -966,6 +1027,275 @@ impl KnowledgeBase {
             frame_cutoff: 0,
             timestamp_cutoff: as_of_ts,
         })
+    }
+
+    /// Compare search results at two different points in time.
+    /// Shows what was added, removed, or changed between the two timestamps.
+    pub fn compare_as_of(&mut self, query: &str, earlier_ts: i64, later_ts: i64, top_k: usize) -> Result<CompareResult> {
+        // Search at both timestamps
+        let earlier_hits = self.search_as_of_impl(query, earlier_ts, top_k)?;
+        let later_hits = self.search_as_of_impl(query, later_ts, top_k)?;
+
+        let earlier_map: std::collections::HashMap<String, _> = earlier_hits.iter()
+            .map(|h| (h.id.clone(), h.clone())).collect();
+        let later_map: std::collections::HashMap<String, _> = later_hits.iter()
+            .map(|h| (h.id.clone(), h.clone())).collect();
+
+        let all_ids: std::collections::HashSet<String> = earlier_map.keys()
+            .chain(later_map.keys())
+            .cloned()
+            .collect();
+
+        let mut compare_hits_earlier = Vec::new();
+        let mut compare_hits_later = Vec::new();
+
+        for id in all_ids {
+            let earlier = earlier_map.get(&id);
+            let later = later_map.get(&id);
+
+            match (earlier, later) {
+                (Some(e), Some(l)) => {
+                    // Document exists in both — check for score changes
+                    let score_change = Some(l.score - e.score);
+                    let status = if (l.score - e.score).abs() > 0.01 { "changed" } else { "unchanged" };
+                    compare_hits_earlier.push(CompareHit {
+                        id: e.id.clone(),
+                        title: e.title.clone(),
+                        snippet: e.content.clone(),
+                        score: e.score,
+                        status: status.to_string(),
+                        score_change,
+                    });
+                    compare_hits_later.push(CompareHit {
+                        id: l.id.clone(),
+                        title: l.title.clone(),
+                        snippet: l.content.clone(),
+                        score: l.score,
+                        status: status.to_string(),
+                        score_change,
+                    });
+                }
+                (Some(e), None) => {
+                    // Removed between earlier and later
+                    compare_hits_earlier.push(CompareHit {
+                        id: e.id.clone(),
+                        title: e.title.clone(),
+                        snippet: e.content.clone(),
+                        score: e.score,
+                        status: "removed".to_string(),
+                        score_change: None,
+                    });
+                }
+                (None, Some(l)) => {
+                    // Added between earlier and later
+                    compare_hits_later.push(CompareHit {
+                        id: l.id.clone(),
+                        title: l.title.clone(),
+                        snippet: l.content.clone(),
+                        score: l.score,
+                        status: "added".to_string(),
+                        score_change: None,
+                    });
+                }
+                _ => {}
+            }
+        }
+
+        // Sort by status (removed first, then added, then changed, then unchanged)
+        let sort_order = |h: &CompareHit| -> i32 {
+            match h.status.as_str() {
+                "removed" => 0,
+                "added" => 1,
+                "changed" => 2,
+                _ => 3,
+            }
+        };
+        compare_hits_earlier.sort_by_key(sort_order);
+        compare_hits_later.sort_by_key(sort_order);
+
+        Ok(CompareResult {
+            earlier_timestamp: earlier_ts,
+            later_timestamp: later_ts,
+            earlier_hits: compare_hits_earlier,
+            later_hits: compare_hits_later,
+            query: query.to_string(),
+        })
+    }
+
+    /// Internal search-as-of implementation (returns raw hits for comparison).
+    fn search_as_of_impl(&mut self, query: &str, as_of_ts: i64, top_k: usize) -> Result<Vec<SearchHit>> {
+        let request = MemvidSearchRequest {
+            query: query.to_string(),
+            top_k,
+            snippet_chars: 256,
+            uri: None,
+            scope: None,
+            cursor: None,
+            temporal: None,
+            as_of_frame: None,
+            as_of_ts: Some(as_of_ts),
+            no_sketch: false,
+            acl_context: None,
+            acl_enforcement_mode: Default::default(),
+        };
+
+        let response = self.mem.search(request)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(response.hits.into_iter().map(|h| SearchHit {
+            id: h.frame_id.to_string(),
+            title: h.title.unwrap_or_default(),
+            content: truncate_str(&h.text, 300),
+            score: h.score.unwrap_or(0.0),
+            tags: h.metadata.as_ref().map(|m| m.tags.clone()).unwrap_or_default(),
+            created_at: h.metadata.as_ref()
+                .and_then(|m| m.created_at.clone())
+                .unwrap_or_default(),
+            source: None,
+        }).collect())
+    }
+
+    /// Rename a tag across all documents.
+    /// All occurrences of `old_tag` will be replaced with `new_tag`.
+    pub fn rename_tag(&mut self, old_tag: &str, new_tag: &str) -> Result<TagOperationResult> {
+        if old_tag == new_tag {
+            return Ok(TagOperationResult { updated: 0, tag: old_tag.to_string(), related_tag: Some(new_tag.to_string()) });
+        }
+
+        let mut updated = 0;
+        let frame_ids = self.collect_all_frame_ids()?;
+
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+
+            if frame.tags.contains(&old_tag.to_string()) {
+                let mut new_tags = frame.tags.clone();
+                // Replace all occurrences of old_tag with new_tag
+                for tag in new_tags.iter_mut() {
+                    if tag == old_tag {
+                        *tag = new_tag.to_string();
+                    }
+                }
+
+                let opts = PutOptions { tags: new_tags.clone(), ..Default::default() };
+
+                let _ = self.mem.update_frame(frame_id, None, opts, None);
+                updated += 1;
+            }
+        }
+
+        if updated > 0 {
+            self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        }
+
+        Ok(TagOperationResult {
+            updated,
+            tag: old_tag.to_string(),
+            related_tag: Some(new_tag.to_string()),
+        })
+    }
+
+    /// Merge a source tag into a destination tag.
+    /// The source tag will be added to documents that don't already have it,
+    /// then removed from all documents (deduplication).
+    pub fn merge_tag(&mut self, source_tag: &str, dest_tag: &str) -> Result<TagOperationResult> {
+        if source_tag == dest_tag {
+            return Ok(TagOperationResult { updated: 0, tag: source_tag.to_string(), related_tag: Some(dest_tag.to_string()) });
+        }
+
+        let mut updated = 0;
+        let frame_ids = self.collect_all_frame_ids()?;
+
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+
+            // Check if this frame has the source tag but not the dest tag
+            let has_source = frame.tags.contains(&source_tag.to_string());
+            let has_dest = frame.tags.contains(&dest_tag.to_string());
+
+            if has_source && !has_dest {
+                let mut new_tags = frame.tags.clone();
+                new_tags.push(dest_tag.to_string());
+                // Remove the source tag (now merged into dest)
+                new_tags.retain(|t| t != source_tag);
+
+                let opts = PutOptions { tags: new_tags, ..Default::default() };
+
+                let _ = self.mem.update_frame(frame_id, None, opts, None);
+                updated += 1;
+            } else if has_source && has_dest {
+                // Has both - just remove the source tag (deduplication)
+                let mut new_tags = frame.tags.clone();
+                new_tags.retain(|t| t != source_tag);
+
+                let opts = PutOptions { tags: new_tags, ..Default::default() };
+
+                let _ = self.mem.update_frame(frame_id, None, opts, None);
+                updated += 1;
+            }
+        }
+
+        if updated > 0 {
+            self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        }
+
+        Ok(TagOperationResult {
+            updated,
+            tag: source_tag.to_string(),
+            related_tag: Some(dest_tag.to_string()),
+        })
+    }
+
+    /// Delete a tag from all documents.
+    pub fn delete_tag(&mut self, tag: &str) -> Result<TagOperationResult> {
+        let mut updated = 0;
+        let frame_ids = self.collect_all_frame_ids()?;
+
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+
+            if frame.tags.contains(&tag.to_string()) {
+                let mut new_tags = frame.tags.clone();
+                new_tags.retain(|t| t != tag);
+
+                let opts = PutOptions { tags: new_tags, ..Default::default() };
+
+                let _ = self.mem.update_frame(frame_id, None, opts, None);
+                updated += 1;
+            }
+        }
+
+        if updated > 0 {
+            self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        }
+
+        Ok(TagOperationResult {
+            updated,
+            tag: tag.to_string(),
+            related_tag: None,
+        })
+    }
+
+    /// Collect all frame IDs from the knowledge base using timeline enumeration.
+    fn collect_all_frame_ids(&mut self) -> Result<Vec<u64>> {
+        let mq = MemvidTimelineQuery::builder()
+            .limit(std::num::NonZeroU64::new(10000).unwrap())
+            .build();
+
+        let entries = self.mem
+            .timeline(mq)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(entries.into_iter().map(|e| e.frame_id).collect())
     }
 }
 

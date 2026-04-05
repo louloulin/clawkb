@@ -8,7 +8,7 @@ use super::{ParsedDocument, DocumentMetadata};
 /// Parse a DOCX file and extract its text content
 pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, String> {
     let cursor = std::io::Cursor::new(bytes);
-    let archive = zip::ZipArchive::new(cursor)
+    let mut archive = zip::ZipArchive::new(cursor)
         .map_err(|e| format!("Failed to read DOCX as ZIP: {}", e))?;
 
     let mut title = None;

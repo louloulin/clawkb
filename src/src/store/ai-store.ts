@@ -128,9 +128,33 @@ export const useAiStore = create<AiConfigState>((set, get) => ({
 
   applyConfig: async () => {
     const { embedding, ask } = get();
+
+    // Infer LLM provider from the selected model
+    let llmProvider = 'local';
+    let llmModel = ask.model === 'custom' ? ask.customModelName : ask.model;
+    let llmApiKey = undefined;
+    let llmApiBase = undefined;
+
+    if (ask.model === 'gpt-4o-mini' || ask.model === 'gpt-4o') {
+      llmProvider = 'openai';
+      llmApiKey = embedding.apiKey || undefined;
+      llmApiBase = embedding.apiBase || undefined;
+    } else if (ask.model === 'claude-3-haiku' || ask.model === 'claude-3-sonnet') {
+      llmProvider = 'anthropic';
+      llmApiKey = embedding.apiKey || undefined;
+      llmApiBase = embedding.apiBase || undefined;
+    } else if (ask.model === 'custom') {
+      llmProvider = 'custom';
+      llmApiKey = embedding.apiKey || undefined;
+      llmApiBase = embedding.apiBase || undefined;
+    } else {
+      // 'default' — local Ollama
+      llmProvider = 'local';
+    }
+
     try {
       await api.setEmbeddingModel(embedding.provider, embedding.model, embedding.apiKey || undefined, embedding.apiBase || undefined);
-      await api.setAskModel(ask.model === 'custom' ? ask.customModelName : ask.model, ask.temperature, ask.topK);
+      await api.setAskModel(llmProvider, llmModel, llmApiKey, llmApiBase, ask.temperature);
       set({ isConfigured: true });
     } catch {
       // In browser mode, just mark as configured

@@ -1,4 +1,4 @@
-import type { KbStats, SearchHit, TagInfo, TimelineEntry, ImportResult, FetchUrlResult, SearchMode, AskResult, EntityInfo, RelationEdge, MeshStats, MemoryCardInfo, SessionSummary, AsOfResult } from './types';
+import type { KbStats, SearchHit, TagInfo, TimelineEntry, ImportResult, FetchUrlResult, SearchMode, AskResult, EntityInfo, RelationEdge, MeshStats, MemoryCardInfo, SessionSummary, AsOfResult, SelectionResult, CompareResult, WebdavConfig, WebdavServerInfo, RemoteFile, SyncStatus, KbRegistration } from './types';
 import { isTauri } from './platform';
 
 // Lazy-loaded Tauri invoke — only imported when running inside Tauri
@@ -221,6 +221,24 @@ export const api = {
     return invoke('list_tags') as Promise<TagInfo[]>;
   },
 
+  renameTag: async (oldTag: string, newTag: string): Promise<{ updated: number; tag: string; related_tag: string | null }> => {
+    if (!isTauri()) return { updated: 0, tag: oldTag, related_tag: newTag };
+    const invoke = await getInvoke();
+    return invoke('rename_tag', { oldTag, newTag }) as Promise<{ updated: number; tag: string; related_tag: string | null }>;
+  },
+
+  mergeTag: async (sourceTag: string, destTag: string): Promise<{ updated: number; tag: string; related_tag: string | null }> => {
+    if (!isTauri()) return { updated: 0, tag: sourceTag, related_tag: destTag };
+    const invoke = await getInvoke();
+    return invoke('merge_tag', { sourceTag, destTag }) as Promise<{ updated: number; tag: string; related_tag: string | null }>;
+  },
+
+  deleteTag: async (tag: string): Promise<{ updated: number; tag: string; related_tag: string | null }> => {
+    if (!isTauri()) return { updated: 0, tag, related_tag: null };
+    const invoke = await getInvoke();
+    return invoke('delete_tag', { tag }) as Promise<{ updated: number; tag: string; related_tag: string | null }>;
+  },
+
   commit: async (): Promise<void> => {
     if (!isTauri()) return;
     const invoke = await getInvoke();
@@ -403,6 +421,20 @@ export const api = {
     return invoke('ask_as_of', { question, asOfTs, topK: topK || 8 }) as Promise<AsOfResult>;
   },
 
+  compareTimeline: async (query: string, earlierTs: number, laterTs: number, topK?: number): Promise<CompareResult> => {
+    if (!isTauri()) {
+      return {
+        earlier_timestamp: earlierTs,
+        later_timestamp: laterTs,
+        earlier_hits: [],
+        later_hits: [],
+        query,
+      };
+    }
+    const invoke = await getInvoke();
+    return invoke('compare_timeline', { query, earlierTs, laterTs, topK: topK || 20 }) as Promise<CompareResult>;
+  },
+
   // ── AI Configuration ──
 
   setEmbeddingModel: async (provider: string, model: string, apiKey?: string, apiBase?: string): Promise<void> => {
@@ -411,10 +443,16 @@ export const api = {
     return invoke('set_embedding_model', { provider, model, apiKey: apiKey || null, apiBase: apiBase || null }) as Promise<void>;
   },
 
-  setAskModel: async (model: string, temperature: number, topK: number): Promise<void> => {
+  setAskModel: async (provider: string, model: string, apiKey?: string, apiBase?: string, temperature?: number): Promise<void> => {
     if (!isTauri()) return;
     const invoke = await getInvoke();
-    return invoke('set_ask_model', { model, temperature, topK }) as Promise<void>;
+    return invoke('set_ask_model', { provider, model, apiKey: apiKey || null, apiBase: apiBase || null, temperature: temperature ?? 0.7 }) as Promise<void>;
+  },
+
+  testLlmConnection: async (): Promise<string> => {
+    if (!isTauri()) return 'ok';
+    const invoke = await getInvoke();
+    return invoke('test_llm') as Promise<string>;
   },
 
   // ── Multimedia Import ──
@@ -500,6 +538,153 @@ export const api = {
     }
     const invoke = await getInvoke();
     return invoke('search_in_folder', { folder_id: folderId, query, top_k: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
+  },
+
+  // ── Obsidian Sync ──
+
+  scanObsidianVault: async (vaultPath: string): Promise<VaultSummary> => {
+    if (!isTauri()) {
+      return { root_path: vaultPath, total_notes: 0, total_tags: 0, folders: [], sample_tags: [] };
+    }
+    const invoke = await getInvoke();
+    return invoke('scan_obsidian_vault', { vaultPath }) as Promise<VaultSummary>;
+  },
+
+  importObsidianVault: async (vaultPath: string, tags: string[]): Promise<ObsidianImportResult> => {
+    if (!isTauri()) {
+      return { imported: 0, skipped: 0, errors: [] };
+    }
+    const invoke = await getInvoke();
+    return invoke('import_obsidian_vault', { vaultPath, tags }) as Promise<ObsidianImportResult>;
+  },
+
+  // ── Screenshot OCR ──
+
+  ocrImage: async (imageData: string, language?: string): Promise<OcrResult> => {
+    if (!isTauri()) {
+      return { text: '', success: false, error: 'OCR only available in Tauri mode', language: language || 'eng', confidence: null };
+    }
+    const invoke = await getInvoke();
+    return invoke('ocr_image', { imageData, language: language || null }) as Promise<OcrResult>;
+  },
+
+  testOcr: async (): Promise<string> => {
+    if (!isTauri()) return 'ok';
+    const invoke = await getInvoke();
+    return invoke('test_ocr') as Promise<string>;
+  },
+
+  importScreenshot: async (imageData: string, title: string, tags: string[], language?: string): Promise<ImportResult> => {
+    if (!isTauri()) {
+      return { path: 'clipboard:screenshot', title: title || 'Screenshot', chunks: 1, tags: ['screenshot', 'ocr', ...tags], success: true };
+    }
+    const invoke = await getInvoke();
+    return invoke('import_screenshot', {
+      imageData,
+      title: title || '',
+      tags,
+      language: language || null,
+    }) as Promise<ImportResult>;
+  },
+
+  // ── Selection AI ──
+
+  selectionAi: async (action: 'explain' | 'translate' | 'rewrite' | 'summarize' | 'ask', text: string): Promise<SelectionResult> => {
+    if (!isTauri()) {
+      return {
+        action,
+        input: text,
+        output: `[Demo] ${action} result for: "${text.slice(0, 50)}..."`,
+        success: true,
+        error: null,
+      };
+    }
+    const invoke = await getInvoke();
+    return invoke('selection_ai', { action, text }) as Promise<SelectionResult>;
+  },
+
+  // ── WebDAV Sync ──
+
+  webdavTestConnection: async (config: WebdavConfig): Promise<WebdavServerInfo> => {
+    if (!isTauri()) {
+      return { url: config.url, server_type: 'Demo WebDAV', supports_sync: true };
+    }
+    const invoke = await getInvoke();
+    return invoke('webdav_test_connection', { config }) as Promise<WebdavServerInfo>;
+  },
+
+  webdavListRemote: async (config: WebdavConfig, remoteDir?: string): Promise<RemoteFile[]> => {
+    if (!isTauri()) return [];
+    const invoke = await getInvoke();
+    return invoke('webdav_list_remote', { config, remoteDir: remoteDir || null }) as Promise<RemoteFile[]>;
+  },
+
+  webdavSaveConfig: async (config: WebdavConfig, kbPath?: string): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('webdav_save_config', { config, kbPath: kbPath || null }) as Promise<void>;
+  },
+
+  webdavGetConfig: async (): Promise<WebdavConfig | null> => {
+    if (!isTauri()) return null;
+    const invoke = await getInvoke();
+    return invoke('webdav_get_config', {}) as Promise<WebdavConfig | null>;
+  },
+
+  webdavSync: async (): Promise<SyncStatus> => {
+    if (!isTauri()) {
+      return { last_sync: Date.now() / 1000 - 3600, remote_count: 1, local_count: 1, pending_uploads: 0, pending_downloads: 0, last_error: null };
+    }
+    const invoke = await getInvoke();
+    return invoke('webdav_sync_kb', {}) as Promise<SyncStatus>;
+  },
+
+  webdavGetSyncStatus: async (): Promise<SyncStatus | null> => {
+    if (!isTauri()) return null;
+    const invoke = await getInvoke();
+    return invoke('webdav_get_sync_status', {}) as Promise<SyncStatus | null>;
+  },
+
+  webdavClearConfig: async (): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('webdav_clear_config', {}) as Promise<void>;
+  },
+
+  // ── Multi-KB Commands ──
+
+  openExtraKb: async (path: string): Promise<KbStats> => {
+    if (!isTauri()) {
+      return { frame_count: 10, size_bytes: 1024000, has_lex_index: true, has_vec_index: true, payload_bytes: 512000, compression_ratio_percent: 50, path };
+    }
+    const invoke = await getInvoke();
+    return invoke('open_extra_kb', { path }) as Promise<KbStats>;
+  },
+
+  closeExtraKb: async (path: string): Promise<void> => {
+    if (!isTauri()) return;
+    const invoke = await getInvoke();
+    return invoke('close_extra_kb', { path }) as Promise<void>;
+  },
+
+  listOpenKbs: async (): Promise<string[]> => {
+    if (!isTauri()) return [];
+    const invoke = await getInvoke();
+    return invoke('list_open_kbs', {}) as Promise<string[]>;
+  },
+
+  searchMultiKb: async (query: string, kbPaths: string[], topK?: number, mode?: SearchMode): Promise<SearchHit[]> => {
+    if (!isTauri()) return [];
+    const invoke = await getInvoke();
+    return invoke('search_multi_kb', { query, kbPaths, topK: topK || 10, mode: mode || 'hybrid' }) as Promise<SearchHit[]>;
+  },
+
+  aiAskMulti: async (question: string, kbPaths: string[], topK?: number): Promise<{ kb_name: string; kb_path: string; result: AskResult }> => {
+    if (!isTauri()) {
+      return { kb_name: 'Default', kb_path: '', result: { answer: `[Demo] Answer from default KB for: "${question}"`, citations: [], context: [], retriever: 'demo', context_only: false } };
+    }
+    const invoke = await getInvoke();
+    return invoke('ai_ask_multi', { question, kbPaths, topK: topK || 5 }) as Promise<{ kb_name: string; kb_path: string; result: AskResult }>;
   },
 };
 

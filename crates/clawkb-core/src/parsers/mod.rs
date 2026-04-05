@@ -86,6 +86,22 @@ impl DocumentFormat {
     }
 }
 
+impl std::fmt::Display for DocumentFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            DocumentFormat::Docx => "docx",
+            DocumentFormat::Pptx => "pptx",
+            DocumentFormat::Xlsx => "xlsx",
+            DocumentFormat::Epub => "epub",
+            DocumentFormat::Rtf => "rtf",
+            DocumentFormat::Csv => "csv",
+            DocumentFormat::Json => "json",
+            DocumentFormat::Unknown => "unknown",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 /// Parse a document file based on its extension
 pub fn parse_document(path: &std::path::Path, ext: &str) -> Result<ParsedDocument, String> {
     let format = DocumentFormat::from_extension(ext);

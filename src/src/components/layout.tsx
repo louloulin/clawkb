@@ -1,7 +1,7 @@
 import {
   Search, FileText, Upload, Clock, Tag, Link2, Settings,
   PanelLeftClose, PanelLeft, Sun, Moon, Database, Sparkles,
-  Monitor, MessageCircle, GitBranch, BookOpen, PenLine, Brain,
+  Mic, MessageCircle, GitBranch, BookOpen, PenLine, Brain, Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,6 +24,8 @@ const navItems = [
   { id: 'entities', label: 'Entities', icon: Link2, group: 'explore' },
   { id: 'graph', label: 'Graph', icon: GitBranch, group: 'explore' },
   { id: 'mindmap', label: 'Mind Map', icon: Brain, group: 'explore' },
+  { id: 'report', label: 'Report', icon: FileText, group: 'explore' },
+  { id: 'podcast', label: 'Podcast', icon: Mic, group: 'explore' },
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system' },
 ] as const;
 

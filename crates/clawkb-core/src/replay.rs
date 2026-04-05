@@ -29,3 +29,23 @@ pub struct AsOfResult {
 }
 
 use crate::ask::{AskCitation, ContextFragment};
+
+/// Result of comparing search results at two points in time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompareResult {
+    pub earlier_timestamp: i64,
+    pub later_timestamp: i64,
+    pub earlier_hits: Vec<CompareHit>,
+    pub later_hits: Vec<CompareHit>,
+    pub query: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompareHit {
+    pub id: String,
+    pub title: String,
+    pub snippet: String,
+    pub score: f32,
+    pub status: String, // "added", "removed", "changed", "unchanged"
+    pub score_change: Option<f32>,
+}

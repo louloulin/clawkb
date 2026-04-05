@@ -1,4 +1,6 @@
 use std::sync::Mutex;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use tauri::State;
 
 use clawkb_core::kb::KbStats;
@@ -11,14 +13,37 @@ use clawkb_core::web::FetchUrlResult;
 use clawkb_core::ask::AskResult;
 use clawkb_core::entity::{EntityInfo, RelationEdge, TraverseResult, MeshStats, MemoryCardInfo};
 use clawkb_core::KnowledgeBase;
+use clawkb_core::ai_config::{AiProvider, EmbeddingConfig, LlmConfig, set_embedding_config, set_llm_config};
+use clawkb_core::sync::{VaultSummary, webdav::{WebdavConfig, WebdavServerInfo, RemoteFile, SyncStatus,
+    SyncManifest, FileSyncMeta, IncrementalSyncResult,
+    test_connection as wb_test, list_remote as wb_list, upload_file as wb_upload,
+    download_file as wb_download, delete_remote as wb_delete, create_remote_dir as wb_mkdir,
+    remote_exists as wb_exists, incremental_sync as wb_incremental_sync}};
 
 pub struct AppState {
+    /// Currently active/default knowledge base
     kb: Option<KnowledgeBase>,
+    /// Additional open knowledge bases (path -> KnowledgeBase)
+    extra_kbs: HashMap<String, KnowledgeBase>,
+    /// Paths of open KBs (for bookkeeping)
+    open_kb_paths: Vec<String>,
+    pub webdav_config: Option<WebdavConfig>,
+    pub webdav_kb_path: Option<String>,
+    pub webdav_sync_status: Option<SyncStatus>,
+    pub webdav_manifest: Option<SyncManifest>,
 }
 
 impl Default for AppState {
     fn default() -> Self {
-        Self { kb: None }
+        Self {
+            kb: None,
+            extra_kbs: HashMap::new(),
+            open_kb_paths: Vec::new(),
+            webdav_config: None,
+            webdav_kb_path: None,
+            webdav_sync_status: None,
+            webdav_manifest: None,
+        }
     }
 }
 
@@ -218,6 +243,175 @@ pub fn ask_document(
     kb.ask_document(&question, &document_uri, top_k).map_err(|e| e.to_string())
 }
 
+// ── Multi-KB commands ────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MultiKbAskResult {
+    pub kb_name: String,
+    pub kb_path: String,
+    pub result: AskResult,
+}
+
+/// Open an additional knowledge base (non-default, for multi-KB queries).
+#[tauri::command]
+pub fn open_extra_kb(path: String, state: State<'_, Mutex<AppState>>) -> Result<KbStats, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+
+    // Skip if already open
+    if app_state.extra_kbs.contains_key(&path) {
+        if let Some(kb) = app_state.extra_kbs.get(&path) {
+            return kb.stats().map_err(|e| e.to_string());
+        }
+        return Err("Cannot get stats".to_string());
+    }
+
+    let kb = KnowledgeBase::open(&path).map_err(|e| e.to_string())?;
+    let stats = kb.stats().map_err(|e| e.to_string())?;
+
+    app_state.extra_kbs.insert(path.clone(), kb);
+    tracing::info!("Opened extra KB: {}", path);
+    app_state.open_kb_paths.push(path);
+    Ok(stats)
+}
+
+/// Close an additional knowledge base.
+#[tauri::command]
+pub fn close_extra_kb(path: String, state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    app_state.extra_kbs.remove(&path);
+    app_state.open_kb_paths.retain(|p| p != &path);
+    tracing::info!("Closed extra KB: {}", path);
+    Ok(())
+}
+
+/// Get list of all open KB paths.
+#[tauri::command]
+pub fn list_open_kbs(state: State<'_, Mutex<AppState>>) -> Result<Vec<String>, String> {
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut paths = Vec::new();
+    if app_state.kb.is_some() {
+        paths.push(String::new());
+    }
+    paths.extend(app_state.open_kb_paths.clone());
+    Ok(paths)
+}
+
+/// Search across multiple KBs simultaneously and merge results.
+#[tauri::command]
+pub fn search_multi_kb(
+    query: String,
+    kb_paths: Vec<String>,
+    top_k: Option<usize>,
+    mode: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<SearchHit>, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let top_k = top_k.unwrap_or(10);
+    let search_mode = match mode.as_deref() {
+        Some("lex") => SearchMode::Lexical,
+        Some("sem") => SearchMode::Semantic,
+        _ => SearchMode::Hybrid,
+    };
+
+    let mut all_hits: Vec<SearchHit> = Vec::new();
+
+    // Search default KB if empty path or included
+    if kb_paths.is_empty() || kb_paths.contains(&String::new()) {
+        if let Some(ref mut kb) = app_state.kb {
+            if let Ok(hits) = kb.search(&query, top_k, search_mode) {
+                for mut hit in hits {
+                    hit.source = Some("[Default]".to_string());
+                    all_hits.push(hit);
+                }
+            }
+        }
+    }
+
+    // Search extra KBs
+    for path in &kb_paths {
+        if path.is_empty() {
+            continue;
+        }
+        if let Some(ref mut kb) = app_state.extra_kbs.get_mut(path) {
+            if let Ok(mut hits) = kb.search(&query, top_k, search_mode) {
+                let kb_name = PathBuf::from(path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("KB")
+                    .to_string();
+                for hit in hits.iter_mut() {
+                    hit.source = Some(format!("[{}]", kb_name));
+                }
+                all_hits.extend(hits);
+            }
+        }
+    }
+
+    // Sort by score descending and limit
+    all_hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    all_hits.truncate(top_k * kb_paths.len().max(1));
+    Ok(all_hits)
+}
+
+/// Query multiple KBs and return combined answer using LLM synthesis.
+#[tauri::command]
+pub fn ai_ask_multi(
+    question: String,
+    kb_paths: Vec<String>,
+    top_k: Option<usize>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<MultiKbAskResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let top_k = top_k.unwrap_or(5);
+
+    let mut results: Vec<(String, AskResult)> = Vec::new();
+
+    let webdav_kb_path = app_state.webdav_kb_path.clone();
+
+    // Ask default KB
+    if kb_paths.is_empty() || kb_paths.contains(&String::new()) {
+        if let Some(ref mut kb) = app_state.kb {
+            let kb_name = PathBuf::from(webdav_kb_path.as_deref().unwrap_or(""))
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Default")
+                .to_string();
+            if let Ok(result) = kb.ask(&question, Some(top_k)) {
+                results.push((kb_name, result));
+            }
+        }
+    }
+
+    // Ask extra KBs
+    for path in &kb_paths {
+        if path.is_empty() {
+            continue;
+        }
+        if let Some(ref mut kb) = app_state.extra_kbs.get_mut(path) {
+            let kb_name = PathBuf::from(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("KB")
+                .to_string();
+            if let Ok(result) = kb.ask(&question, Some(top_k)) {
+                results.push((kb_name, result));
+            }
+        }
+    }
+
+    if results.is_empty() {
+        return Err("No knowledge bases available".to_string());
+    }
+
+    // Return the first KB's result (multi-KB synthesis could be added later)
+    let (kb_name, result) = results.remove(0);
+    Ok(MultiKbAskResult {
+        kb_name,
+        kb_path: String::new(),
+        result,
+    })
+}
+
 // ── Graph / LogicMesh commands ──────────────────────────────────────
 
 #[tauri::command]
@@ -279,33 +473,55 @@ pub fn set_embedding_model(
     model: String,
     api_key: Option<String>,
     api_base: Option<String>,
-    state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    // In a full implementation, this would configure the memvid embedder
-    // For now, we store the configuration for future use
-    tracing::info!(
-        "Embedding model config: provider={}, model={}, has_api_key={}",
-        provider,
+    let prov = match provider.as_str() {
+        "local" => AiProvider::Local,
+        "openai" => AiProvider::OpenAI,
+        "custom" => AiProvider::Custom,
+        _ => return Err(format!("Unknown embedding provider: {}", provider)),
+    };
+    let config = EmbeddingConfig {
+        provider: prov,
         model,
-        api_key.is_some()
-    );
+        api_key,
+        api_base,
+    };
+    set_embedding_config(config);
+    tracing::info!("Embedding model configured: provider={}", provider);
     Ok(())
 }
 
 #[tauri::command]
 pub fn set_ask_model(
+    provider: String,
     model: String,
+    api_key: Option<String>,
+    api_base: Option<String>,
     temperature: f32,
-    top_k: usize,
-    state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    tracing::info!(
-        "Ask model config: model={}, temperature={}, top_k={}",
-        model,
+    let prov = match provider.as_str() {
+        "local" | "ollama" => AiProvider::Local,
+        "openai" | "gpt" => AiProvider::OpenAI,
+        "anthropic" | "claude" => AiProvider::Anthropic,
+        "deepseek" => AiProvider::DeepSeek,
+        _ => AiProvider::Custom,
+    };
+    let config = LlmConfig {
+        provider: prov,
+        model: model.clone(),
+        api_key,
+        api_base,
         temperature,
-        top_k
-    );
+    };
+    tracing::info!("LLM model configured: provider={}, model={}", provider, config.model);
+    set_llm_config(config);
     Ok(())
+}
+
+#[tauri::command]
+pub fn test_llm() -> Result<String, String> {
+    clawkb_core::llm::test_llm_connection().map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
 }
 
 // ── Multimedia Import Commands ────────────────────────────────────
@@ -465,8 +681,35 @@ pub fn delete_folder(
 pub fn move_document(
     doc_id: String,
     folder_id: Option<String>,
+    state: State<'_, Mutex<AppState>>,
 ) -> Result<(), String> {
-    tracing::info!("Move document {} to folder {:?}", doc_id, folder_id);
+    // Remove old folder tags and add new folder tag
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    // Parse frame_id from doc_id
+    let frame_id = doc_id.parse::<u64>().map_err(|e: std::num::ParseIntError| e.to_string())?;
+
+    // Get current frame tags
+    let old_tags: Vec<String> = kb.get_frame_tags(frame_id).map_err(|e| e.to_string())?;
+    let old_folder_tags: Vec<String> = old_tags.iter()
+        .filter(|t| t.starts_with("folder:"))
+        .cloned()
+        .collect();
+
+    // Build new tags list
+    let mut new_tags: Vec<String> = old_tags.into_iter()
+        .filter(|t| !t.starts_with("folder:"))
+        .collect();
+
+    // Add new folder tag if specified
+    if let Some(ref fid) = folder_id {
+        new_tags.push(format!("folder:{}", fid));
+    }
+
+    kb.update_frame_tags(frame_id, new_tags).map_err(|e| e.to_string())?;
+
+    tracing::info!("Moved document {} from {:?} to {:?}", doc_id, old_folder_tags, folder_id);
     Ok(())
 }
 
@@ -491,5 +734,326 @@ pub fn search_in_folder(
 
     // Search and return results - in full implementation, filter by folder_id tag
     kb.search(&query, top_k, search_mode)
+        .map_err(|e| e.to_string())
+}
+
+// ── Screenshot OCR Commands ────────────────────────────────────────────
+
+#[tauri::command]
+pub fn ocr_image(image_data: String, language: Option<String>) -> clawkb_core::ocr::OcrResult {
+    clawkb_core::ocr::ocr_image(&image_data, language.as_deref())
+}
+
+#[tauri::command]
+pub fn test_ocr() -> Result<String, String> {
+    clawkb_core::ocr::test_ocr().map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+#[tauri::command]
+pub fn import_screenshot(
+    image_data: String,
+    title: String,
+    tags: Vec<String>,
+    language: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<ImportResult, String> {
+    let ocr_result = clawkb_core::ocr::ocr_image(&image_data, language.as_deref());
+
+    if !ocr_result.success {
+        return Err(ocr_result.error.unwrap_or_else(|| "OCR failed".to_string()));
+    }
+
+    if ocr_result.text.trim().is_empty() {
+        return Err("No text found in image".to_string());
+    }
+
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let mut all_tags: Vec<&str> = vec!["screenshot", "ocr"];
+    all_tags.extend(tags.iter().map(|s| s.as_str()));
+
+    let doc_title = if title.is_empty() {
+        format!("Screenshot {}", chrono::Local::now().format("%Y-%m-%d %H:%M"))
+    } else {
+        title
+    };
+
+    let doc_id = kb.add_note(&doc_title, &ocr_result.text, &all_tags)
+        .map_err(|e| e.to_string())?;
+
+    tracing::info!(
+        "Screenshot imported: {} ({} chars extracted)",
+        doc_id,
+        ocr_result.text.len()
+    );
+
+    Ok(ImportResult {
+        path: format!("screenshot:{}", doc_id),
+        title: doc_title,
+        chunks: 1,
+        tags: all_tags.into_iter().map(String::from).collect(),
+        auto_tags: vec![],
+        success: true,
+        error: None,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ObsidianImportStats {
+    #[serde(rename = "imported")]
+    pub imported: usize,
+    #[serde(rename = "skipped")]
+    pub skipped: usize,
+    #[serde(rename = "errors")]
+    pub errors: Vec<String>,
+}
+
+#[tauri::command]
+pub fn scan_obsidian_vault(vault_path: String) -> Result<VaultSummary, String> {
+    let path = std::path::Path::new(&vault_path);
+    if !path.exists() {
+        return Err(format!("Vault path does not exist: {}", vault_path));
+    }
+    if !path.is_dir() {
+        return Err(format!("Vault path is not a directory: {}", vault_path));
+    }
+    clawkb_core::sync::scan_vault(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_obsidian_vault(
+    vault_path: String,
+    tags: Vec<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<ObsidianImportStats, String> {
+    let path = std::path::Path::new(&vault_path);
+    if !path.exists() || !path.is_dir() {
+        return Err(format!("Invalid vault path: {}", vault_path));
+    }
+
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+
+    let notes = clawkb_core::sync::parse_vault(path);
+    let mut imported = 0;
+    let mut skipped = 0;
+    let mut errors: Vec<String> = Vec::new();
+
+    let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
+
+    for note in notes {
+        let mut all_tags: Vec<&str> = note.tags.iter().map(|s| s.as_str()).collect();
+        all_tags.extend(tags_ref.iter().copied());
+
+        match kb.add_note(&note.title, &note.content, &all_tags) {
+            Ok(_) => imported += 1,
+            Err(e) => {
+                errors.push(format!("{}: {}", note.path, e));
+                skipped += 1;
+            }
+        }
+    }
+
+    tracing::info!(
+        "Obsidian vault import complete: {} imported, {} skipped, {} errors",
+        imported,
+        skipped,
+        errors.len()
+    );
+
+    Ok(ObsidianImportStats {
+        imported,
+        skipped,
+        errors,
+    })
+}
+
+// ── Selection AI Commands ──────────────────────────────────────────────
+
+#[tauri::command]
+pub fn selection_ai(action: String, text: String) -> clawkb_core::selection::SelectionResult {
+    clawkb_core::selection::selection_ai(&action, &text)
+}
+
+#[tauri::command]
+pub fn get_clipboard_text() -> Result<String, String> {
+    // Read from system clipboard via tauri plugin
+    // This is handled by the clipboard-manager plugin on the frontend
+    Ok(String::new())
+}
+
+// ── WebDAV Sync Commands ─────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn webdav_test_connection(config: WebdavConfig) -> Result<WebdavServerInfo, String> {
+    wb_test(&config)
+}
+
+#[tauri::command]
+pub fn webdav_list_remote(config: WebdavConfig, remote_dir: Option<String>) -> Result<Vec<RemoteFile>, String> {
+    wb_list(&config, remote_dir.as_deref())
+}
+
+#[tauri::command]
+pub fn webdav_save_config(
+    config: WebdavConfig,
+    kb_path: Option<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    app_state.webdav_config = Some(config);
+    app_state.webdav_kb_path = kb_path;
+    app_state.webdav_sync_status = Some(SyncStatus {
+        last_sync: None,
+        remote_count: 0,
+        local_count: 0,
+        pending_uploads: 0,
+        pending_downloads: 0,
+        last_error: None,
+        uploads: vec![],
+        downloads: vec![],
+        skipped: vec![],
+    });
+    tracing::info!("WebDAV config saved");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn webdav_get_config(state: State<'_, Mutex<AppState>>) -> Result<Option<WebdavConfig>, String> {
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+    Ok(app_state.webdav_config.clone())
+}
+
+#[tauri::command]
+pub fn webdav_sync_kb(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<SyncStatus, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let config = app_state.webdav_config.as_ref()
+        .ok_or("WebDAV not configured — please save config first")?;
+    let kb_path = app_state.webdav_kb_path.as_ref()
+        .ok_or("No knowledge base path set for WebDAV sync")?;
+
+    let kb_dir = PathBuf::from(kb_path);
+    if !kb_dir.exists() {
+        return Err(format!("KB directory not found: {}", kb_path));
+    }
+
+    // Use incremental sync
+    let manifest = app_state.webdav_manifest.clone().unwrap_or_default();
+    let result = wb_incremental_sync(config, &kb_dir, &manifest)?;
+
+    // Update manifest with sync results
+    let now = chrono::Utc::now().timestamp();
+    let mut updated_manifest = manifest;
+    for filename in &result.uploads {
+        if let Ok(meta) = std::fs::metadata(kb_dir.join(filename)) {
+            let mtime = meta.modified()
+                .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64)
+                .unwrap_or(now);
+            updated_manifest.files.insert(filename.clone(), FileSyncMeta {
+                local_mtime: mtime,
+                local_size: meta.len(),
+                remote_mtime: Some(now),
+                remote_size: Some(meta.len()),
+                last_action: Some("upload".to_string()),
+                last_sync_ts: Some(now),
+            });
+        }
+    }
+    for filename in &result.downloads {
+        updated_manifest.files.insert(filename.clone(), FileSyncMeta {
+            local_mtime: now,
+            local_size: 0,
+            remote_mtime: Some(now),
+            remote_size: Some(0),
+            last_action: Some("download".to_string()),
+            last_sync_ts: Some(now),
+        });
+    }
+    updated_manifest.last_full_sync = Some(now);
+
+    let status = SyncStatus {
+        last_sync: Some(now),
+        remote_count: result.total_files.saturating_sub(result.uploads.len()),
+        local_count: result.total_files.saturating_sub(result.downloads.len()),
+        pending_uploads: result.uploads.len(),
+        pending_downloads: result.downloads.len(),
+        last_error: if result.errors.is_empty() { None } else { Some(result.errors.join("; ")) },
+        uploads: result.uploads,
+        downloads: result.downloads,
+        skipped: result.skipped,
+    };
+
+    app_state.webdav_manifest = Some(updated_manifest);
+    app_state.webdav_sync_status = Some(status.clone());
+    Ok(status)
+}
+
+#[tauri::command]
+pub fn webdav_get_sync_status(state: State<'_, Mutex<AppState>>) -> Result<Option<SyncStatus>, String> {
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+    Ok(app_state.webdav_sync_status.clone())
+}
+
+#[tauri::command]
+pub fn webdav_clear_config(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    app_state.webdav_config = None;
+    app_state.webdav_kb_path = None;
+    app_state.webdav_sync_status = None;
+    tracing::info!("WebDAV config cleared");
+    Ok(())
+}
+
+// ── Tag Management Commands ──────────────────────────────────────────────
+
+#[tauri::command]
+pub fn rename_tag(
+    old_tag: String,
+    new_tag: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::kb::TagOperationResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.rename_tag(&old_tag, &new_tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn merge_tag(
+    source_tag: String,
+    dest_tag: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::kb::TagOperationResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.merge_tag(&source_tag, &dest_tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_tag(
+    tag: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::kb::TagOperationResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.delete_tag(&tag).map_err(|e| e.to_string())
+}
+
+// ── Time Machine Comparison Commands ──────────────────────────────────────
+
+#[tauri::command]
+pub fn compare_timeline(
+    query: String,
+    earlier_ts: i64,
+    later_ts: i64,
+    top_k: Option<usize>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::replay::CompareResult, String> {
+    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.compare_as_of(&query, earlier_ts, later_ts, top_k.unwrap_or(20))
         .map_err(|e| e.to_string())
 }

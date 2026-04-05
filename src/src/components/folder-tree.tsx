@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Folder,
   FolderOpen,
@@ -9,24 +9,29 @@ import {
   Trash2,
   Edit3,
   Search,
+  Upload,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useFolderStore, buildFolderTree, type FolderTreeNode } from '@/store/folder-store';
 import { useKbStore } from '@/store/kb-store';
+import { useToast } from '@/hooks/use-toast';
+import { api } from '@/api';
 
 interface FolderTreeProps {
   onFolderSelect?: (folderId: string | null) => void;
 }
 
 export function FolderTree({ onFolderSelect }: FolderTreeProps) {
-  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand } = useFolderStore();
+  const { folders, selectedFolder, loadFolders, createFolder, selectFolder, toggleExpand, moveDocument } = useFolderStore();
   const setPage = useKbStore(s => s.setPage);
+  const { toast } = useToast();
 
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [creatingParentId, setCreatingParentId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ folderId: string; x: number; y: number } | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
     loadFolders();
@@ -51,6 +56,31 @@ export function FolderTree({ onFolderSelect }: FolderTreeProps) {
     selectFolder(folders.find(f => f.id === folderId) || null);
     setPage('search');
     onFolderSelect?.(folderId);
+  };
+
+  // Handle document drop onto a folder
+  const handleDrop = useCallback(async (folderId: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverId(null);
+
+    const docId = e.dataTransfer.getData('application/x-clawkb-doc');
+    if (!docId) return;
+
+    try {
+      await api.moveDocument(docId, folderId);
+      const folder = folders.find(f => f.id === folderId);
+      toast({ title: 'Moved', description: `Document moved to "${folder?.name || 'folder'}"` });
+    } catch (err) {
+      toast({ title: 'Move failed', description: String(err), variant: 'destructive' });
+    }
+  }, [folders, toast]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/x-clawkb-doc')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
   };
 
   return (
@@ -119,6 +149,10 @@ export function FolderTree({ onFolderSelect }: FolderTreeProps) {
               setIsCreating(true);
             }}
             onSearchInFolder={handleSearchInFolder}
+            dragOverId={dragOverId}
+            onDragEnter={setDragOverId}
+            onDragLeave={() => setDragOverId(null)}
+            onDrop={handleDrop}
           />
         ))}
       </div>
@@ -178,6 +212,10 @@ interface FolderNodeProps {
   onContextMenu: (e: React.MouseEvent, id: string) => void;
   onCreateChild: (parentId: string) => void;
   onSearchInFolder: (id: string) => void;
+  dragOverId: string | null;
+  onDragEnter: (id: string) => void;
+  onDragLeave: () => void;
+  onDrop: (id: string, e: React.DragEvent) => void;
 }
 
 function FolderNode({
@@ -188,8 +226,13 @@ function FolderNode({
   onContextMenu,
   onCreateChild,
   onSearchInFolder,
+  dragOverId,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
 }: FolderNodeProps) {
   const isSelected = selectedFolder?.id === node.id;
+  const isDragOver = dragOverId === node.id;
   const hasChildren = node.children.length > 0;
   const [isCreatingChild, setIsCreatingChild] = useState(false);
   const [newChildName, setNewChildName] = useState('');
@@ -210,11 +253,16 @@ function FolderNode({
         className={`group flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-colors ${
           isSelected
             ? 'bg-primary/10 text-primary'
+            : isDragOver
+            ? 'bg-primary/20 ring-1 ring-primary/40'
             : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
         }`}
         style={{ paddingLeft: `${node.depth * 12 + 8}px` }}
         onClick={() => onSelect(node)}
         onContextMenu={(e) => onContextMenu(e, node.id)}
+        onDragOver={e => { e.preventDefault(); e.stopPropagation(); onDragEnter(node.id); }}
+        onDragLeave={e => { if (e.currentTarget.contains(e.relatedTarget as Node)) return; onDragLeave(); }}
+        onDrop={e => onDrop(node.id, e)}
       >
         {/* Expand/collapse button */}
         <button
@@ -232,7 +280,9 @@ function FolderNode({
         </button>
 
         {/* Folder icon */}
-        {node.isExpanded && hasChildren ? (
+        {isDragOver ? (
+          <Upload className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.5} />
+        ) : node.isExpanded && hasChildren ? (
           <FolderOpen className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
         ) : (
           <Folder className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
@@ -284,6 +334,10 @@ function FolderNode({
               onContextMenu={onContextMenu}
               onCreateChild={onCreateChild}
               onSearchInFolder={onSearchInFolder}
+              dragOverId={dragOverId}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
             />
           ))}
 

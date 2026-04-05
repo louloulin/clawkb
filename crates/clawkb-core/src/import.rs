@@ -6,6 +6,8 @@ pub struct ImportResult {
     pub title: String,
     pub chunks: usize,
     pub tags: Vec<String>,
+    /// Auto-classification tags derived from content and path (not in `tags` yet)
+    pub auto_tags: Vec<String>,
     pub success: bool,
     pub error: Option<String>,
 }

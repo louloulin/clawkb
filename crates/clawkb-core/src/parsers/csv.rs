@@ -16,7 +16,7 @@ pub fn parse_csv(bytes: &[u8]) -> Result<ParsedDocument, String> {
         .from_reader(content.as_bytes());
 
     let mut title = None;
-    let let mut records: Vec<String> = Vec::new();
+    let mut records: Vec<String> = Vec::new();
     let mut headers: Vec<String> = Vec::new();
 
     // Read headers

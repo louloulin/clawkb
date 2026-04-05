@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag } from 'lucide-react';
 import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
+import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
 
 interface SelectionPopup {
   text: string;
@@ -141,13 +143,42 @@ export function ReaderPage() {
   const [selectionResult, setSelectionResult] = useState<string | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
+  const [bookmarkOpen, setBookmarkOpen] = useState(false);
+  const [highlightColor, setHighlightColor] = useState<HighlightColor>('yellow');
+  const [editingHighlightId, setEditingHighlightId] = useState<string | null>(null);
+  const [highlightNote, setHighlightNote] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Bookmark & progress stores
+  const { bookmarks: allBookmarks, loadBookmarks, addBookmark, removeBookmark, updateBookmarkNote, getBookmarksForDoc } = useBookmarkStore();
+  const { loadProgress, saveProgress, getProgress } = useReadingProgressStore();
+
+  // Load bookmarks & progress on mount
+  useEffect(() => {
+    loadBookmarks();
+    loadProgress();
+  }, []);
 
   // Load documents on mount
   useEffect(() => {
     loadDocuments();
   }, []);
+
+  // Load reading progress & bookmarks when document changes
+  useEffect(() => {
+    if (!selectedDoc) return;
+    setHighlights(loadHighlights(selectedDoc.id));
+
+    // Restore reading progress
+    const progress = getProgress(selectedDoc.id);
+    if (progress && scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = progress.scrollTop;
+    }
+  }, [selectedDoc?.id]);
+
+  const currentBookmarks = selectedDoc ? getBookmarksForDoc(selectedDoc.id) : [];
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -293,6 +324,14 @@ export function ReaderPage() {
     };
   }, [selectionPopup]);
 
+  // Save reading progress on scroll
+  const handleScroll = useCallback(() => {
+    if (!selectedDoc || !scrollAreaRef.current) return;
+    const scrollTop = scrollAreaRef.current.scrollTop;
+    saveProgress(selectedDoc.id, scrollTop);
+  }, [selectedDoc, saveProgress]);
+
+  // Handle text selection for AI explain/translate
   const handleSelectionAction = async (action: 'explain' | 'translate') => {
     if (!selectionPopup || !selectedDoc) return;
     setSelectionLoading(true);
@@ -330,6 +369,22 @@ export function ReaderPage() {
   const handleDeleteHighlight = (id: string) => {
     deleteHighlight(id);
     setHighlights(prev => prev.filter(h => h.id !== id));
+  };
+
+  const handleAddBookmark = () => {
+    if (!selectedDoc || !scrollAreaRef.current) return;
+    addBookmark(
+      selectedDoc.id,
+      selectedDoc.source || null,
+      selectedDoc.title,
+      scrollAreaRef.current.scrollTop
+    );
+  };
+
+  const handleJumpToBookmark = (bm: BookmarkType) => {
+    if (!scrollAreaRef.current) return;
+    scrollAreaRef.current.scrollTop = bm.scrollTop;
+    setBookmarkOpen(false);
   };
 
   // Render markdown-like content (basic formatting)
@@ -448,12 +503,29 @@ export function ReaderPage() {
                   <MessageSquare className="h-3.5 w-3.5" />
                   Chat
                 </Button>
+                <Button
+                  variant={bookmarkOpen ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setBookmarkOpen(!bookmarkOpen)}
+                  className="text-xs gap-1.5"
+                  title="Bookmarks"
+                >
+                  <Bookmark className="h-3.5 w-3.5" />
+                  {currentBookmarks.length > 0 && (
+                    <span className="ml-0.5 text-[10px]">{currentBookmarks.length}</span>
+                  )}
+                </Button>
               </div>
             </div>
 
             <div className="flex flex-1 overflow-hidden relative">
               {/* Document content */}
-              <ScrollArea className={`flex-1 p-6 ${chatOpen ? 'border-r' : ''}`}>
+              <div
+                className={`flex-1 overflow-auto ${chatOpen ? 'border-r' : ''}`}
+                ref={scrollAreaRef as unknown as React.RefObject<HTMLDivElement>}
+                onScroll={handleScroll}
+              >
+                <div className="p-6">
                 {isPdfSource(selectedDoc.source) ? (
                   <PdfViewer source={selectedDoc.source!} />
                 ) : (
@@ -461,7 +533,8 @@ export function ReaderPage() {
                     {renderContent(selectedDoc.content)}
                   </article>
                 )}
-              </ScrollArea>
+                </div>
+              </div>
 
               {/* Selection popup for AI explain/translate */}
               {selectionPopup && selectedDoc && (
@@ -585,17 +658,103 @@ export function ReaderPage() {
                   </div>
                 </div>
               )}
+              {/* Bookmarks sidebar */}
+              {bookmarkOpen && (
+                <div className="w-64 flex flex-col bg-card/40 shrink-0 border-l">
+                  <div className="p-3 border-b flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1.5">
+                      <BookmarkCheck className="h-3.5 w-3.5" />
+                      Bookmarks ({currentBookmarks.length})
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={handleAddBookmark}
+                        title="Add bookmark at current position"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setBookmarkOpen(false)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <ScrollArea className="flex-1 p-3">
+                    {currentBookmarks.length === 0 ? (
+                      <div className="text-xs text-muted-foreground text-center py-8">
+                        No bookmarks yet. Click + to save your current reading position.
+                      </div>
+                    ) : (
+                      currentBookmarks.map(bm => (
+                        <div key={bm.id} className="mb-2 p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <p className="text-xs font-medium line-clamp-2">{bm.title}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Saved {new Date(bm.createdAt).toLocaleDateString()}
+                          </p>
+                          {bm.note && (
+                            <p className="text-[10px] italic text-muted-foreground/70 mt-0.5 line-clamp-2">"{bm.note}"</p>
+                          )}
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1.5 text-[10px]"
+                              onClick={() => handleJumpToBookmark(bm)}
+                            >
+                              Jump
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1.5 text-[10px] text-destructive hover:text-destructive"
+                              onClick={() => removeBookmark(bm.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </ScrollArea>
+                </div>
+              )}
               {/* Annotations sidebar */}
               {annotationsOpen && (
                 <div className="w-72 flex flex-col bg-card/40 shrink-0 border-l">
-                  <div className="p-3 border-b flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1.5">
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      Highlights ({highlights.length})
-                    </span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAnnotationsOpen(false)}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                  <div className="p-3 border-b flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium flex items-center gap-1.5">
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Highlights ({highlights.length})
+                      </span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setAnnotationsOpen(false)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                    {/* Color picker */}
+                    <div className="flex items-center gap-1.5">
+                      <Tag className="h-3 w-3 text-muted-foreground" />
+                      <div className="flex gap-1">
+                        {(Object.keys(HIGHLIGHT_COLORS) as HighlightColor[]).map(color => (
+                          <button
+                            key={color}
+                            className={`w-4 h-4 rounded-full border-2 transition-transform ${
+                              highlightColor === color ? 'scale-125 border-foreground' : 'border-transparent'
+                            } ${HIGHLIGHT_COLORS[color].light} dark:${HIGHLIGHT_COLORS[color].dark}`}
+                            title={HIGHLIGHT_COLORS[color].label}
+                            onClick={() => setHighlightColor(color)}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground ml-1">Color</span>
+                    </div>
                   </div>
                   <ScrollArea className="flex-1 p-3">
                     {highlights.length === 0 ? (
@@ -603,22 +762,81 @@ export function ReaderPage() {
                         Select text and click Highlight to save annotations.
                       </div>
                     ) : (
-                      highlights.map(hl => (
-                        <div key={hl.id} className="mb-3 p-2 rounded-lg border bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-                          <p className="text-xs leading-relaxed line-clamp-3">"{hl.text}"</p>
-                          <div className="flex items-center justify-between mt-1.5">
-                            <span className="text-[10px] text-muted-foreground">{new Date(hl.createdAt).toLocaleDateString()}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 px-1.5 text-[10px] text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteHighlight(hl.id)}
-                            >
-                              Delete
-                            </Button>
+                      highlights.map(hl => {
+                        const colorClass = HIGHLIGHT_COLORS[hl.color as HighlightColor] || HIGHLIGHT_COLORS.yellow;
+                        return (
+                          <div key={hl.id} className={`mb-3 p-2 rounded-lg border ${colorClass.light} ${colorClass.dark}`}>
+                            <p className="text-xs leading-relaxed line-clamp-3">"{hl.text}"</p>
+                            {editingHighlightId === hl.id ? (
+                              <div className="mt-2 flex flex-col gap-1.5">
+                                <textarea
+                                  className="w-full text-[11px] bg-background/50 border rounded px-2 py-1 resize-none"
+                                  rows={2}
+                                  placeholder="Add a note..."
+                                  value={highlightNote}
+                                  onChange={e => setHighlightNote(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    className="h-5 px-2 text-[10px]"
+                                    onClick={() => {
+                                      if (editingHighlightId === hl.id) {
+                                        const all = JSON.parse(localStorage.getItem(HIGHLIGHTS_KEY) || '[]') as Highlight[];
+                                        const updated = all.map(h => h.id === hl.id ? { ...h, note: highlightNote } : h);
+                                        localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(updated));
+                                        setHighlights(updated);
+                                        setEditingHighlightId(null);
+                                      }
+                                    }}
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-1.5 text-[10px]"
+                                    onClick={() => setEditingHighlightId(null)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {hl.note && (
+                                  <p className="text-[10px] italic text-muted-foreground/70 mt-1">"{hl.note}"</p>
+                                )}
+                                <div className="flex items-center justify-between mt-1.5">
+                                  <span className="text-[10px] text-muted-foreground">{new Date(hl.createdAt).toLocaleDateString()}</span>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 px-1.5 text-[10px]"
+                                      onClick={() => {
+                                        setEditingHighlightId(hl.id);
+                                        setHighlightNote(hl.note);
+                                      }}
+                                    >
+                                      {hl.note ? 'Edit' : 'Note'}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 px-1.5 text-[10px] text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteHighlight(hl.id)}
+                                    >
+                                      Delete
+                                    </Button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </ScrollArea>
                 </div>

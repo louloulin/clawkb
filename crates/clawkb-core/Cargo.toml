@@ -18,6 +18,12 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
+tracing = "0.1"
+memchr = "2"
+walkdir = { workspace = true }
+base64 = { workspace = true }
+tempfile = { workspace = true }
+image = "0.25"
 
 # Document parsing
 docx-rs = { workspace = true }
