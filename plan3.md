@@ -346,6 +346,7 @@
   - `智能写作` → `Documents` 的 `Draft Lab`
   - `快速访问` → `Spaces`
 - 首页已实现来源预览区，会对最近 assistant 返回的 context 片段做预览
+- 已补强 demo/workbench 的 context-only 来源预览回退，首页来源预览在当前 KB 下可稳定出现
 - Recent Stream 已展示 `mode / model / mention scope`，模型切换不再只存在于 Settings
 
 **Files:**
