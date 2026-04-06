@@ -66,6 +66,13 @@ export function WorkbenchShell() {
     return base;
   }, [isKbOpen, kbPath, registry.registeredSpaces]);
 
+  useEffect(() => {
+    const activeMention = registry.activeKbId && mentionOptions.some((option) => option.id === registry.activeKbId)
+      ? registry.activeKbId
+      : 'current';
+    setMention(activeMention);
+  }, [registry.activeKbId, mentionOptions]);
+
   const selectedMention = mentionOptions.find((option) => option.id === mention) ?? mentionOptions[0];
 
   const handleSend = async () => {
@@ -131,7 +138,10 @@ export function WorkbenchShell() {
           model={aiStore.ask.model}
           onModelChange={handleModelChange}
           mention={mention}
-          onMentionChange={setMention}
+          onMentionChange={(nextMention) => {
+            setMention(nextMention);
+            registry.setActiveKb(nextMention === 'current' || nextMention === 'created-all' ? null : nextMention);
+          }}
           mentionOptions={mentionOptions}
           onAttachmentIntent={handleAttachmentIntent}
           latestAssistantMessage={latestAssistantMessage}

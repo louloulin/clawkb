@@ -303,6 +303,9 @@
   - 可编辑描述
   - 可在 `created / joined / shared` 之间真实切换分类
   - `joined/shared` lane 不再只是纯展示占位
+- 已补做 active knowledge space continuation：
+  - `Spaces` 中选中的注册空间会同步为全局 active KB 上下文
+  - 回到 `Workbench` 时，mention scope 会自动切到当前 active KB
 - 已明确将 Phase 2 限定为“本地 registry + 多 KB 切换”，`joined/shared` 仅作为真实协作能力的占位，不伪造多人数据
 
 **Files:**

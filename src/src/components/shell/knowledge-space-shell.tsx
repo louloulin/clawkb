@@ -57,6 +57,14 @@ export function KnowledgeSpaceShell() {
     void ensureSpaceReady();
   }, [selectedSpace?.id]);
 
+  useEffect(() => {
+    if (!selectedSpace) {
+      registry.setActiveKb(null);
+      return;
+    }
+    registry.setActiveKb(selectedSpace.kind === 'registered' ? selectedSpace.id : null);
+  }, [selectedSpace?.id, selectedSpace?.kind]);
+
   const handleOpenSpace = async () => {
     if (!selectedSpace) return;
     if (isCurrent) {
@@ -85,12 +93,16 @@ export function KnowledgeSpaceShell() {
     );
     setActiveSpaceCollection('created');
     setSelectedSpaceId(created?.id ?? null);
+    if (created?.id) {
+      registry.setActiveKb(created.id);
+    }
   };
 
   const handleRegister = (path: string, name: string, description: string) => {
     const created = registry.registerKb(path.trim(), name.trim(), description.trim(), 'created');
     if (created) {
       setSelectedSpaceId(created.id);
+      registry.setActiveKb(created.id);
     }
   };
 
@@ -103,6 +115,7 @@ export function KnowledgeSpaceShell() {
       description: updates.description.trim(),
       collection: updates.collection,
     });
+    registry.setActiveKb(selectedSpace.id);
     setActiveSpaceCollection(updates.collection);
     setSelectedSpaceId(selectedSpace.id);
   };
