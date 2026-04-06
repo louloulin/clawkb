@@ -476,6 +476,10 @@
   - `src/src/components/ui/button.tsx`
   - `src/src/components/ui/tabs.tsx`
   - `src/src/components/ui/select.tsx`
+- 已补做 Phase 6 延续收口：
+  - `App.tsx`、`ExploreShell`、`DocumentWorkspaceShell` 改为页面级懒加载
+  - 前端构建产物已拆分为多 chunk，最大的 JS chunk 已降到 500KB 告警阈值以内
+  - Rust/Tauri 侧编译 warning 已从一批收敛到 3 个剩余 warning
 - 顶层壳层与主要 workspace 已切到统一视觉语言：
   - `layout.tsx`
   - `workbench-shell.tsx`

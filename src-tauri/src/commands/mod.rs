@@ -15,10 +15,8 @@ use clawkb_core::entity::{EntityInfo, RelationEdge, TraverseResult, MeshStats, M
 use clawkb_core::KnowledgeBase;
 use clawkb_core::ai_config::{AiProvider, EmbeddingConfig, LlmConfig, set_embedding_config, set_llm_config};
 use clawkb_core::sync::{VaultSummary, webdav::{WebdavConfig, WebdavServerInfo, RemoteFile, SyncStatus,
-    SyncManifest, FileSyncMeta, IncrementalSyncResult,
-    test_connection as wb_test, list_remote as wb_list, upload_file as wb_upload,
-    download_file as wb_download, delete_remote as wb_delete, create_remote_dir as wb_mkdir,
-    remote_exists as wb_exists, incremental_sync as wb_incremental_sync}};
+    SyncManifest, FileSyncMeta,
+    test_connection as wb_test, list_remote as wb_list, incremental_sync as wb_incremental_sync}};
 
 pub struct AppState {
     /// Currently active/default knowledge base
@@ -833,13 +831,6 @@ pub fn import_obsidian_vault(
 #[tauri::command]
 pub fn selection_ai(action: String, text: String) -> clawkb_core::selection::SelectionResult {
     clawkb_core::selection::selection_ai(&action, &text)
-}
-
-#[tauri::command]
-pub fn get_clipboard_text() -> Result<String, String> {
-    // Read from system clipboard via tauri plugin
-    // This is handled by the clipboard-manager plugin on the frontend
-    Ok(String::new())
 }
 
 // ── WebDAV Sync Commands ─────────────────────────────────────────────────

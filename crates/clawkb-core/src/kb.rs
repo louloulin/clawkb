@@ -448,7 +448,7 @@ impl KnowledgeBase {
         // 2. Transcribe the audio to text
         // 3. Store the transcript as a document
         let bytes = std::fs::read(path)?;
-        let content_length = bytes.len();
+        let _content_length = bytes.len();
 
         let mut builder = PutOptions::builder()
             .title(title.clone())

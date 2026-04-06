@@ -1,16 +1,18 @@
+import { lazy, Suspense } from 'react';
 import { Compass, Search, Sparkles } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GraphPage } from '@/components/pages/graph';
-import { ImportPage } from '@/components/pages/import';
-import { MindMapPage } from '@/components/pages/mindmap';
-import { NotesPage } from '@/components/pages/notes';
-import { PodcastPage } from '@/components/pages/podcast';
-import { ReportPage } from '@/components/pages/report';
-import { SearchPage } from '@/components/pages/search';
-import { EntitiesPage } from '@/components/pages/entities';
-import { TagsPage } from '@/components/pages/tags';
-import { TimelinePage } from '@/components/pages/timeline';
 import { useWorkspaceStore, type ExploreView } from '@/store/workspace-store';
+
+const SearchPage = lazy(() => import('@/components/pages/search').then((module) => ({ default: module.SearchPage })));
+const ImportPage = lazy(() => import('@/components/pages/import').then((module) => ({ default: module.ImportPage })));
+const NotesPage = lazy(() => import('@/components/pages/notes').then((module) => ({ default: module.NotesPage })));
+const TimelinePage = lazy(() => import('@/components/pages/timeline').then((module) => ({ default: module.TimelinePage })));
+const TagsPage = lazy(() => import('@/components/pages/tags').then((module) => ({ default: module.TagsPage })));
+const EntitiesPage = lazy(() => import('@/components/pages/entities').then((module) => ({ default: module.EntitiesPage })));
+const GraphPage = lazy(() => import('@/components/pages/graph').then((module) => ({ default: module.GraphPage })));
+const MindMapPage = lazy(() => import('@/components/pages/mindmap').then((module) => ({ default: module.MindMapPage })));
+const ReportPage = lazy(() => import('@/components/pages/report').then((module) => ({ default: module.ReportPage })));
+const PodcastPage = lazy(() => import('@/components/pages/podcast').then((module) => ({ default: module.PodcastPage })));
 
 const VIEWS: Array<{
   id: ExploreView;
@@ -90,7 +92,15 @@ export function ExploreShell() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto bg-transparent">
-        {viewRenderers[activeExploreView]}
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+              Loading explore view...
+            </div>
+          }
+        >
+          {viewRenderers[activeExploreView]}
+        </Suspense>
       </div>
     </div>
   );

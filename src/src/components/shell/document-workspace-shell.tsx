@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { BookOpen, Loader2 } from 'lucide-react';
-import { EditorPage } from '@/components/pages/editor';
-import { NotesPage } from '@/components/pages/notes';
-import { PodcastPage } from '@/components/pages/podcast';
-import { ReaderPage } from '@/components/pages/reader';
-import { ReportPage } from '@/components/pages/report';
 import { DocumentListPane } from '@/components/documents/document-list-pane';
 import { DocumentTabs } from '@/components/documents/document-tabs';
 import { DocumentToolbar } from '@/components/documents/document-toolbar';
 import { useDocumentWorkspaceStore } from '@/store/document-workspace-store';
 import { useKbStore } from '@/store/kb-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
+
+const ReaderPage = lazy(() => import('@/components/pages/reader').then((module) => ({ default: module.ReaderPage })));
+const EditorPage = lazy(() => import('@/components/pages/editor').then((module) => ({ default: module.EditorPage })));
+const NotesPage = lazy(() => import('@/components/pages/notes').then((module) => ({ default: module.NotesPage })));
+const ReportPage = lazy(() => import('@/components/pages/report').then((module) => ({ default: module.ReportPage })));
+const PodcastPage = lazy(() => import('@/components/pages/podcast').then((module) => ({ default: module.PodcastPage })));
 
 export function DocumentWorkspaceShell() {
   const { kbPath, stats } = useKbStore();
@@ -124,7 +125,13 @@ export function DocumentWorkspaceShell() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : (
-            <>
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                  Loading document tool...
+                </div>
+              }
+            >
               {activeTab === 'reader' && (
                 <ReaderPage
                   embedded
@@ -158,7 +165,7 @@ export function DocumentWorkspaceShell() {
               {activeTab === 'podcast' && (
                 <PodcastPage embedded sourceDoc={selectedDocument} />
               )}
-            </>
+            </Suspense>
           )}
         </div>
       </div>

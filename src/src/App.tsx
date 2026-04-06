@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Sidebar, Header, MobileBottomNav } from '@/components/layout';
 import { DocumentDetailPanel } from '@/components/document-detail';
 import { SelectionPanel } from '@/components/selection-panel';
-import { DocumentWorkspaceShell } from '@/components/shell/document-workspace-shell';
-import { ExploreShell } from '@/components/shell/explore-shell';
-import { KnowledgeSpaceShell } from '@/components/shell/knowledge-space-shell';
-import { WorkbenchShell } from '@/components/shell/workbench-shell';
-import { SettingsPage } from '@/components/pages/settings';
 import { Toaster } from '@/components/ui/toaster';
 import { useKbStore } from '@/store/kb-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import './index.css';
+
+const DocumentWorkspaceShell = lazy(() => import('@/components/shell/document-workspace-shell').then((module) => ({ default: module.DocumentWorkspaceShell })));
+const ExploreShell = lazy(() => import('@/components/shell/explore-shell').then((module) => ({ default: module.ExploreShell })));
+const KnowledgeSpaceShell = lazy(() => import('@/components/shell/knowledge-space-shell').then((module) => ({ default: module.KnowledgeSpaceShell })));
+const WorkbenchShell = lazy(() => import('@/components/shell/workbench-shell').then((module) => ({ default: module.WorkbenchShell })));
+const SettingsPage = lazy(() => import('@/components/pages/settings').then((module) => ({ default: module.SettingsPage })));
 
 const shellPages: Record<string, React.ComponentType> = {
   home: WorkbenchShell,
@@ -136,7 +137,15 @@ function App() {
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
         <div className="flex-1 overflow-auto pb-16 md:pb-0">
-          <PageComponent />
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                Loading workspace...
+              </div>
+            }
+          >
+            <PageComponent />
+          </Suspense>
         </div>
       </main>
 

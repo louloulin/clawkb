@@ -15,7 +15,7 @@ pub fn parse_csv(bytes: &[u8]) -> Result<ParsedDocument, String> {
         .flexible(true)
         .from_reader(content.as_bytes());
 
-    let mut title = None;
+    let title = None;
     let mut records: Vec<String> = Vec::new();
     let mut headers: Vec<String> = Vec::new();
 
@@ -28,11 +28,9 @@ pub fn parse_csv(bytes: &[u8]) -> Result<ParsedDocument, String> {
     }
 
     // Read records
-    let mut row_count = 0;
     for result in reader.records() {
         match result {
             Ok(record) => {
-                row_count += 1;
                 let row_text: Vec<String> = record.iter().map(|s| s.to_string()).collect();
                 // Format as key-value pairs using headers
                 let formatted: String = headers

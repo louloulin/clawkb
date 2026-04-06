@@ -71,7 +71,7 @@ pub fn build_folder_tree(folders: Vec<FolderInfo>) -> Vec<FolderNode> {
     for folder in &folders {
         if let Some(node) = map.get_mut(&folder.id) {
             let node_clone = node.clone();
-            drop(node); // release mutable borrow before any nested get_mut
+            let _ = node; // release mutable borrow before any nested get_mut
             if let Some(ref parent_id) = folder.parent_id {
                 if let Some(parent) = map.get_mut(parent_id) {
                     parent.children.push(node_clone);

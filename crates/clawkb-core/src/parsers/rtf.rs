@@ -10,7 +10,7 @@ pub fn parse_rtf(bytes: &[u8]) -> Result<ParsedDocument, String> {
 
     // Basic RTF stripping - remove control words and groups
     let mut result = String::new();
-    let mut chars: Vec<char> = content.chars().collect();
+    let chars: Vec<char> = content.chars().collect();
     let mut i = 0;
     let mut in_group: usize = 0;
     let mut skip_next = false;

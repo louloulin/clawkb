@@ -71,7 +71,6 @@ pub fn parse_docx(bytes: &[u8]) -> Result<ParsedDocument, String> {
 fn extract_text_from_xml(xml: &str) -> String {
     let mut result = String::new();
     let mut in_tag = false;
-    let mut in_w = false; // w:t element (text runs)
     let mut prev_was_text = false;
 
     let bytes = xml.as_bytes();
@@ -82,7 +81,6 @@ fn extract_text_from_xml(xml: &str) -> String {
         if i + 4 < bytes.len() {
             let rest = &bytes[i..];
             if rest.starts_with(b"<w:t") {
-                in_w = true;
                 i += 4;
                 // Skip to >
                 while i < bytes.len() && bytes[i] != b'>' {
@@ -92,7 +90,6 @@ fn extract_text_from_xml(xml: &str) -> String {
                 continue;
             }
             if rest.starts_with(b"</w:t>") {
-                in_w = false;
                 i += 6;
                 continue;
             }
