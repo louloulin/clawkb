@@ -13,6 +13,7 @@ export function ChatPage() {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-200/12 text-amber-100">
           <Sparkles className="h-6 w-6" />
         </div>
+        <p className="mt-4 text-[11px] uppercase tracking-[0.24em] text-slate-400">Legacy Compatibility Entry</p>
         <h2 className="mt-5 text-2xl font-semibold">Chat has moved into the Workbench</h2>
         <p className="mt-4 text-sm leading-7 text-slate-300">
           Workbench is the primary AI entry point for this personal, local knowledge base. Use it for model switching,

@@ -132,7 +132,7 @@ export function KnowledgeSpaceShell() {
           <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Local Libraries</div>
           <h2 className="mt-2 text-2xl font-semibold">Choose the right local library before you ask.</h2>
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            The spaces shell is now the control center for your personal, on-device knowledge libraries.
+            The spaces shell is the control center for your personal, on-device knowledge libraries.
           </p>
         </div>
         <div className="mt-8 space-y-2">

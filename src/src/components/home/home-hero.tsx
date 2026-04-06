@@ -18,8 +18,8 @@ export function HomeHero({ kbName, docCount }: HomeHeroProps) {
             Ask, collect, and work through your personal knowledge without leaving the workspace.
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            ClawKB is positioned as a personal, local knowledge base. Start with a question, switch mode and model in context,
-            choose the local library you want, and branch straight into reading, import, or writing.
+            ClawKB is a personal, local-first knowledge base workbench. Start with a question, switch mode and model in context,
+            choose the library you want, and branch straight into reading, import, or writing.
           </p>
         </div>
 

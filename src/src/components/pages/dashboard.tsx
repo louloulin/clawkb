@@ -24,6 +24,7 @@ export function DashboardPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center mx-auto mb-6">
             <Sparkles className="h-8 w-8 text-primary" />
           </div>
+          <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">Legacy Compatibility Entry</p>
           <h2 className="text-2xl font-semibold mb-2 tracking-tight">Welcome to ClawKB</h2>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
             Your local-first, personal knowledge base.<br />
@@ -46,8 +47,9 @@ export function DashboardPage() {
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
+        <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">Legacy Compatibility Entry</p>
         <h2 className="text-xl font-semibold mb-1">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">Overview of your knowledge base</p>
+        <p className="text-sm text-muted-foreground">A compatibility overview page. Workbench is the main product entry point.</p>
       </div>
 
       {/* Stats Grid */}

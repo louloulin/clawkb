@@ -34,6 +34,15 @@ Inside those shells, the app already supports:
 - report generation
 - podcast script generation
 
+## Legacy Entry Points
+
+Two older page ids still exist for compatibility with historical navigation state:
+
+- `Dashboard`: legacy landing page, superseded by `Workbench`
+- `Chat`: legacy chat route, superseded by `Workbench`
+
+They are intentionally no longer primary product entry points.
+
 ## Development
 
 ```bash
@@ -66,4 +75,4 @@ $HOME/.clawkb/knowledge.mv2
 
 - Browser mode still uses demo data for many data-heavy capabilities.
 - The current product is intentionally single-user and local; collaboration and cloud sharing are out of scope.
-- Some advanced workspace flows still favor practical embedding over final polish.
+- Some internal compatibility pages remain in the codebase while the product is being hardened.

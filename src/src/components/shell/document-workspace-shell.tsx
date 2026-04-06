@@ -84,11 +84,13 @@ export function DocumentWorkspaceShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="border-b border-white/10 bg-black/20 px-5 py-4 backdrop-blur-xl">
           <div className="flex flex-col gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Document Workspace</div>
-              <h1 className="mt-2 text-2xl font-semibold">Read, draft, annotate, and generate from one document flow.</h1>
-              <p className="mt-2 text-sm leading-7 text-slate-300">{headerSummary}</p>
-            </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Document Workspace</div>
+            <h1 className="mt-2 text-2xl font-semibold">Read, draft, annotate, and generate from one document flow.</h1>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Personal, local document work happens here. {headerSummary}
+            </p>
+          </div>
 
             <div className="flex flex-wrap gap-3 text-xs text-slate-300">
               <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
@@ -117,7 +119,7 @@ export function DocumentWorkspaceShell() {
               <div className="space-y-3">
                 <BookOpen className="mx-auto h-12 w-12 text-slate-500" />
                 <div className="text-base font-medium text-slate-300">Select a document to start the workspace flow</div>
-                <div className="text-sm text-slate-500">The selected document will drive draft, note, report, and podcast actions.</div>
+                <div className="text-sm text-slate-500">The selected document drives your personal draft, note, report, and podcast actions.</div>
               </div>
             </div>
           ) : isLoading ? (
