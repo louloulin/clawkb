@@ -165,7 +165,6 @@ fn extract_sheet_data(xml: &str, shared_strings: &[String]) -> String {
     let mut current_cell = String::new();
     let mut in_t = false;
     let mut in_cell = false;
-    let mut cell_ref = String::new();
 
     let bytes = xml.as_bytes();
     let mut i = 0;
@@ -180,9 +179,7 @@ fn extract_sheet_data(xml: &str, shared_strings: &[String]) -> String {
                 if rest.starts_with(b"<c ") {
                     if let Some(r_start) = memmem::find(rest, b"r=\"") {
                         let r_value_start = r_start + 3;
-                        if let Some(r_end) = memchr::memchr(b'\"', &rest[r_value_start..]) {
-                            cell_ref = String::from_utf8_lossy(&rest[r_value_start..r_value_start + r_end]).to_string();
-                        }
+                        let _ = memchr::memchr(b'\"', &rest[r_value_start..]);
                     }
                 }
                 current_cell.clear();

@@ -97,7 +97,7 @@ pub struct IncrementalSyncResult {
 }
 
 /// Build a WebDAV client configured for the given server.
-fn build_client(config: &WebdavConfig) -> Result<Client, String> {
+fn build_client(_config: &WebdavConfig) -> Result<Client, String> {
     let client = Client::builder()
         .danger_accept_invalid_certs(false)
         .build()
