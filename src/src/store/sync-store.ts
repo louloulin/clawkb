@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { VaultSummary, WebdavConfig, SyncStatus } from '@/api/types';
+import { STORAGE_KEYS } from '@/store/persistence';
 
 interface ObsidianConfig {
   vaultPath: string;
@@ -114,7 +115,7 @@ export const useSyncStore = create<SyncState>()(
       },
     }),
     {
-      name: 'clawkb-sync',
+      name: STORAGE_KEYS.sync.store,
     }
   )
 );

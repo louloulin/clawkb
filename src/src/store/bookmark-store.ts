@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-
+import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 export interface Bookmark {
   id: string;
   docId: string;
@@ -14,8 +14,8 @@ export interface Bookmark {
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
 
-const BOOKMARKS_KEY = 'clawkb-bookmarks';
-const PROGRESS_KEY = 'clawkb-reading-progress';
+const BOOKMARKS_KEY = STORAGE_KEYS.bookmarks.items;
+const PROGRESS_KEY = STORAGE_KEYS.bookmarks.progress;
 
 interface BookmarkState {
   bookmarks: Bookmark[];
@@ -50,13 +50,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   bookmarks: [],
 
   loadBookmarks: () => {
-    try {
-      const raw = localStorage.getItem(BOOKMARKS_KEY);
-      const bookmarks: Bookmark[] = raw ? JSON.parse(raw) : [];
-      set({ bookmarks });
-    } catch {
-      set({ bookmarks: [] });
-    }
+    set({ bookmarks: safeStorageGet<Bookmark[]>(BOOKMARKS_KEY, []) });
   },
 
   addBookmark: (docId, docUri, title, scrollTop, pageNumber, note = '', color = 'yellow') => {
@@ -73,13 +67,13 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     };
     const updated = [...get().bookmarks, bookmark];
     set({ bookmarks: updated });
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updated));
+    safeStorageSet(BOOKMARKS_KEY, updated);
   },
 
   removeBookmark: (id: string) => {
     const updated = get().bookmarks.filter(b => b.id !== id);
     set({ bookmarks: updated });
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updated));
+    safeStorageSet(BOOKMARKS_KEY, updated);
   },
 
   updateBookmarkNote: (id: string, note: string) => {
@@ -87,7 +81,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
       b.id === id ? { ...b, note } : b
     );
     set({ bookmarks: updated });
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(updated));
+    safeStorageSet(BOOKMARKS_KEY, updated);
   },
 
   getBookmarksForDoc: (docId: string) => {
@@ -101,13 +95,7 @@ export const useReadingProgressStore = create<ProgressState>((set, get) => ({
   progress: {},
 
   loadProgress: () => {
-    try {
-      const raw = localStorage.getItem(PROGRESS_KEY);
-      const progress: ReadingProgress = raw ? JSON.parse(raw) : {};
-      set({ progress });
-    } catch {
-      set({ progress: {} });
-    }
+    set({ progress: safeStorageGet<ReadingProgress>(PROGRESS_KEY, {}) });
   },
 
   saveProgress: (docId: string, scrollTop: number, pageNumber?: number) => {
@@ -116,7 +104,7 @@ export const useReadingProgressStore = create<ProgressState>((set, get) => ({
       [docId]: { scrollTop, pageNumber, lastReadAt: new Date().toISOString() },
     };
     set({ progress: updated });
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(updated));
+    safeStorageSet(PROGRESS_KEY, updated);
   },
 
   getProgress: (docId: string) => {

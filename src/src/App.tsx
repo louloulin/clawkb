@@ -4,6 +4,7 @@ import { DocumentDetailPanel } from '@/components/document-detail';
 import { SelectionPanel } from '@/components/selection-panel';
 import { Toaster } from '@/components/ui/toaster';
 import { useKbStore } from '@/store/kb-store';
+import { STORAGE_KEYS, safeStorageGetString } from '@/store/persistence';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import './index.css';
 
@@ -51,7 +52,7 @@ function App() {
       if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
 
       try {
-        const lastPath = localStorage.getItem('clawkb-last-kb-path');
+        const lastPath = safeStorageGetString(STORAGE_KEYS.kb.lastPath, '');
         if (lastPath) {
           await openKb(lastPath);
           return;

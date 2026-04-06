@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/api';
 import type { KbStats, Page, SearchHit } from '@/api';
-
-const LAST_KB_PATH_KEY = 'clawkb-last-kb-path';
+import { STORAGE_KEYS, safeStorageGetString, safeStorageSetString } from '@/store/persistence';
 
 interface KbState {
   // KB state
@@ -49,7 +48,7 @@ export const useKbStore = create<KbState>((set, get) => ({
   detailLoading: false,
   darkMode: (() => {
     try {
-      const stored = localStorage.getItem('clawkb-dark');
+      const stored = safeStorageGetString(STORAGE_KEYS.kb.darkMode, '');
       return stored === null ? true : stored === 'true';
     } catch {
       return true;
@@ -61,7 +60,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const s = await api.openKb(path);
-      try { localStorage.setItem(LAST_KB_PATH_KEY, path); } catch {}
+      safeStorageSetString(STORAGE_KEYS.kb.lastPath, path);
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
@@ -72,7 +71,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const s = await api.createKb(path);
-      try { localStorage.setItem(LAST_KB_PATH_KEY, path); } catch {}
+      safeStorageSetString(STORAGE_KEYS.kb.lastPath, path);
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
@@ -93,7 +92,7 @@ export const useKbStore = create<KbState>((set, get) => ({
     const newDark = !get().darkMode;
     set({ darkMode: newDark });
     document.documentElement.classList.toggle('dark', newDark);
-    try { localStorage.setItem('clawkb-dark', String(newDark)); } catch {}
+    safeStorageSetString(STORAGE_KEYS.kb.darkMode, String(newDark));
   },
   setError: (error: string | null) => set({ error }),
 

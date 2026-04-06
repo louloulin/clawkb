@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { STORAGE_KEYS } from '@/store/persistence';
 
 export type ExploreView =
   | 'search'
@@ -31,17 +33,24 @@ interface WorkspaceState {
   setSelectedSpaceId: (id: string | null) => void;
 }
 
-export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-  activeExploreView: 'search',
-  activeSpaceCollection: 'personal',
-  activeDocumentsView: 'reader',
-  preferredImportView: 'file',
-  selectedSpaceId: null,
-  setActiveExploreView: (view) => set({ activeExploreView: view }),
-  openExploreView: (view) => set({ activeExploreView: view }),
-  openImportView: (view) => set({ activeExploreView: 'import', preferredImportView: view }),
-  setActiveSpaceCollection: (collection) => set({ activeSpaceCollection: collection }),
-  setActiveDocumentsView: (view) => set({ activeDocumentsView: view }),
-  setPreferredImportView: (view) => set({ preferredImportView: view }),
-  setSelectedSpaceId: (id) => set({ selectedSpaceId: id }),
-}));
+export const useWorkspaceStore = create<WorkspaceState>()(
+  persist(
+    (set) => ({
+      activeExploreView: 'search',
+      activeSpaceCollection: 'personal',
+      activeDocumentsView: 'reader',
+      preferredImportView: 'file',
+      selectedSpaceId: null,
+      setActiveExploreView: (view) => set({ activeExploreView: view }),
+      openExploreView: (view) => set({ activeExploreView: view }),
+      openImportView: (view) => set({ activeExploreView: 'import', preferredImportView: view }),
+      setActiveSpaceCollection: (collection) => set({ activeSpaceCollection: collection }),
+      setActiveDocumentsView: (view) => set({ activeDocumentsView: view }),
+      setPreferredImportView: (view) => set({ preferredImportView: view }),
+      setSelectedSpaceId: (id) => set({ selectedSpaceId: id }),
+    }),
+    {
+      name: STORAGE_KEYS.workspace.store,
+    },
+  ),
+);

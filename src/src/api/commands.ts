@@ -25,6 +25,7 @@ import type {
   OcrResult,
 } from './types';
 import { isTauri } from './platform';
+import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 
 // Lazy-loaded Tauri invoke — only imported when running inside Tauri
 let _invoke: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
@@ -45,24 +46,14 @@ type RawFolderInfo = {
   created_at: number;
 };
 
-const DEMO_FOLDERS_KEY = 'clawkb-browser-folders';
+const DEMO_FOLDERS_KEY = STORAGE_KEYS.demo.folders;
 
 function loadDemoFolders(): FolderInfo[] {
-  try {
-    const raw = localStorage.getItem(DEMO_FOLDERS_KEY);
-    if (raw) return JSON.parse(raw) as FolderInfo[];
-  } catch {
-    // ignore storage failures
-  }
-  return [];
+  return safeStorageGet<FolderInfo[]>(DEMO_FOLDERS_KEY, []);
 }
 
 function saveDemoFolders(folders: FolderInfo[]) {
-  try {
-    localStorage.setItem(DEMO_FOLDERS_KEY, JSON.stringify(folders));
-  } catch {
-    // ignore storage failures
-  }
+  safeStorageSet(DEMO_FOLDERS_KEY, folders);
 }
 
 function createImportResult(partial: Omit<ImportResult, 'auto_tags'> & { auto_tags?: string[] }): ImportResult {

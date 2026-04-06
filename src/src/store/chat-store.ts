@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { api } from '@/api';
 import type { ChatMessage, AskResult, ChatMode, ContextFragment, SearchHit } from '@/api';
+import { STORAGE_KEYS, safeStorageGet, safeStorageRemove, safeStorageSet } from '@/store/persistence';
 
-const HISTORY_KEY = 'clawkb-chat-history';
+const HISTORY_KEY = STORAGE_KEYS.chat.history;
 const MAX_HISTORY = 100;
 
 interface SendMessageOptions {
@@ -45,20 +46,11 @@ function contextToText(context: ContextFragment[]): string {
 }
 
 function loadFromStorage(): ChatMessage[] {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    if (!raw) return [];
-    const msgs: ChatMessage[] = JSON.parse(raw);
-    return msgs.slice(-MAX_HISTORY);
-  } catch {
-    return [];
-  }
+  return safeStorageGet<ChatMessage[]>(HISTORY_KEY, []).slice(-MAX_HISTORY);
 }
 
 function saveToStorage(messages: ChatMessage[]) {
-  try {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-MAX_HISTORY)));
-  } catch { /* ignore quota errors */ }
+  safeStorageSet(HISTORY_KEY, messages.slice(-MAX_HISTORY));
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -151,7 +143,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   clearHistory: () => {
     set({ messages: [], error: null });
-    localStorage.removeItem(HISTORY_KEY);
+    safeStorageRemove(HISTORY_KEY);
   },
 
   toggleSources: (messageId?: string) => {

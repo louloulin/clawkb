@@ -167,6 +167,17 @@
 
 **Goal:** 把当前散落的 store 和 localStorage 行为梳理成一致、可解释、可维护的本地状态系统。
 
+**Status:** Completed (2026-04-06)
+
+**Completed work:**
+
+- 已新增 `src/src/store/persistence.ts`，把浏览器侧持久化 key 和安全读写入口统一到单处管理
+- `kb-store`、`chat-store`、`bookmark-store`、`ai-store`、`multi-kb-store`、`sync-store` 已统一改用集中 key 和持久化 helper
+- `workspace-store` 与 `document-workspace-store` 已切到 `zustand/persist`，关键工作台状态和草稿状态可在刷新后恢复
+- `App`、`reader`、`api/commands` 中零散的 `localStorage` 读写已收口到 store / persistence 层，减少页面级直接访问
+- 已补 `docs/local-state-model.md`，明确 key 清单、状态分类、恢复边界与约束规则
+- 已新增 `scripts/verify-local-state.sh` 与 `scripts/verify-local-state-playwright.mjs`，把 KB 恢复、workspace 恢复、draft 恢复变成可重复执行的真实校验
+
 **Files:**
 - Modify: `src/src/store/kb-store.ts`
 - Modify: `src/src/store/workspace-store.ts`
@@ -178,16 +189,17 @@
 - Create: `src/src/store/persistence.ts`
 - Create: `docs/local-state-model.md`
 
-- [ ] 盘点当前所有 localStorage key，形成统一清单
-- [ ] 提炼 `persistence.ts` 统一浏览器侧持久化读写与 key 管理
-- [ ] 标注哪些状态是“用户数据”、哪些状态是“会话 UI 状态”、哪些状态是“cache”
-- [ ] 减少页面级直接操作 localStorage 的情况，统一从 store/persistence 层进入
-- [ ] 为关键本地状态写恢复策略说明：KB path、draft、folder tree、bookmarks、chat history
-- [ ] 写 `docs/local-state-model.md`，描述状态边界和生命周期
+- [x] 盘点当前所有 localStorage key，形成统一清单
+- [x] 提炼 `persistence.ts` 统一浏览器侧持久化读写与 key 管理
+- [x] 标注哪些状态是“用户数据”、哪些状态是“会话 UI 状态”、哪些状态是“cache”
+- [x] 减少页面级直接操作 localStorage 的情况，统一从 store/persistence 层进入
+- [x] 为关键本地状态写恢复策略说明：KB path、draft、folder tree、bookmarks、chat history
+- [x] 写 `docs/local-state-model.md`，描述状态边界和生命周期
 
 **Verification**
 
 - Run: `cd src && npm run build`
+- Run: `bash scripts/verify-local-state.sh`
 - Manual:
   - 打开应用
   - 切换 KB

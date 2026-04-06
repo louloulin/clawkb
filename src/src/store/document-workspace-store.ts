@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { api } from '@/api';
 import type { SearchHit } from '@/api';
+import { STORAGE_KEYS } from '@/store/persistence';
 
 export type DocumentWorkspaceTab = 'reader' | 'draft' | 'notes' | 'report' | 'podcast';
 
@@ -31,57 +33,74 @@ function buildDraftContent(doc: SearchHit | null) {
   return `# ${doc.title}\n\n${sourceLine}\n\n---\n\n${doc.content}`;
 }
 
-export const useDocumentWorkspaceStore = create<DocumentWorkspaceState>((set, get) => ({
-  documents: [],
-  selectedDocument: null,
-  activeTab: 'reader',
-  isLoading: false,
-  draftTitle: 'Untitled Workspace Draft',
-  draftContent: '',
-  lastSavedAt: null,
+export const useDocumentWorkspaceStore = create<DocumentWorkspaceState>()(
+  persist(
+    (set, get) => ({
+      documents: [],
+      selectedDocument: null,
+      activeTab: 'reader',
+      isLoading: false,
+      draftTitle: 'Untitled Workspace Draft',
+      draftContent: '',
+      lastSavedAt: null,
 
-  loadDocuments: async () => {
-    set({ isLoading: true });
-    try {
-      const results = await api.search('*', 50, 'hybrid');
-      set((state) => ({
-        documents: results,
-        selectedDocument: state.selectedDocument ?? results[0] ?? null,
-        isLoading: false,
-        draftTitle: state.selectedDocument ? state.draftTitle : buildDraftTitle(results[0] ?? null),
-        draftContent: state.selectedDocument ? state.draftContent : buildDraftContent(results[0] ?? null),
-      }));
-    } catch {
-      set({ documents: [], isLoading: false });
-    }
-  },
+      loadDocuments: async () => {
+        set({ isLoading: true });
+        try {
+          const results = await api.search('*', 50, 'hybrid');
+          set((state) => ({
+            documents: results,
+            selectedDocument: state.selectedDocument ?? results[0] ?? null,
+            isLoading: false,
+            draftTitle: state.draftTitle && state.draftTitle !== 'Untitled Workspace Draft'
+              ? state.draftTitle
+              : buildDraftTitle(results[0] ?? null),
+            draftContent: state.draftContent
+              ? state.draftContent
+              : buildDraftContent(results[0] ?? null),
+          }));
+        } catch {
+          set({ documents: [], isLoading: false });
+        }
+      },
 
-  selectDocument: (doc) => {
-    set({
-      selectedDocument: doc,
-      draftTitle: buildDraftTitle(doc),
-      draftContent: buildDraftContent(doc),
-    });
-  },
+      selectDocument: (doc) => {
+        set({
+          selectedDocument: doc,
+          draftTitle: buildDraftTitle(doc),
+          draftContent: buildDraftContent(doc),
+        });
+      },
 
-  setActiveTab: (tab) => set({ activeTab: tab }),
+      setActiveTab: (tab) => set({ activeTab: tab }),
 
-  setDraftState: (title, content) => set({ draftTitle: title, draftContent: content }),
+      setDraftState: (title, content) => set({ draftTitle: title, draftContent: content }),
 
-  seedDraftFromDocument: (doc) => {
-    set({
-      draftTitle: buildDraftTitle(doc),
-      draftContent: buildDraftContent(doc),
-    });
-  },
+      seedDraftFromDocument: (doc) => {
+        set({
+          draftTitle: buildDraftTitle(doc),
+          draftContent: buildDraftContent(doc),
+        });
+      },
 
-  saveDraftToKnowledgeBase: async () => {
-    const { draftTitle, draftContent, selectedDocument } = get();
-    const tags = ['workspace-draft'];
-    if (selectedDocument?.title) tags.push('workspace-source');
-    const savedId = await api.addNote(draftTitle, draftContent, tags);
-    await api.commit();
-    set({ lastSavedAt: new Date().toISOString() });
-    return savedId;
-  },
-}));
+      saveDraftToKnowledgeBase: async () => {
+        const { draftTitle, draftContent, selectedDocument } = get();
+        const tags = ['workspace-draft'];
+        if (selectedDocument?.title) tags.push('workspace-source');
+        const savedId = await api.addNote(draftTitle, draftContent, tags);
+        await api.commit();
+        set({ lastSavedAt: new Date().toISOString() });
+        return savedId;
+      },
+    }),
+    {
+      name: STORAGE_KEYS.documentWorkspace.store,
+      partialize: (state) => ({
+        activeTab: state.activeTab,
+        draftTitle: state.draftTitle,
+        draftContent: state.draftContent,
+        lastSavedAt: state.lastSavedAt,
+      }),
+    },
+  ),
+);

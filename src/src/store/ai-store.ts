@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/api';
+import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 
 export type EmbeddingProvider = 'local' | 'openai' | 'custom';
 export type AskModel = 'default' | 'gpt-4o-mini' | 'gpt-4o' | 'claude-3-haiku' | 'claude-3-sonnet' | 'custom';
@@ -46,7 +47,7 @@ interface AiConfigState {
   applyConfig: () => Promise<void>;
 }
 
-const STORAGE_KEY = 'clawkb-ai-config';
+const STORAGE_KEY = STORAGE_KEYS.ai.config;
 
 const defaultConfig = {
   embedding: {
@@ -65,17 +66,14 @@ const defaultConfig = {
 };
 
 function loadFromStorage(): Partial<AiConfigState> {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        embedding: { ...defaultConfig.embedding, ...parsed.embedding },
-        ask: { ...defaultConfig.ask, ...parsed.ask },
-        isConfigured: parsed.isConfigured || false,
-      };
-    }
-  } catch {}
+  const parsed = safeStorageGet<Partial<AiConfigState> | null>(STORAGE_KEY, null);
+  if (parsed) {
+    return {
+      embedding: { ...defaultConfig.embedding, ...parsed.embedding },
+      ask: { ...defaultConfig.ask, ...parsed.ask },
+      isConfigured: parsed.isConfigured || false,
+    };
+  }
   return {};
 }
 
@@ -130,9 +128,7 @@ export const useAiStore = create<AiConfigState>((set, get) => ({
 
   saveConfig: () => {
     const { embedding, ask, isConfigured } = get();
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ embedding, ask, isConfigured }));
-    } catch {}
+    safeStorageSet(STORAGE_KEY, { embedding, ask, isConfigured });
   },
 
   applyConfig: async () => {

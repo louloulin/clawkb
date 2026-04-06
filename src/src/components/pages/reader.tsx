@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
 import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
+import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 
 interface SelectionPopup {
   text: string;
@@ -25,24 +26,21 @@ interface Highlight {
   createdAt: string;
 }
 
-const HIGHLIGHTS_KEY = 'clawkb-highlights';
+const HIGHLIGHTS_KEY = STORAGE_KEYS.bookmarks.highlights;
 
 function loadHighlights(docId: string): Highlight[] {
-  try {
-    const all = JSON.parse(localStorage.getItem(HIGHLIGHTS_KEY) || '[]') as Highlight[];
-    return all.filter(h => h.docId === docId);
-  } catch { return []; }
+  return safeStorageGet<Highlight[]>(HIGHLIGHTS_KEY, []).filter(h => h.docId === docId);
 }
 
 function saveHighlight(h: Highlight) {
-  const all = JSON.parse(localStorage.getItem(HIGHLIGHTS_KEY) || '[]') as Highlight[];
+  const all = safeStorageGet<Highlight[]>(HIGHLIGHTS_KEY, []);
   all.push(h);
-  localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(all));
+  safeStorageSet(HIGHLIGHTS_KEY, all);
 }
 
 function deleteHighlight(id: string) {
-  const all = JSON.parse(localStorage.getItem(HIGHLIGHTS_KEY) || '[]') as Highlight[];
-  localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(all.filter(h => h.id !== id)));
+  const all = safeStorageGet<Highlight[]>(HIGHLIGHTS_KEY, []);
+  safeStorageSet(HIGHLIGHTS_KEY, all.filter(h => h.id !== id));
 }
 
 function isPdfSource(source: string | null): boolean {
@@ -813,9 +811,9 @@ export function ReaderPage({
                                     className="h-5 px-2 text-[10px]"
                                     onClick={() => {
                                       if (editingHighlightId === hl.id) {
-                                        const all = JSON.parse(localStorage.getItem(HIGHLIGHTS_KEY) || '[]') as Highlight[];
+                                        const all = safeStorageGet<Highlight[]>(HIGHLIGHTS_KEY, []);
                                         const updated = all.map(h => h.id === hl.id ? { ...h, note: highlightNote } : h);
-                                        localStorage.setItem(HIGHLIGHTS_KEY, JSON.stringify(updated));
+                                        safeStorageSet(HIGHLIGHTS_KEY, updated);
                                         setHighlights(updated);
                                         setEditingHighlightId(null);
                                       }

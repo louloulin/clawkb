@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { KbStats } from '@/api';
+import { STORAGE_KEYS } from '@/store/persistence';
 
 export interface KbRegistration {
   id: string;
@@ -123,7 +124,7 @@ export const useMultiKbStore = create<MultiKbState>()(
       },
     }),
     {
-      name: 'clawkb-multi-kb',
+      name: STORAGE_KEYS.multiKb.store,
     }
   )
 );
