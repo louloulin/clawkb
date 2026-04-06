@@ -306,6 +306,10 @@
 - 已补做 active knowledge space continuation：
   - `Spaces` 中选中的注册空间会同步为全局 active KB 上下文
   - 回到 `Workbench` 时，mention scope 会自动切到当前 active KB
+- 已补做产品定位收口 continuation：
+  - `Spaces` 与 `Workbench` 的文案已统一为个人、本地、单用户知识库语义
+  - `joined/shared` lane 的表述已从协作占位改成更符合本地版本的归档/参考资料语义
+  - `README` 已同步当前成品定位，不再保留过期的“未实现”描述
 - 已明确将 Phase 2 限定为“本地 registry + 多 KB 切换”，`joined/shared` 仅作为真实协作能力的占位，不伪造多人数据
 
 **Files:**

@@ -15,11 +15,11 @@ export function HomeHero({ kbName, docCount }: HomeHeroProps) {
             Workbench
           </div>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Ask, collect, and move through your knowledge without leaving the workspace.
+            Ask, collect, and work through your personal knowledge without leaving the workspace.
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-            The homepage is now a real AI entry point. Start with a question, switch mode and model in context,
-            mention the space you want, and branch straight into reading, import, or writing.
+            ClawKB is positioned as a personal, local knowledge base. Start with a question, switch mode and model in context,
+            choose the local library you want, and branch straight into reading, import, or writing.
           </p>
         </div>
 

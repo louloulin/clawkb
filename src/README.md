@@ -2,26 +2,37 @@
 
 ClawKB is a local-first knowledge base app built with React, TypeScript, Vite, and Tauri.
 
-## Current Scope
+## Product Positioning
 
-The frontend currently exposes these stable surfaces:
+ClawKB is now positioned as a personal, local-first knowledge base for a single user.
+The product direction is:
 
-- `Dashboard`
-- `Search`
-- `Chat`
-- `Reader`
-- `Notes`
-- `Import`
-- `Timeline`
-- `Tags`
-- `Graph`
+- local knowledge only
+- simple library selection
+- AI-first ask / read / write workflows
+- no cloud dependency required
+
+## Current Shells
+
+The current app is organized around these production-facing shells:
+
+- `Workbench`
+- `Spaces`
+- `Documents`
+- `Explore`
 - `Settings`
 
-These surfaces still exist in the codebase, but are not treated as production-ready yet:
+Inside those shells, the app already supports:
 
-- `Editor`: AI assistance is still a mock flow and is not wired to real document persistence.
-- `Entities`: the page does not yet use the real entity pipeline end to end.
-- `Folders`: the sidebar folder tree is temporarily hidden because it still depends on demo metadata.
+- search
+- import
+- notes
+- timeline
+- tags
+- entities
+- graph
+- report generation
+- podcast script generation
 
 ## Development
 
@@ -54,5 +65,5 @@ $HOME/.clawkb/knowledge.mv2
 ## Known Limitations
 
 - Browser mode still uses demo data for many data-heavy capabilities.
-- The new workbench shell and knowledge-space model from `plan3.md` are not implemented yet.
-- Some generation-heavy flows still need to be consolidated into the future document workspace.
+- The current product is intentionally single-user and local; collaboration and cloud sharing are out of scope.
+- Some advanced workspace flows still favor practical embedding over final polish.

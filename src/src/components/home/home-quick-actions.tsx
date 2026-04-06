@@ -29,7 +29,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     id: 'quick-access',
     title: '快速访问',
-    description: 'Move into spaces and choose a different knowledge base.',
+    description: 'Move into local libraries and choose a different personal knowledge base.',
     icon: BookOpenText,
   },
 ] as const;

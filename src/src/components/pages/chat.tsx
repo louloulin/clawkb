@@ -15,8 +15,8 @@ export function ChatPage() {
         </div>
         <h2 className="mt-5 text-2xl font-semibold">Chat has moved into the Workbench</h2>
         <p className="mt-4 text-sm leading-7 text-slate-300">
-          Phase 3 turns the homepage into the primary AI entry point. Use Workbench for model switching,
-          mention scope, attachments, and source previews.
+          Workbench is the primary AI entry point for this personal, local knowledge base. Use it for model switching,
+          library scope, attachments, and source previews.
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button
@@ -39,7 +39,7 @@ export function ChatPage() {
           </Button>
         </div>
         <p className="mt-4 text-xs text-slate-500">
-          Legacy chat content is preserved through the shared chat store.
+          Legacy chat content is preserved through the same local chat history store.
         </p>
       </div>
     </div>

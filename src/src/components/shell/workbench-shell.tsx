@@ -50,7 +50,7 @@ export function WorkbenchShell() {
     if (registry.registeredSpaces.length > 0) {
       base.push({
         id: 'created-all',
-        label: '@All Registered Spaces',
+        label: '@All Local Libraries',
         scopePaths: registry.registeredSpaces.map((space) => space.path),
       });
     }

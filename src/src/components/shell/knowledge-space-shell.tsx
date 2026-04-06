@@ -14,10 +14,10 @@ const COLLECTIONS: Array<{
   caption: string;
   icon: typeof Library;
 }> = [
-  { id: 'personal', label: '个人知识库', caption: '当前本地工作空间', icon: Library },
-  { id: 'created', label: '我创建的', caption: '本地 registry + 多 KB 切换', icon: BookMarked },
-  { id: 'joined', label: '我加入的', caption: '留给后续协作能力，不做伪造数据', icon: Users },
-  { id: 'shared', label: '共享知识库', caption: '留给真实分享能力，不做伪造数据', icon: Share2 },
+  { id: 'personal', label: '当前知识库', caption: '当前正在使用的本地知识库', icon: Library },
+  { id: 'created', label: '我的知识库', caption: '我主动登记的本地知识库', icon: BookMarked },
+  { id: 'joined', label: '归档知识库', caption: '暂不常用但保留访问的本地库', icon: Users },
+  { id: 'shared', label: '参考资料库', caption: '只读参考素材或备用资料库', icon: Share2 },
 ] as const;
 
 export function KnowledgeSpaceShell() {
@@ -122,17 +122,17 @@ export function KnowledgeSpaceShell() {
 
   const placeholderMessage =
     activeSpaceCollection === 'joined' || activeSpaceCollection === 'shared'
-      ? 'This collection is intentionally empty for now. plan3.md scopes Phase 2 to local registry and multi-KB switching only.'
-      : 'Select or register a knowledge space to begin.';
+      ? 'This lane is available for organizing your local archive and reference libraries. Add entries when you want a calmer separation between active work and long-tail material.'
+      : 'Select or register a local knowledge base to begin.';
 
   return (
     <div className="kb-shell flex h-full min-h-full text-white">
       <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-black/20 p-4 md:flex md:flex-col">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Knowledge Spaces</div>
-          <h2 className="mt-2 text-2xl font-semibold">Choose the right library before you ask.</h2>
+          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Local Libraries</div>
+          <h2 className="mt-2 text-2xl font-semibold">Choose the right local library before you ask.</h2>
           <p className="mt-3 text-sm leading-7 text-slate-400">
-            Phase 2 turns spaces into real local registry entries instead of a visual placeholder.
+            The spaces shell is now the control center for your personal, on-device knowledge libraries.
           </p>
         </div>
         <div className="mt-8 space-y-2">

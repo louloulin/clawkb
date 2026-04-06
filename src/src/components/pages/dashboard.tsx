@@ -26,8 +26,8 @@ export function DashboardPage() {
           </div>
           <h2 className="text-2xl font-semibold mb-2 tracking-tight">Welcome to ClawKB</h2>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            Your local-first, secure personal knowledge base.<br />
-            Store, search, and organize with AI-powered semantic search.
+            Your local-first, personal knowledge base.<br />
+            Store, search, and organize your own material with AI-powered semantic search.
           </p>
           <div className="flex items-center justify-center gap-3 mb-8">
             <FeatureBadge icon={<Shield className="h-3 w-3" />} label="Local-first" />
