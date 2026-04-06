@@ -94,6 +94,19 @@ export function KnowledgeSpaceShell() {
     }
   };
 
+  const handleSaveMetadata = async (updates: { name: string; description: string; collection: 'created' | 'joined' | 'shared' }) => {
+    if (!selectedSpace || selectedSpace.kind !== 'registered') return;
+    if (updates.name !== selectedSpace.name) {
+      registry.renameKb(selectedSpace.id, updates.name.trim());
+    }
+    registry.updateKb(selectedSpace.id, {
+      description: updates.description.trim(),
+      collection: updates.collection,
+    });
+    setActiveSpaceCollection(updates.collection);
+    setSelectedSpaceId(selectedSpace.id);
+  };
+
   const placeholderMessage =
     activeSpaceCollection === 'joined' || activeSpaceCollection === 'shared'
       ? 'This collection is intentionally empty for now. plan3.md scopes Phase 2 to local registry and multi-KB switching only.'
@@ -158,12 +171,13 @@ export function KnowledgeSpaceShell() {
             selectedSpace={selectedSpace}
             isCurrent={isCurrent}
             switching={switching}
-            onOpen={() => void handleOpenSpace()}
-            onRegisterCurrent={handleRegisterCurrent}
-            showRegisterCurrent={!!registry.currentSpace && !currentAlreadyRegistered}
-            onOpenDocuments={() => setPage('documents')}
-          />
-        </div>
+          onOpen={() => void handleOpenSpace()}
+          onRegisterCurrent={handleRegisterCurrent}
+          showRegisterCurrent={!!registry.currentSpace && !currentAlreadyRegistered}
+          onOpenDocuments={() => setPage('documents')}
+          onSaveMetadata={handleSaveMetadata}
+        />
+      </div>
 
         <div className="border-t border-white/10 bg-[rgba(7,9,14,0.75)] p-5 xl:border-l xl:border-t-0">
           <KbChatPane

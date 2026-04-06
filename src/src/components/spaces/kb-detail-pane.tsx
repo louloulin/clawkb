@@ -1,6 +1,9 @@
-import { Clock3, FolderPlus, MessageSquareQuote, Orbit, Workflow } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Clock3, FolderPlus, MessageSquareQuote, Orbit, Save, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { RegistrySpace } from '@/store/kb-registry-store';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface KbDetailPaneProps {
   selectedSpace: RegistrySpace | null;
@@ -10,6 +13,7 @@ interface KbDetailPaneProps {
   onRegisterCurrent: () => void;
   showRegisterCurrent: boolean;
   onOpenDocuments: () => void;
+  onSaveMetadata: (updates: { name: string; description: string; collection: 'created' | 'joined' | 'shared' }) => Promise<void>;
 }
 
 export function KbDetailPane({
@@ -20,7 +24,20 @@ export function KbDetailPane({
   onRegisterCurrent,
   showRegisterCurrent,
   onOpenDocuments,
+  onSaveMetadata,
 }: KbDetailPaneProps) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [collection, setCollection] = useState<'created' | 'joined' | 'shared'>('created');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!selectedSpace || selectedSpace.kind !== 'registered') return;
+    setName(selectedSpace.name);
+    setDescription(selectedSpace.description);
+    setCollection(selectedSpace.collection === 'personal' ? 'created' : selectedSpace.collection);
+  }, [selectedSpace?.id]);
+
   if (!selectedSpace) {
     return (
       <div className="flex h-full items-center justify-center rounded-[2rem] border border-dashed border-white/10 bg-black/20 p-8 text-center text-sm leading-7 text-slate-400">
@@ -94,6 +111,51 @@ export function KbDetailPane({
           Open Document Workspace
         </Button>
       </div>
+
+      {selectedSpace.kind === 'registered' && (
+        <div className="mt-8 rounded-[1.5rem] border border-white/10 bg-white/4 p-5">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Registry Metadata</div>
+          <div className="mt-4 grid gap-3">
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Knowledge space name"
+              className="h-10 rounded-xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
+            />
+            <Input
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Short description"
+              className="h-10 rounded-xl border-white/10 bg-black/20 text-white placeholder:text-slate-500"
+            />
+            <Select value={collection} onValueChange={(value) => setCollection(value as 'created' | 'joined' | 'shared')}>
+              <SelectTrigger className="h-10 rounded-xl border-white/10 bg-black/20 text-white">
+                <SelectValue placeholder="Collection" />
+              </SelectTrigger>
+              <SelectContent className="border-white/10 bg-slate-950 text-white">
+                <SelectItem value="created">Created</SelectItem>
+                <SelectItem value="joined">Joined</SelectItem>
+                <SelectItem value="shared">Shared</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await onSaveMetadata({ name, description, collection });
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving || !name.trim()}
+              className="h-10 rounded-full bg-amber-300 text-slate-950 hover:bg-amber-200"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Space Metadata'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

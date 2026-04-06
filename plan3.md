@@ -298,6 +298,11 @@
   - 选中某个 KB 后展示详情、缓存 stats
   - 选中某个 KB 后在右侧 console 中提问
   - 选中某个 KB 后浏览该空间的文档结果
+- 已补做知识空间 registry metadata 编辑 continuation：
+  - 可编辑已注册空间的名称
+  - 可编辑描述
+  - 可在 `created / joined / shared` 之间真实切换分类
+  - `joined/shared` lane 不再只是纯展示占位
 - 已明确将 Phase 2 限定为“本地 registry + 多 KB 切换”，`joined/shared` 仅作为真实协作能力的占位，不伪造多人数据
 
 **Files:**
