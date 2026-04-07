@@ -31,6 +31,28 @@ pub struct AppState {
     pub webdav_manifest: Option<SyncManifest>,
 }
 
+fn user_facing_command_error(raw: String) -> String {
+    let normalized = raw.trim();
+
+    if normalized.contains("Knowledge base not open") {
+        return "Open or create a local knowledge base before running this action.".to_string();
+    }
+
+    if normalized.contains("File not found") || normalized.contains("No such file") {
+        return "The selected file or knowledge base could not be found on disk.".to_string();
+    }
+
+    if normalized.contains("Parent folder not found") || normalized.contains("Folder not found") {
+        return "The selected folder could not be found. Refresh the workspace and try again.".to_string();
+    }
+
+    if normalized.contains("Invalid export format") {
+        return "Choose md, html, or json when exporting the knowledge base.".to_string();
+    }
+
+    raw
+}
+
 impl Default for AppState {
     fn default() -> Self {
         Self {
@@ -47,18 +69,18 @@ impl Default for AppState {
 
 #[tauri::command]
 pub fn create_kb(path: String, state: State<'_, Mutex<AppState>>) -> Result<KbStats, String> {
-    let kb = KnowledgeBase::create(&path).map_err(|e| e.to_string())?;
-    let stats = kb.stats().map_err(|e| e.to_string())?;
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = KnowledgeBase::create(&path).map_err(|e| user_facing_command_error(e.to_string()))?;
+    let stats = kb.stats().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     app_state.kb = Some(kb);
     Ok(stats)
 }
 
 #[tauri::command]
 pub fn open_kb(path: String, state: State<'_, Mutex<AppState>>) -> Result<KbStats, String> {
-    let kb = KnowledgeBase::open(&path).map_err(|e| e.to_string())?;
-    let stats = kb.stats().map_err(|e| e.to_string())?;
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let kb = KnowledgeBase::open(&path).map_err(|e| user_facing_command_error(e.to_string()))?;
+    let stats = kb.stats().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     app_state.kb = Some(kb);
     Ok(stats)
 }
@@ -77,7 +99,7 @@ pub fn search_kb(
     mode: Option<String>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<SearchHit>, String> {
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
 
     let top_k = top_k.unwrap_or(5);
@@ -87,7 +109,7 @@ pub fn search_kb(
         _ => SearchMode::Hybrid,
     };
 
-    kb.search(&query, top_k, search_mode).map_err(|e| e.to_string())
+    kb.search(&query, top_k, search_mode).map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]
@@ -97,11 +119,11 @@ pub fn add_note(
     tags: Vec<String>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<String, String> {
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
 
     let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
-    kb.add_note(&title, &content, &tags_ref).map_err(|e| e.to_string())
+    kb.add_note(&title, &content, &tags_ref).map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]
@@ -110,11 +132,11 @@ pub fn import_file(
     tags: Vec<String>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<ImportResult, String> {
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
 
     let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
-    kb.import_file(&path, &tags_ref).map_err(|e| e.to_string())
+    kb.import_file(&path, &tags_ref).map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]
@@ -124,12 +146,12 @@ pub fn import_directory(
     recursive: Option<bool>,
     state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<ImportResult>, String> {
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
 
     let tags_ref: Vec<&str> = tags.iter().map(|s| s.as_str()).collect();
     kb.import_directory(&dir_path, &tags_ref, recursive.unwrap_or(false))
-        .map_err(|e| e.to_string())
+        .map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]
@@ -153,16 +175,16 @@ pub fn timeline_kb(
 
 #[tauri::command]
 pub fn get_stats(state: State<'_, Mutex<AppState>>) -> Result<KbStats, String> {
-    let app_state = state.lock().map_err(|e| e.to_string())?;
+    let app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_ref().ok_or("Knowledge base not open")?;
-    kb.stats().map_err(|e| e.to_string())
+    kb.stats().map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]
 pub fn commit_kb(state: State<'_, Mutex<AppState>>) -> Result<(), String> {
-    let mut app_state = state.lock().map_err(|e| e.to_string())?;
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
-    kb.commit().map_err(|e| e.to_string())
+    kb.commit().map_err(|e| user_facing_command_error(e.to_string()))
 }
 
 #[tauri::command]

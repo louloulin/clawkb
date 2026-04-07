@@ -40,8 +40,9 @@ export function useSearch() {
     try {
       const hits = await api.search(query, topK, mode);
       setResults(hits);
-    } catch {
+    } catch (error) {
       setResults([]);
+      throw error;
     } finally {
       setLoading(false);
     }

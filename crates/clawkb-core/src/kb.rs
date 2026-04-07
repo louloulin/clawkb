@@ -1187,53 +1187,29 @@ impl KnowledgeBase {
     /// List all tags with their document counts.
     /// Uses timeline to enumerate frame IDs, then reads each frame to get tags.
     pub fn list_tags(&mut self) -> Result<Vec<TagInfo>> {
-        // First get all frame IDs via timeline
-        let timeline_query = TimelineQuery {
-            from_date: None,
-            to_date: None,
-            limit: Some(1000),
-            tag: None,
-        };
-        let entries = self.timeline(timeline_query)?;
-
-        if entries.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // Search for each frame's title to get metadata with tags
         let mut tag_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let frame_ids = self.collect_all_frame_ids()?;
 
-        for entry in &entries {
-            // Use the title/preview as search query to retrieve metadata with tags
-            let query = if entry.title.len() > 20 {
-                &entry.title[..20]
-            } else {
-                &entry.title
+        for frame_id in frame_ids {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
             };
 
-            let request = MemvidSearchRequest {
-                query: query.to_string(),
-                top_k: 1,
-                snippet_chars: 0,
-                uri: None,
-                scope: None,
-                cursor: None,
-                temporal: None,
-                as_of_frame: None,
-                as_of_ts: None,
-                no_sketch: false,
-                acl_context: None,
-                acl_enforcement_mode: Default::default(),
-            };
+            if has_tag(&frame.tags, FOLDER_META_TAG) || has_tag(&frame.tags, FOLDER_DELETED_TAG) {
+                continue;
+            }
 
-            if let Ok(response) = self.mem.search(request) {
-                if let Some(hit) = response.hits.first() {
-                    if let Some(meta) = &hit.metadata {
-                        for tag in &meta.tags {
-                            *tag_map.entry(tag.clone()).or_insert(0) += 1;
-                        }
-                    }
+            for tag in &frame.tags {
+                if tag.starts_with(FOLDER_ID_PREFIX)
+                    || tag.starts_with(FOLDER_NAME_PREFIX)
+                    || tag.starts_with(FOLDER_PARENT_PREFIX)
+                    || tag.starts_with(FOLDER_PATH_PREFIX)
+                    || tag.starts_with(FOLDER_CREATED_PREFIX)
+                {
+                    continue;
                 }
+                *tag_map.entry(tag.clone()).or_insert(0) += 1;
             }
         }
 

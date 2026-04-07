@@ -15,6 +15,7 @@ import { useKbStore } from '@/store/kb-store';
 import { useFolderStore } from '@/store/folder-store';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/api';
+import { classifyAppError, userInputError } from '@/lib/app-error';
 import type { SearchHit, SearchMode } from '@/api';
 
 export function SearchPage() {
@@ -34,18 +35,32 @@ export function SearchPage() {
 
   const handleSearch = useCallback(async () => {
     setSelectedIds(new Set());
-    if (selectedFolder) {
-      const hits = await api.searchInFolder(selectedFolder.id, query || '*', 20, mode);
-      setGraphResults(hits);
-      return;
-    }
-    // Use graph-enhanced search if pattern is provided
-    if (graphPattern.trim()) {
-      const hits = await api.searchWithGraph(query, graphPattern, 20, mode);
-      setGraphResults(hits);
-    } else {
-      search(query, mode);
+    try {
+      if (!query.trim() && !selectedFolder) {
+        toast(userInputError('Enter a search query, or switch to a folder-scoped search before running this action.'));
+        return;
+      }
+
+      if (selectedFolder) {
+        const hits = await api.searchInFolder(selectedFolder.id, query || '*', 20, mode);
+        setGraphResults(hits);
+        return;
+      }
+      // Use graph-enhanced search if pattern is provided
+      if (graphPattern.trim()) {
+        const hits = await api.searchWithGraph(query, graphPattern, 20, mode);
+        setGraphResults(hits);
+      } else {
+        await search(query, mode);
+        setGraphResults([]);
+      }
+    } catch (error) {
       setGraphResults([]);
+      toast(
+        classifyAppError(error, {
+          fallback: 'Search could not complete. Check that your local knowledge base is open and try again.',
+        }),
+      );
     }
   }, [query, mode, search, graphPattern]);
 
@@ -99,7 +114,11 @@ export function SearchPage() {
       setSelectedIds(new Set());
       await handleSearch();
     } catch (e) {
-      toast({ title: 'Error', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'Batch tagging failed. Try again after confirming the selected documents still exist in the current knowledge base.',
+        }),
+      );
     } finally {
       setBatchLoading(false);
     }

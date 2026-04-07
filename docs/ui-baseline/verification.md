@@ -1,6 +1,6 @@
-# Phase 6 Verification
+# UI Verification
 
-Verification date: 2026-04-06
+Verification date: 2026-04-07
 
 ## Baseline screenshots
 
@@ -10,18 +10,16 @@ Verification date: 2026-04-06
 
 ## Workflow checks
 
-These flows were executed against the running app in browser mode and verified end-to-end:
+These checks were executed against the current app baseline:
 
-1. Open KB:
-   The workbench loaded with `clawkb-demo`.
-2. Search and open document:
-   Search returned `Rust Performance Notes`.
-3. Ask in KB space:
-   The space console returned an answer in the selected KB space.
-4. Import file and continue asking:
-   Importing `/tmp/phase6-note.md` added a demo document and the follow-up ask surfaced that import title.
-5. Open document and edit save:
-   The document workspace opened, draft mode saved to the KB, and the saved badge appeared.
+1. Browser preview guard:
+   The browser build stopped at `Desktop runtime required` and clearly indicated that real KB work requires the Tauri desktop app.
+2. Desktop window launch:
+   `scripts/verify-desktop-ui.sh` observed one `ClawKB — Personal Knowledge Base` window and captured a desktop screenshot artifact.
+3. Persistence regression:
+   `scripts/verify-local-state.sh` passed, confirming workspace and draft state are written to the expected local storage keys.
+4. Release gate:
+   `scripts/verify-release.sh` passed end-to-end with Rust tests, frontend smoke, preview verification, persistence verification, and desktop UI launch.
 
 ## Asset cleanup
 

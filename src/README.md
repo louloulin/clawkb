@@ -73,6 +73,6 @@ $HOME/.clawkb/knowledge.mv2
 
 ## Known Limitations
 
-- Browser mode still uses demo data for many data-heavy capabilities.
+- Browser preview no longer exposes fake KB data; real knowledge-base actions require the Tauri desktop app.
 - The current product is intentionally single-user and local; collaboration and cloud sharing are out of scope.
 - Some internal compatibility pages remain in the codebase while the product is being hardened.

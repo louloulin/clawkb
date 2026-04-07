@@ -26,9 +26,6 @@ export const STORAGE_KEYS = {
   multiKb: {
     store: 'clawkb-multi-kb',
   },
-  demo: {
-    folders: 'clawkb-browser-folders',
-  },
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS][keyof (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]];

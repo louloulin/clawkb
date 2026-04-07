@@ -1,21 +1,10 @@
-import { useEffect, useRef } from 'react';
 import { Search, Plus, Upload, Tag, Sparkles, ArrowRight, Database, Shield, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useKbStore } from '@/store/kb-store';
-import { isTauri } from '@/api/platform';
 import { formatBytes } from '@/lib/format';
 
 export function DashboardPage() {
-  const { stats, isKbOpen, setPage, openKb } = useKbStore();
-  const demoInitRef = useRef(false);
-
-  // Auto-open demo KB in browser mode
-  useEffect(() => {
-    if (!isTauri() && !isKbOpen && !demoInitRef.current) {
-      demoInitRef.current = true;
-      openKb('/demo/clawkb-demo');
-    }
-  }, [isKbOpen, openKb]);
+  const { stats, isKbOpen, setPage } = useKbStore();
 
   if (!isKbOpen || !stats) {
     return (

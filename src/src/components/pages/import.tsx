@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api } from '@/api';
 import type { ImportResult, FetchUrlResult } from '@/api';
 import { useToast } from '@/hooks/use-toast';
+import { classifyAppError, runtimeLimitError, userInputError } from '@/lib/app-error';
 import {
   Select,
   SelectContent,
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useWorkspaceStore } from '@/store/workspace-store';
+import { isBrowserPreview } from '@/api/platform';
 
 export function ImportPage() {
   const { preferredImportView, setPreferredImportView } = useWorkspaceStore();
@@ -87,7 +89,14 @@ function FileImportTab() {
   ];
 
   const handleImport = async () => {
-    if (!path.trim()) return;
+    if (!path.trim()) {
+      toast(userInputError('Enter a file or directory path before importing.'));
+      return;
+    }
+    if (isBrowserPreview()) {
+      toast(runtimeLimitError('Preview mode can show the import UI, but real file and directory imports require the desktop app.'));
+      return;
+    }
     setImporting(true);
     setResults([]);
     try {
@@ -102,7 +111,11 @@ function FileImportTab() {
       const fail = res.length - ok;
       toast({ title: 'Import complete', description: `${ok} succeeded, ${fail} failed` });
     } catch (e) {
-      toast({ title: 'Import failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'Import failed. Confirm the file or directory exists locally and try again.',
+        }),
+      );
     } finally {
       setImporting(false);
     }
@@ -172,7 +185,10 @@ function UrlFetchTab() {
   const { toast } = useToast();
 
   const handleFetch = async () => {
-    if (!url.trim()) return;
+    if (!url.trim()) {
+      toast(userInputError('Enter a URL before saving a web page.'));
+      return;
+    }
     setFetching(true);
     setResults([]);
     try {
@@ -186,7 +202,11 @@ function UrlFetchTab() {
         toast({ title: 'Fetch failed', description: res.error || 'Unknown error', variant: 'destructive' });
       }
     } catch (e) {
-      toast({ title: 'Fetch failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'Web page capture failed. Check the URL and your network connection, then try again.',
+        }),
+      );
     } finally {
       setFetching(false);
     }
@@ -288,14 +308,22 @@ function ScreenshotTab() {
       const result = await api.ocrImage(rawBase64, language);
       setOcrResult(result);
       if (!result.success) {
-        toast({ title: 'OCR Failed', description: result.error || 'Unknown error', variant: 'destructive' });
+        toast(
+          classifyAppError(result.error || 'OCR failed', {
+            fallback: 'OCR is only available in the desktop app when its local OCR dependencies are ready.',
+          }),
+        );
       } else if (!result.text.trim()) {
         toast({ title: 'No text found', description: 'The image may not contain readable text.', variant: 'default' });
       } else {
         toast({ title: 'OCR Complete', description: `Extracted ${result.text.length} characters` });
       }
     } catch (e) {
-      toast({ title: 'OCR Error', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'OCR could not complete. Use the desktop app and confirm OCR dependencies are installed.',
+        }),
+      );
     } finally {
       setProcessing(false);
     }
@@ -316,7 +344,11 @@ function ScreenshotTab() {
         toast({ title: 'Import Failed', description: result.error || 'Unknown error', variant: 'destructive' });
       }
     } catch (e) {
-      toast({ title: 'Import Failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'Screenshot import failed. Retry after OCR succeeds and a local knowledge base is available.',
+        }),
+      );
     } finally {
       setImporting(false);
     }
@@ -525,7 +557,14 @@ function MediaImportTab() {
   const { toast } = useToast();
 
   const handleImport = async () => {
-    if (!path.trim()) return;
+    if (!path.trim()) {
+      toast(userInputError(`Enter a ${type === 'audio' ? 'media' : 'image'} path before importing.`));
+      return;
+    }
+    if (isBrowserPreview()) {
+      toast(runtimeLimitError(`Preview mode can show the ${type} import UI, but real ${type} processing requires the desktop app.`));
+      return;
+    }
     setImporting(true);
     setResults([]);
     try {
@@ -544,7 +583,11 @@ function MediaImportTab() {
         toast({ title: 'Import failed', description: res.error || 'Unknown error', variant: 'destructive' });
       }
     } catch (e) {
-      toast({ title: 'Import failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: `Import failed. Confirm the ${type} file exists locally and try again.`,
+        }),
+      );
     } finally {
       setImporting(false);
     }

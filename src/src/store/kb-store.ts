@@ -64,6 +64,7 @@ export const useKbStore = create<KbState>((set, get) => ({
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
+      throw e;
     }
   },
 
@@ -75,6 +76,7 @@ export const useKbStore = create<KbState>((set, get) => ({
       set({ stats: s, kbPath: path, isKbOpen: true, isLoading: false });
     } catch (e) {
       set({ error: String(e), isLoading: false });
+      throw e;
     }
   },
 

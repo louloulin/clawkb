@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, Trash2, Server } from 'lucide-react';
+import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, Trash2, Server, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getRuntimeModeInfo, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
 import { useAiStore } from '@/store/ai-store';
 import { useSyncStore } from '@/store/sync-store';
@@ -10,6 +11,7 @@ import { formatBytes } from '@/lib/format';
 import { downloadFile } from '@/lib/format';
 import { api } from '@/api';
 import { useToast } from '@/hooks/use-toast';
+import { classifyAppError, runtimeLimitError, userInputError } from '@/lib/app-error';
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
 
 export function SettingsPage() {
   const { stats, kbPath, isKbOpen, openKb, createKb } = useKbStore();
+  const runtimeInfo = getRuntimeModeInfo();
   const aiStore = useAiStore();
   const syncStore = useSyncStore();
   const [path, setPath] = useState('');
@@ -42,7 +45,11 @@ export function SettingsPage() {
         description: `Embedding: ${aiStore.embedding.provider}/${aiStore.embedding.model}`,
       });
     } catch (e) {
-      toast({ title: 'Configuration Failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'AI configuration could not be applied. Check the selected provider settings and try again.',
+        }),
+      );
     }
   };
 
@@ -54,7 +61,51 @@ export function SettingsPage() {
       downloadFile(content, `clawkb-export.${ext}`, mime);
       toast({ title: 'Export complete', description: `Exported as ${format.toUpperCase()}` });
     } catch (e) {
-      toast({ title: 'Export failed', description: String(e), variant: 'destructive' });
+      toast(
+        classifyAppError(e, {
+          fallback: 'Export failed. Confirm the current knowledge base is open, then try again.',
+        }),
+      );
+    }
+  };
+
+  const handleOpenKb = async () => {
+    if (!path.trim()) {
+      toast(userInputError('Enter a knowledge base path before opening.'));
+      return;
+    }
+    if (isBrowserPreview()) {
+      toast(runtimeLimitError('Preview mode cannot open a local knowledge base. Use the desktop app for real file access.'));
+      return;
+    }
+    try {
+      await openKb(path);
+    } catch (error) {
+      toast(
+        classifyAppError(error, {
+          fallback: 'Opening the knowledge base failed. Confirm the file exists on disk and is a valid local KB.',
+        }),
+      );
+    }
+  };
+
+  const handleCreateKb = async () => {
+    if (!path.trim()) {
+      toast(userInputError('Enter a target path before creating a knowledge base.'));
+      return;
+    }
+    if (isBrowserPreview()) {
+      toast(runtimeLimitError('Preview mode cannot create a local knowledge base. Use the desktop app to create a desktop-local KB.'));
+      return;
+    }
+    try {
+      await createKb(path);
+    } catch (error) {
+      toast(
+        classifyAppError(error, {
+          fallback: 'Creating the knowledge base failed. Check the target path and local file permissions, then try again.',
+        }),
+      );
     }
   };
 
@@ -78,6 +129,45 @@ export function SettingsPage() {
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
+          <div data-runtime-mode-card className="rounded-xl bg-card border border-border/50 p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Monitor className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">{runtimeInfo.title}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">{runtimeInfo.summary}</p>
+            <div className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+              <span className="font-medium text-foreground">Data source:</span> {runtimeInfo.dataSource}
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-2">Real In This Mode</div>
+                <div className="space-y-2">
+                  {runtimeInfo.realInteractions.map((item) => (
+                    <div key={item} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-2">
+                  {isBrowserPreview() ? 'Unavailable In Preview' : 'Desktop Runtime Capabilities'}
+                </div>
+                <div className="space-y-2">
+                  {(runtimeInfo.placeholderInteractions.length > 0
+                    ? runtimeInfo.placeholderInteractions
+                    : ['This runtime uses the real local product path.']).map((item) => (
+                    <div key={item} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* KB Info */}
           <div className="rounded-xl bg-card border border-border/50 p-5">
             <div className="flex items-center gap-2 mb-4">
@@ -111,10 +201,10 @@ export function SettingsPage() {
                 placeholder="/path/to/knowledge.mv2"
                 className="flex-1 rounded-xl border-border/50 h-9 text-[13px]"
               />
-              <Button onClick={() => openKb(path)} className="gap-1.5 rounded-xl h-9 text-[13px]">
+              <Button onClick={() => void handleOpenKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
                 <FolderOpen className="h-3.5 w-3.5" /> Open
               </Button>
-              <Button variant="secondary" onClick={() => createKb(path)} className="gap-1.5 rounded-xl h-9 text-[13px]">
+              <Button variant="secondary" onClick={() => void handleCreateKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
                 <Plus className="h-3.5 w-3.5" /> Create
               </Button>
             </div>
@@ -406,7 +496,7 @@ export function SettingsPage() {
                 onClick={async () => {
                   const config = syncStore.getWebdavConfig();
                   if (!config.url) {
-                    toast({ title: 'Please enter server URL', variant: 'destructive' });
+                    toast(userInputError('Enter the WebDAV server URL before testing the connection.'));
                     return;
                   }
                   setTesting(true);
@@ -416,8 +506,11 @@ export function SettingsPage() {
                     setTestResult({ ok: true, message: `Connected to ${info.server_type}` });
                     toast({ title: 'Connection OK', description: `Server: ${info.server_type}` });
                   } catch (e) {
-                    setTestResult({ ok: false, message: String(e) });
-                    toast({ title: 'Connection Failed', description: String(e), variant: 'destructive' });
+                    const appError = classifyAppError(e, {
+                      fallback: 'Connection test failed. Check the server URL, credentials, and runtime mode, then try again.',
+                    });
+                    setTestResult({ ok: false, message: appError.description });
+                    toast(appError);
                   } finally {
                     setTesting(false);
                   }
@@ -438,7 +531,11 @@ export function SettingsPage() {
                     setRemoteFiles(files);
                     toast({ title: 'Connected', description: `${files.length} items found` });
                   } catch (e) {
-                    toast({ title: 'Browse failed', description: String(e), variant: 'destructive' });
+                    toast(
+                      classifyAppError(e, {
+                        fallback: 'Remote browse failed. Confirm the WebDAV configuration and desktop runtime before trying again.',
+                      }),
+                    );
                   }
                 }}
                 className="text-xs gap-1"
@@ -496,12 +593,12 @@ export function SettingsPage() {
               <Button
                 onClick={async () => {
                   if (!kbPath) {
-                    toast({ title: 'No knowledge base open', variant: 'destructive' });
+                    toast(userInputError('Open a knowledge base before running WebDAV sync.'));
                     return;
                   }
                   const config = syncStore.getWebdavConfig();
                   if (!config.url) {
-                    toast({ title: 'Please configure WebDAV server first', variant: 'destructive' });
+                    toast(userInputError('Configure the WebDAV server before running sync.'));
                     return;
                   }
                   setSyncing(true);
@@ -511,12 +608,15 @@ export function SettingsPage() {
                     syncStore.setWebdavSyncStatus(status);
                     toast({ title: 'Sync Complete', description: 'Knowledge base synced to WebDAV server' });
                   } catch (e) {
+                    const appError = classifyAppError(e, {
+                      fallback: 'WebDAV sync failed. Check the current runtime, server config, and local KB path, then try again.',
+                    });
                     syncStore.setWebdavSyncStatus({
                       last_sync: null, remote_count: 0, local_count: 0,
-                      pending_uploads: 0, pending_downloads: 0, last_error: String(e),
+                      pending_uploads: 0, pending_downloads: 0, last_error: appError.description,
                       uploads: [], downloads: [], skipped: [],
                     });
-                    toast({ title: 'Sync Failed', description: String(e), variant: 'destructive' });
+                    toast(appError);
                   } finally {
                     setSyncing(false);
                   }
@@ -582,7 +682,11 @@ export function SettingsPage() {
                         syncStore.setLastScanned(summary);
                         toast({ title: 'Vault Scanned', description: `${summary.total_notes} notes, ${summary.total_tags} tags found` });
                       } catch (e) {
-                        toast({ title: 'Scan Failed', description: String(e), variant: 'destructive' });
+                        toast(
+                          classifyAppError(e, {
+                            fallback: 'Vault scan failed. Confirm the local vault path and runtime mode, then try again.',
+                          }),
+                        );
                       } finally {
                         setScanning(false);
                       }
@@ -652,7 +756,11 @@ export function SettingsPage() {
                       toast({ title: 'Import Partially Complete', description: `${result.imported} imported, ${result.skipped} skipped` });
                     }
                   } catch (e) {
-                    toast({ title: 'Import Failed', description: String(e), variant: 'destructive' });
+                    toast(
+                      classifyAppError(e, {
+                        fallback: 'Obsidian import failed. Confirm the vault path exists locally and try again.',
+                      }),
+                    );
                   } finally {
                     setImporting(false);
                   }

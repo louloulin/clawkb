@@ -163,8 +163,14 @@ pub fn extract_filename_tags(filename: &str) -> Vec<String> {
     for seg in segments {
         let seg_lower = seg.to_lowercase();
 
-        // Skip pure numbers (years/dates)
-        if seg_lower.chars().all(|c| c.is_ascii_digit()) {
+        let is_all_digits = seg_lower.chars().all(|c| c.is_ascii_digit());
+        let is_year_like = seg_lower.len() == 4;
+        let is_mixed_short_token = seg_lower.len() <= 2
+            && seg_lower.chars().any(|c| c.is_ascii_alphabetic())
+            && seg_lower.chars().any(|c| c.is_ascii_digit());
+
+        // Skip most pure numbers, but keep year-like filename tokens such as 2024.
+        if is_all_digits && !is_year_like {
             continue;
         }
 
@@ -175,8 +181,8 @@ pub fn extract_filename_tags(filename: &str) -> Vec<String> {
             continue;
         }
 
-        // Skip very short segments (1-2 chars)
-        if seg_lower.len() <= 2 {
+        // Skip very short segments unless they are meaningful mixed tokens such as q4.
+        if seg_lower.len() <= 2 && !is_mixed_short_token {
             continue;
         }
 
@@ -185,7 +191,7 @@ pub fn extract_filename_tags(filename: &str) -> Vec<String> {
         }
     }
 
-    tags.truncate(3);
+    tags.truncate(4);
     tags
 }
 

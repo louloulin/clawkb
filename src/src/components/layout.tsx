@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getRuntimeModeInfo, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
 import { FolderTree } from '@/components/folder-tree';
 import { useWorkspaceStore } from '@/store/workspace-store';
-import { isTauri } from '@/api/platform';
 import { formatBytes } from '@/lib/format';
 
 const navItems = [
@@ -183,6 +183,7 @@ export function Sidebar() {
 export function Header() {
   const { currentPage, darkMode, toggleDarkMode, setPage } = useKbStore();
   const { openExploreView } = useWorkspaceStore();
+  const runtimeInfo = getRuntimeModeInfo();
 
   const handleSearchClick = () => {
     openExploreView('search');
@@ -203,10 +204,14 @@ export function Header() {
       </button>
 
       <div className="ml-4 flex items-center gap-3">
-        {!isTauri() && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-100/80">
+        {isBrowserPreview() && (
+          <span
+            data-runtime-badge
+            title={runtimeInfo.summary}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-100/80"
+          >
             <Monitor className="h-3 w-3" />
-            Demo
+            {runtimeInfo.badge}
           </span>
         )}
         <span className="hidden text-sm font-medium text-slate-300 lg:inline">{pageLabels[currentPage] ?? currentPage}</span>

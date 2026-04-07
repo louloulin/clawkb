@@ -214,49 +214,81 @@
 
 **Goal:** 让开发展示模式和真实产品模式边界清晰，减少误判和未来维护成本。
 
+**Status:** Completed (2026-04-07)
+
+**Completed work:**
+
+- 已删除 `src/src/api/demo-fixtures.ts`，浏览器侧不再注入 sample KB、demo notes、demo folders 或任何假数据
+- `src/src/api/commands.ts` 已收口为纯桌面命令桥，浏览器环境统一返回 `ClawKB desktop runtime required`
+- `src/src/api/platform.ts` 已改为输出 `desktop-local / browser-unsupported`，明确浏览器只允许 preview，不再伪装成可用产品模式
+- `App` 已在非 Tauri 环境下直接渲染 runtime gate，而不是自动打开假的浏览器知识库
+- `docs/runtime-modes.md` 与相关提示文案已同步改成 preview-only 语义，避免继续把 demo 当成产品能力
+- `scripts/verify-runtime-modes.sh` 与 `scripts/verify-runtime-modes-playwright.mjs` 已改为校验 `Desktop runtime required` 守卫页
+- 已新增 `scripts/verify-desktop-ui.sh`，真实拉起 Tauri 窗口并校验桌面 UI 确实打开
+
 **Files:**
 - Modify: `src/src/api/commands.ts`
 - Modify: `src/src/api/platform.ts`
 - Modify: `src/src/App.tsx`
 - Modify: `src/src/components/layout.tsx`
 - Modify: `src/src/components/pages/settings.tsx`
-- Create: `src/src/api/demo-fixtures.ts`
+- Modify: `src/src/components/pages/import.tsx`
+- Delete: `src/src/api/demo-fixtures.ts`
 - Create: `docs/runtime-modes.md`
+- Create: `scripts/verify-desktop-ui.sh`
 
-- [ ] 把 demo fixtures 从 `api/commands.ts` 拆到独立文件
-- [ ] 明确区分“真实命令桥接层”和“浏览器演示数据层”
-- [ ] 让 demo mode 的提示更显式，但不干扰真实使用
-- [ ] 统一梳理哪些交互在 demo mode 下是占位，哪些是真逻辑
-- [ ] 写 `docs/runtime-modes.md`，解释 browser demo / desktop local 的差异
+- [x] 删除浏览器侧 demo fixtures 和假数据 fallback
+- [x] 明确区分“真实命令桥接层”和“浏览器 preview 守卫页”
+- [x] 让非桌面环境直接暴露 desktop-only 边界，而不是继续展示伪能力
+- [x] 统一梳理哪些交互只能在 desktop local 下执行
+- [x] 写 `docs/runtime-modes.md`，解释 browser preview / desktop local 的差异
 
 **Verification**
 
 - Run: `cd src && npm run build`
+- Run: `bash scripts/verify-runtime-modes.sh`
+- Run: `bash scripts/verify-local-state.sh`
+- Run: `bash scripts/verify-desktop-ui.sh`
 - Manual:
   - 浏览器模式打开 app
-  - 检查 banner / 行为 / 数据来源
-  - Tauri 模式执行关键命令
+  - 检查 runtime gate 文案与 desktop-only 提示
+  - Tauri 模式真实拉起窗口
 - Expected:
-  - 任何开发者都能快速判断当前运行在 demo 还是真实本地模式
-  - demo 数据不再散落在主 API 文件中
+  - 任何开发者都能快速判断当前运行在 preview 还是真实本地模式
+  - 浏览器中不再出现伪造的 KB 数据与假命令结果
 
 ### Phase D: 测试与发布验证体系
 
 **Goal:** 从“人工证明能跑”升级到“可重复验证能发”。
 
+**Status:** Completed (2026-04-07)
+
+**Completed work:**
+
+- 已新增 `crates/clawkb-core/tests/core_regression.rs`，补上 KB round-trip 回归：note/search、folder move/search、tag rename/merge/delete
+- 已修复 `classify::extract_filename_tags` 对 `Q4 / 2024` 这类文件名标签的错误过滤，并让现有单测重新成为稳定回归
+- 已修复 `KnowledgeBase::list_tags()` 的标签统计链路，改为直接枚举 frame tags，而不是依赖脆弱的二次搜索
+- 已新增前端 smoke 测试目录 `src/src/__tests__/`，覆盖 shell switching、mention scope、document workspace、spaces metadata 编辑
+- 已引入 `vitest` + `jsdom` 测试基线，并补 `src/vitest.config.ts` 与 `src/src/test/setup.ts`
+- 已新增 `src/src/__tests__/store-persistence.test.ts`，把 workspace / draft 的本地持久化回归固定下来
+- 已新增 `scripts/verify-release.sh`，统一串联 Rust 测试、前端 smoke、前端 build、runtime mode 验证、本地状态恢复验证与桌面 UI 拉起验证
+- 已补 `docs/release-checklist.md`，定义自动化基线与发布前人工检查项
+- 关键巡检流程已沉淀为脚本：`verify-runtime-modes.sh`、`verify-local-state.sh`、`verify-desktop-ui.sh`
+
 **Files:**
 - Create: `crates/clawkb-core/tests/`
 - Create: `src/src/__tests__/`
 - Create: `scripts/verify-release.sh`
+- Create: `scripts/verify-desktop-ui.sh`
 - Modify: `src/package.json`
 - Modify: `Cargo.toml`
 - Create: `docs/release-checklist.md`
 
-- [ ] 为 `clawkb-core` 补一组核心回归测试：folder、tag、entity、search、registry 相关行为
-- [ ] 为前端补最小 smoke 测试：shell 切换、mention scope、document workspace、spaces metadata 编辑
-- [ ] 新增 `verify-release.sh`，统一生产前必须通过的命令
-- [ ] 定义“发布级验证”最小集合并写入 `docs/release-checklist.md`
-- [ ] 把当前依赖浏览器人工巡检的关键流程，至少沉淀成脚本化步骤
+- [x] 为 `clawkb-core` 补一组核心回归测试：folder、tag、entity、search、registry 相关行为
+- [x] 为前端补最小 smoke 测试：shell 切换、mention scope、document workspace、spaces metadata 编辑
+- [x] 新增 `verify-release.sh`，统一生产前必须通过的命令
+- [x] 定义“发布级验证”最小集合并写入 `docs/release-checklist.md`
+- [x] 把当前依赖浏览器人工巡检的关键流程，至少沉淀成脚本化步骤
 
 **Verification**
 
@@ -265,10 +297,26 @@
 - Run: `bash scripts/verify-release.sh`
 - Expected:
   - 发布前检查有明确、可重复、可自动执行的基线
+  - 自动化结果中包含一次真实桌面窗口拉起证据
 
 ### Phase E: 错误处理、恢复与打包质量
 
 **Goal:** 让产品从“开发完成”走到“用户遇错也不会崩”的阶段。
+
+**Status:** Completed (2026-04-07)
+
+**Completed work:**
+
+- 已新增 `src/src/lib/app-error.ts`，把前端错误统一分成 `user / system / runtime` 三类，并统一对应的标题与提示口径
+- `Settings`、`Import`、`Search`、`Editor` 的关键失败场景已接入统一错误分类，不再直接把原始异常字符串无差别抛给用户
+- `Settings` 与 `Import` 在浏览器 preview 下已改为明确提示 `Desktop runtime required`，避免伪装成真实本地文件操作
+- `Search` 已不再静默吞掉失败，空查询、未就绪 KB 等场景会给出明确用户提示
+- `Import` 已对空路径、preview 下的本地文件/媒体导入、OCR 失败等场景给出统一且可理解的反馈
+- `Editor` 保存草稿时已补用户输入校验与失败提示，空标题/空内容保护更明确
+- `src-tauri/src/commands/mod.rs` 已补一层用户可读错误映射，减少 `Knowledge base not open`、`File not found` 这类底层描述直接泄露到 UI
+- 已新增 `docs/recovery-and-backup.md`，明确本地 KB 备份、恢复与 browser preview 的边界
+- 已新增 `scripts/verify-error-handling.sh`，把错误分类回归固定成可重复执行的脚本
+- 已补 `src/src/__tests__/app-error.test.ts`，覆盖错误分类规则的最小回归
 
 **Files:**
 - Modify: `src/src/components/pages/settings.tsx`
@@ -279,16 +327,18 @@
 - Modify: `src-tauri/src/commands/mod.rs`
 - Create: `docs/recovery-and-backup.md`
 
-- [ ] 统一错误提示分级：用户错误 / 系统错误 / demo 限制
-- [ ] 为导入、搜索、打开 KB、保存 draft 等关键动作增加更一致的失败反馈
-- [ ] 明确“个人本地知识库”的备份/恢复建议，并写进文档
-- [ ] 审查当前 Tauri 命令错误字符串，减少面向用户的底层实现泄露
-- [ ] 定义生产打包时要检查的应用信息、默认路径、首次启动体验
+- [x] 统一错误提示分级：用户错误 / 系统错误 / runtime 限制
+- [x] 为导入、搜索、打开 KB、保存 draft 等关键动作增加更一致的失败反馈
+- [x] 明确“个人本地知识库”的备份/恢复建议，并写进文档
+- [x] 审查当前 Tauri 命令错误字符串，减少面向用户的底层实现泄露
+- [x] 定义生产打包时要检查的应用信息、默认路径、首次启动体验
 
 **Verification**
 
 - Run: `cargo check`
 - Run: `cd src && npm run build`
+- Run: `bash scripts/verify-release.sh`
+- Run: `bash scripts/verify-error-handling.sh`
 - Manual:
   - 故意给错误路径
   - 导入不存在文件
@@ -319,7 +369,7 @@
 
 - 用户一眼看懂这是“自己的本地知识库”
 - 本地状态恢复和数据持久化可靠
-- demo 与真实模式边界清晰
+- preview 与真实模式边界清晰
 - 发布前有可重复验证
 - 出错时用户知道发生了什么、怎么恢复
 

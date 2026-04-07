@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/api/commands';
 import type { ContextFragment, SearchHit } from '@/api';
+import { useToast } from '@/hooks/use-toast';
+import { classifyAppError, userInputError } from '@/lib/app-error';
 
 // AI command suggestions
 const AI_COMMANDS = [
@@ -77,6 +79,7 @@ export function EditorPage({
   onDraftChange,
   onSaved,
 }: EditorPageProps) {
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiContext, setAiContext] = useState<ContextFragment[]>([]);
@@ -158,7 +161,10 @@ export function EditorPage({
   }, [editor, fetchContext]);
 
   const handleSaveDraft = useCallback(async () => {
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim() || !content.trim()) {
+      toast(userInputError('Add a draft title and some content before saving to the knowledge base.'));
+      return;
+    }
     setSaving(true);
     try {
       const tags = ['workspace-draft'];
@@ -171,10 +177,16 @@ export function EditorPage({
       await api.addNote(title, body, tags);
       await api.commit();
       onSaved?.();
+    } catch (error) {
+      toast(
+        classifyAppError(error, {
+          fallback: 'Saving the draft failed. Confirm a local knowledge base is open and try again.',
+        }),
+      );
     } finally {
       setSaving(false);
     }
-  }, [title, content, sourceDocument, onSaved]);
+  }, [title, content, sourceDocument, onSaved, toast]);
 
   // Insert AI suggestion
   const insertSuggestion = () => {
