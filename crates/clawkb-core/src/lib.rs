@@ -2,6 +2,7 @@ pub mod error;
 pub mod kb;
 pub mod search;
 pub mod note;
+pub mod frontmatter;
 pub mod ask;
 pub mod import;
 pub mod parsers;
@@ -21,10 +22,11 @@ pub mod classify;
 #[cfg(feature = "evif-mcp")]
 pub mod evif_mcp;
 
-pub use kb::{KnowledgeBase, KbStats};
+pub use kb::{KnowledgeBase, KbStats, KbRegistry, NoteIndexEntry, FolderIndexEntry};
 pub use error::KbError;
 pub use search::{SearchMode, SearchHit};
-pub use note::NoteData;
+pub use note::{NoteData, NotePath, NoteRecord, OutlineNode};
+pub use frontmatter::Frontmatter;
 pub use ask::{AskResult, AskCitation, ContextFragment};
 pub use import::ImportResult;
 pub use entity::{EntityState, EntityInfo, RelationEdge, TraverseResult, MeshStats, MemoryCardInfo};

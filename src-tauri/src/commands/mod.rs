@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::State;
 
-use clawkb_core::kb::KbStats;
+use clawkb_core::kb::{KbStats, FolderIndexEntry, NoteIndexEntry};
 use clawkb_core::search::{SearchHit, SearchMode};
 use clawkb_core::tag::TagInfo;
 use clawkb_core::timeline::{TimelineEntry, TimelineQuery};
@@ -1118,4 +1118,70 @@ pub fn list_backlinks(
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
     kb.list_backlinks(&note_id)
         .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn backfill_registry(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.backfill_registry()
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn list_folders_fast(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<FolderIndexEntry>, String> {
+    let app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_ref().ok_or("Knowledge base not open")?;
+    Ok(kb.list_folders_fast())
+}
+
+#[tauri::command]
+pub fn get_note_by_path(
+    path: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Option<NoteIndexEntry>, String> {
+    let app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_ref().ok_or("Knowledge base not open")?;
+    Ok(kb.get_note_by_path(&path).cloned())
+}
+
+#[tauri::command]
+pub fn tag_counts(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<std::collections::HashMap<String, usize>, String> {
+    let app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_ref().ok_or("Knowledge base not open")?;
+    Ok(kb.tag_counts())
+}
+
+#[tauri::command]
+pub fn sync_note_links(
+    note_id: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.sync_note_links(&note_id)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn backfill_all_links(
+    state: State<'_, Mutex<AppState>>,
+) -> Result<usize, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    let notes = kb.list_note_records(None, 10000)
+        .map_err(|e| user_facing_command_error(e.to_string()))?;
+    let mut count = 0;
+    for note in notes {
+        if kb.sync_note_links(&note.id).is_ok() {
+            count += 1;
+        }
+    }
+    Ok(count)
 }

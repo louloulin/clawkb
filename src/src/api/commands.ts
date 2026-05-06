@@ -146,6 +146,42 @@ export const api = {
     return invoke('list_backlinks', { note_id: noteId }) as Promise<Array<{ note_id: string; note_title: string; context_snippet: string }>>;
   },
 
+  /** Rebuild the KB registry index from all frames. */
+  async backfillRegistry(): Promise<void> {
+    const invoke = await getDesktopInvoke();
+    return invoke('backfill_registry') as Promise<void>;
+  },
+
+  /** Fast folder listing using the registry index. */
+  async listFoldersFast(): Promise<Array<{ folder_id: string; frame_id: number; name: string; parent_id: string | null; path: string; doc_count: number; created_at: number }>> {
+    const invoke = await getDesktopInvoke();
+    return invoke('list_folders_fast') as Promise<Array<{ folder_id: string; frame_id: number; name: string; parent_id: string | null; path: string; doc_count: number; created_at: number }>>;
+  },
+
+  /** O(1) note lookup by path. */
+  async getNoteByPath(path: string): Promise<{ note_id: string; meta_frame_id: number; content_frame_id: number | null; updated_at: string } | null> {
+    const invoke = await getDesktopInvoke();
+    return invoke('get_note_by_path', { path }) as Promise<{ note_id: string; meta_frame_id: number; content_frame_id: number | null; updated_at: string } | null>;
+  },
+
+  /** Get tag counts from the registry. */
+  async tagCounts(): Promise<Record<string, number>> {
+    const invoke = await getDesktopInvoke();
+    return invoke('tag_counts') as Promise<Record<string, number>>;
+  },
+
+  /** Sync outlinks/backlinks for a note after content changes. */
+  async syncNoteLinks(noteId: string): Promise<void> {
+    const invoke = await getDesktopInvoke();
+    return invoke('sync_note_links', { note_id: noteId }) as Promise<void>;
+  },
+
+  /** Backfill outlinks/backlinks for all notes (one-time migration). */
+  async backfillAllLinks(): Promise<number> {
+    const invoke = await getDesktopInvoke();
+    return invoke('backfill_all_links') as Promise<number>;
+  },
+
   async importFile(path: string, tags: string[]): Promise<ImportResult> {
     const invoke = await getDesktopInvoke();
     return invoke('import_file', { path, tags }) as Promise<ImportResult>;

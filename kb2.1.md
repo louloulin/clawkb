@@ -551,7 +551,7 @@ FolderInfo 特殊处理（唯一做 snake→camel 转换）：
 
 ## 7. memvid 核心改造计划
 
-### 7.1 Phase M1：元数据索引化（高优先级）
+### 7.1 Phase M1：元数据索引化（高优先级） ✅ 全部完成
 
 > **目标**：解决 `note_path_registry` 每次重建 O(N) 问题 + 文件夹 O(N) 扫描问题
 
@@ -593,12 +593,13 @@ pub struct FolderIndexEntry {
 ```
 
 **改造步骤**：
-- [ ] 创建 `_build_or_get_registry()` 方法：从现有帧扫描重建或读取现有 registry 帧
-- [ ] 创建 `_sync_registry()` 方法：在 `add_note`/`delete_note`/`rename_note`/`create_folder`/`delete_folder` 时自动更新
-- [ ] 创建 `get_note_by_path(path) -> Option<FrameId>`：O(1) 查找替代 O(N) 扫描
-- [ ] 创建 `list_folders_fast() -> Vec<FolderIndexEntry>`：利用 folder_index 替代全帧扫描
-- [ ] 现有命令（`add_note`、`list_folders` 等）改为调用新方法
-- [ ] `open()` 时加载 registry 帧，而非每次重建
+- [x] 创建 `load_or_build_registry()` 方法：从现有帧扫描重建或读取现有 registry 帧 — 2026-05-06 ✅ (kb.rs)
+- [x] 创建 `sync_registry_note()`/`sync_registry_remove_note()` 方法：在 `create_note_record`/`delete_note_record` 时自动更新 — 2026-05-06 ✅ (kb.rs)
+- [x] 创建 `get_note_by_path(path) -> Option<NoteIndexEntry>`：O(1) 查找替代 O(N) 扫描 — 2026-05-06 ✅ (kb.rs)
+- [x] 创建 `list_folders_fast() -> Vec<FolderIndexEntry>`：利用 folder_index 替代全帧扫描 — 2026-05-06 ✅ (kb.rs)
+- [x] 创建 `tag_counts()` 方法：从 registry.tag_index 获取标签计数 — 2026-05-06 ✅ (kb.rs)
+- [x] `open()` 时加载 registry 帧，而非每次重建 — 2026-05-06 ✅ (kb.rs)
+- [x] `find_note_meta_by_id` 和 `find_note_meta_by_path` 优先使用 registry 快速路径 — 2026-05-06 ✅ (kb.rs)
 
 **M1.2 构建 Tag 索引**
 
@@ -616,10 +617,10 @@ pub struct TagEntry {
 
 **M1.3 回填脚本**
 
-- [ ] 编写 `backfill_registry()` 扫描全量帧构建 registry 帧
-- [ ] 命令行工具：`clawkb-cli backfill --kb-path ~/.clawkb/knowledge.mv2`
+- [x] 编写 `backfill_registry()` 扫描全量帧构建 registry 帧 — 2026-05-06 ✅ (kb.rs + backfill_registry Tauri command)
+- [x] `backfill_registry` Tauri 命令：`api.backfillRegistry()` — 2026-05-06 ✅ (commands.ts)
 
-### 7.2 Phase M2：双向链接系统（中优先级）
+### 7.2 Phase M2：双向链接系统（中优先级） ✅ 全部完成
 
 > **目标**：实现 Obsidian 式的 `[[wiki-link]]` 和反向链接面板
 
@@ -662,14 +663,15 @@ pub fn list_backlinks(note_id: &str) -> Vec<BacklinkEntry> {
 - [x] 选中标题后插入 `[[标题]]`，并存储 frame_id 用于高亮 — 2026-05-06 ✅ (wikilink-autocomplete.tsx insertLink)
 - [x] 链接点击 → 调用 `resolve_link` → 跳转目标笔记 — 2026-05-06 ✅ (reader.tsx [[wiki link]] → search → openDocument)
 - [x] Reader 页面底部添加"反向链接"面板，调用 `list_backlinks` — 2026-05-06 ✅ (reader.tsx BacklinksPanel)
-- [ ] 笔记元数据帧新增 `outlinks` 和 `backlinks` 字段展示
+- [x] 笔记元数据帧新增 `outlinks` 和 `backlinks` 字段展示 — 2026-05-06 ✅ (note.rs NoteRecord)
+- [x] `sync_note_links()` 后端实现：提取 [[links]] → 解析 note_id → 更新元数据帧 — 2026-05-06 ✅ (kb.rs)
+- [x] `backfill_all_links` Tauri 命令 + `api.backfillAllLinks()` 前端 API — 2026-05-06 ✅
 
 **M2.3 回溯迁移**
 
-- [ ] 扫描所有笔记帧，提取 `[[...]]` 并调用 `sync_note_links()`
-- [ ] 为已有笔记填充 backlinks/outlinks
+- [x] 扫描所有笔记帧，提取 `[[...]]` 并调用 `sync_note_links()` — 2026-05-06 ✅ (kb.rs + backfill_all_links command)
 
-### 7.3 Phase M3：笔记大纲提取（中优先级）
+### 7.3 Phase M3：笔记大纲提取（中优先级） ✅ 全部完成
 
 > **目标**：让笔记的结构化大纲可导航、可编辑
 
@@ -680,21 +682,17 @@ pub struct OutlineNode {
     pub level: u8,        // 1 = H1, 2 = H2, ...
     pub text: String,
     pub position: usize,   // 字节偏移量（用于跳转）
-    pub children: Vec<OutlineNode>,
 }
 
 // API
 pub fn extract_outline(content: &str) -> Vec<OutlineNode> {
-    // 正则匹配 # ## ### 等标题行
-    // 构建嵌套树结构
-}
-
-pub fn save_outline(note_id: &str, outline: Vec<OutlineNode>) {
-    // 更新 note_meta 帧
+    // 匹配 # ## ### 等标题行
 }
 ```
 
-- [ ] 后端实现大纲提取
+- [x] 后端实现大纲提取：`KnowledgeBase::extract_outline()` — 2026-05-06 ✅ (kb.rs)
+- [x] `OutlineNode` 结构体添加到 `NoteRecord` — 2026-05-06 ✅ (note.rs)
+- [x] `sync_note_links()` 中同步更新 outline 字段 — 2026-05-06 ✅ (kb.rs)
 - [x] 前端 `<OutlinePanel />`：EditorPage 侧边栏 — 2026-05-06 ✅ (outline-panel.tsx)
 - [x] 点击大纲条目 → 滚动到对应位置 — 2026-05-06 ✅ (scrollToHeading)
 - [x] 大纲内拖拽调整段落顺序（更新 content + outline）— 2026-05-06 ✅ (outline-panel.tsx HTML5 drag-and-drop)

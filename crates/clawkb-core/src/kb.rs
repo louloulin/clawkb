@@ -64,11 +64,74 @@ pub struct KbStats {
     pub path: String,
 }
 
+// ---------------------------------------------------------------------------
+// KB Registry — persistent metadata index
+// ---------------------------------------------------------------------------
+
+const KB_REGISTRY_TAG: &str = "__kb_registry__";
+const KB_REGISTRY_VERSION: u32 = 1;
+
+/// Persistent metadata index stored as a special frame inside the MV2 file.
+/// Avoids O(N) full-frame scans on every `open()`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KbRegistry {
+    pub version: u32,
+    /// path → (note_id, meta_frame_id, content_frame_id, updated_at)
+    pub note_index: HashMap<String, NoteIndexEntry>,
+    /// folder_id → entry
+    pub folder_index: HashMap<String, FolderIndexEntry>,
+    /// tag_name → count
+    pub tag_index: HashMap<String, usize>,
+    pub created_at: i64,
+    pub last_modified: i64,
+    /// The frame ID of the registry frame itself (None = not yet persisted).
+    pub registry_frame_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteIndexEntry {
+    pub note_id: String,
+    pub meta_frame_id: u64,
+    pub content_frame_id: Option<u64>,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FolderIndexEntry {
+    pub folder_id: String,
+    pub frame_id: u64,
+    pub name: String,
+    pub parent_id: Option<String>,
+    pub path: String,
+    pub doc_count: usize,
+    pub created_at: i64,
+}
+
+impl Default for KbRegistry {
+    fn default() -> Self {
+        let now = chrono::Utc::now().timestamp();
+        Self {
+            version: KB_REGISTRY_VERSION,
+            note_index: HashMap::new(),
+            folder_index: HashMap::new(),
+            tag_index: HashMap::new(),
+            created_at: now,
+            last_modified: now,
+            registry_frame_id: None,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// KnowledgeBase
+// ---------------------------------------------------------------------------
+
 /// Core knowledge base handle wrapping memvid-core.
 pub struct KnowledgeBase {
     mem: Memvid,
     path: PathBuf,
     note_path_registry: std::collections::HashMap<String, String>,
+    registry: Option<KbRegistry>,
 }
 
 impl KnowledgeBase {
@@ -77,7 +140,7 @@ impl KnowledgeBase {
         let path = path.into();
         let mem = Memvid::create(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
+        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new(), registry: None })
     }
 
     /// Open an existing knowledge base.
@@ -88,7 +151,9 @@ impl KnowledgeBase {
         }
         let mem = Memvid::open(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
+        let mut kb = Self { mem, path, note_path_registry: std::collections::HashMap::new(), registry: None };
+        let _ = kb.load_or_build_registry();
+        Ok(kb)
     }
 
     /// Open in read-only mode.
@@ -99,7 +164,9 @@ impl KnowledgeBase {
         }
         let mem = Memvid::open_read_only(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
+        let mut kb = Self { mem, path, note_path_registry: std::collections::HashMap::new(), registry: None };
+        let _ = kb.load_or_build_registry();
+        Ok(kb)
     }
 
     /// Add a note/document to the knowledge base.
@@ -141,7 +208,8 @@ impl KnowledgeBase {
 
         let tags: Vec<String> = note.frontmatter.tags.clone();
         let tag_refs: Vec<&str> = tags.iter().map(String::as_str).collect();
-        let content_frame_id = self.add_note(&note.title, &note.content, &tag_refs)?;
+        let content_frame_id_str = self.add_note(&note.title, &note.content, &tag_refs)?;
+        let content_frame_id: u64 = content_frame_id_str.parse().unwrap_or(0);
         let now = format_timestamp(chrono::Utc::now().timestamp());
         let note_id = format!("note:{}", uuid::Uuid::new_v4());
 
@@ -153,11 +221,12 @@ impl KnowledgeBase {
         let note_id_tag = format!("{NOTE_ID_PREFIX}{note_id}");
         let note_path_tag = format!("{NOTE_PATH_PREFIX}{path}");
         let meta_tags = vec![NOTE_META_TAG, note_id_tag.as_str(), note_path_tag.as_str(), "note-meta"];
-        self.add_note(&note.title, &meta_payload, &meta_tags)?;
+        let meta_frame_id_str = self.add_note(&note.title, &meta_payload, &meta_tags)?;
+        let meta_frame_id: u64 = meta_frame_id_str.parse().unwrap_or(0);
 
         // keep source pointer to the content frame for later migrations
-        note.source = Some(content_frame_id);
-        self.note_path_registry.insert(path, note.id.clone());
+        note.source = Some(content_frame_id_str.clone());
+        self.sync_registry_note(&path, &note_id, meta_frame_id, Some(content_frame_id));
         Ok(note)
     }
 
@@ -196,8 +265,9 @@ impl KnowledgeBase {
 
         if let Some(old_path) = existing_registry_path {
             self.note_path_registry.remove(&old_path);
+            self.sync_registry_remove_note(&old_path);
         }
-        self.note_path_registry.insert(note.path.as_str().to_string(), note.id.clone());
+        self.sync_registry_note(note.path.as_str(), &note.id, meta_frame_id, None);
 
         Ok(note)
     }
@@ -255,6 +325,7 @@ impl KnowledgeBase {
             .find_map(|(p, nid)| if nid == id { Some(p.clone()) } else { None })
         {
             self.note_path_registry.remove(&path);
+            self.sync_registry_remove_note(&path);
         }
 
         Ok(())
@@ -329,7 +400,7 @@ impl KnowledgeBase {
     }
 
     /// Backlink entry: note that references the target note.
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct BacklinkEntry {
         pub note_id: String,
         pub note_title: String,
@@ -374,7 +445,162 @@ impl KnowledgeBase {
         Ok(backlinks)
     }
 
+    /// Extract [[wiki-link]] targets from note content.
+    /// Returns unique link titles found in the content.
+    pub fn extract_outlinks(content: &str) -> Vec<String> {
+        let mut links = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let bytes = content.as_bytes();
+        let mut i = 0;
+        while i + 1 < bytes.len() {
+            if bytes[i] == b'[' && bytes[i + 1] == b'[' {
+                let start = i + 2;
+                let mut end = start;
+                while end < bytes.len() && (bytes[end] != b']' || end + 1 >= bytes.len() || bytes[end + 1] != b']') {
+                    end += 1;
+                }
+                if end > start && end + 1 < bytes.len() {
+                    let title = &content[start..end];
+                    if !title.is_empty() && !seen.contains(title) {
+                        seen.insert(title.to_string());
+                        links.push(title.to_string());
+                    }
+                }
+                i = end + 2;
+            } else {
+                i += 1;
+            }
+        }
+        links
+    }
+
+    /// Extract document outline (headings) from note content.
+    /// Matches # ## ### etc. at line start.
+    pub fn extract_outline(content: &str) -> Vec<crate::note::OutlineNode> {
+        use crate::note::OutlineNode;
+        let mut nodes = Vec::new();
+        for (line_num, line) in content.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with('#') {
+                let mut level: u8 = 0;
+                let mut pos = 0;
+                for ch in trimmed.chars() {
+                    if ch == '#' { level += 1; pos += 1; }
+                    else { break; }
+                }
+                if level > 0 && level <= 6 {
+                    let text = trimmed[pos..].trim().to_string();
+                    if !text.is_empty() {
+                        // Estimate byte position of this line in the content.
+                        let position: usize = content.lines()
+                            .take(line_num)
+                            .map(|l| l.len() + 1)
+                            .sum();
+                        nodes.push(OutlineNode { level, text, position });
+                    }
+                }
+            }
+        }
+        nodes
+    }
+
+    /// Sync outlinks and backlinks for a note after its content changes.
+    /// Reads the content, extracts [[links]], resolves to note IDs, and
+    /// updates the note's meta frame + updates backlinks in linked notes.
+    pub fn sync_note_links(&mut self, note_id: &str) -> Result<()> {
+        let (meta_frame_id, frame) = self.find_note_meta_by_id(note_id)?
+            .ok_or_else(|| KbError::Config(format!("note not found: {note_id}")))?;
+        let mut note = self.note_record_from_meta_frame(frame)?;
+
+        let linked_titles = Self::extract_outlinks(&note.content);
+        let mut new_outlinks: Vec<String> = Vec::new();
+
+        // Resolve each [[title]] to a note_id.
+        for title in linked_titles {
+            // Try exact title match.
+            let resolved = self.resolve_note_link(&title, 1)?;
+            if let Some(hit) = resolved.first() {
+                new_outlinks.push(hit.id.clone());
+            }
+        }
+
+        // Get old outlinks to compute diff.
+        let old_outlinks: std::collections::HashSet<String> =
+            note.outlinks.iter().cloned().collect();
+
+        let new_outlinks_set: std::collections::HashSet<String> =
+            new_outlinks.iter().cloned().collect();
+
+        // Remove backlinks from notes that are no longer linked.
+        for old_target_id in &note.outlinks {
+            if !new_outlinks_set.contains(old_target_id) {
+                if let Ok(Some((old_meta_frame_id, old_frame))) = self.find_note_meta_by_id(old_target_id) {
+                    let mut old_note = self.note_record_from_meta_frame(old_frame)?;
+                    old_note.backlinks.retain(|id| id != note_id);
+                    let meta_payload = serde_json::to_vec(&old_note)?;
+                    let opts = PutOptions {
+                        title: Some(old_note.title.clone()),
+                        tags: vec![NOTE_META_TAG.to_string(),
+                            format!("{NOTE_ID_PREFIX}{}", old_note.id),
+                            format!("{NOTE_PATH_PREFIX}{}", old_note.path.as_str()),
+                            "note-meta".to_string()],
+                        ..Default::default()
+                    };
+                    self.mem.update_frame(old_meta_frame_id, Some(meta_payload), opts, None)
+                        .map_err(|e| KbError::Memvid(e.to_string()))?;
+                }
+            }
+        }
+
+        // Add backlinks to newly linked notes.
+        for new_target_id in &new_outlinks {
+            if !old_outlinks.contains(new_target_id) {
+                if let Ok(Some((target_meta_frame_id, target_frame))) =
+                    self.find_note_meta_by_id(new_target_id)
+                {
+                    let mut target_note = self.note_record_from_meta_frame(target_frame)?;
+                    if !target_note.backlinks.contains(&note_id.to_string()) {
+                        target_note.backlinks.push(note_id.to_string());
+                        let meta_payload = serde_json::to_vec(&target_note)?;
+                        let opts = PutOptions {
+                            title: Some(target_note.title.clone()),
+                            tags: vec![NOTE_META_TAG.to_string(),
+                                format!("{NOTE_ID_PREFIX}{}", target_note.id),
+                                format!("{NOTE_PATH_PREFIX}{}", target_note.path.as_str()),
+                                "note-meta".to_string()],
+                            ..Default::default()
+                        };
+                        self.mem.update_frame(target_meta_frame_id, Some(meta_payload), opts, None)
+                            .map_err(|e| KbError::Memvid(e.to_string()))?;
+                    }
+                }
+            }
+        }
+
+        // Update the note's outlinks and outline fields.
+        note.outlinks = new_outlinks;
+        note.outline = Self::extract_outline(&note.content);
+        let meta_payload = serde_json::to_vec(&note)?;
+        let opts = PutOptions {
+            title: Some(note.title.clone()),
+            tags: vec![NOTE_META_TAG.to_string(),
+                format!("{NOTE_ID_PREFIX}{}", note.id),
+                format!("{NOTE_PATH_PREFIX}{}", note.path.as_str()),
+                "note-meta".to_string()],
+            ..Default::default()
+        };
+        self.mem.update_frame(meta_frame_id, Some(meta_payload), opts, None)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(())
+    }
+
     fn find_note_meta_by_path(&mut self, path: &str) -> Result<Option<(String, u64)>> {
+        // Fast path: use registry index.
+        if let Some(entry) = self.get_note_by_path(path) {
+            return Ok(Some((entry.note_id.clone(), entry.meta_frame_id)));
+        }
+        // Fallback: scan all frames.
         let frame_ids = self.collect_all_frame_ids()?;
         for frame_id in frame_ids.into_iter().rev() {
             let frame = match self.mem.frame_by_id(frame_id) {
@@ -426,6 +652,20 @@ impl KnowledgeBase {
     }
 
     fn find_note_meta_by_id(&mut self, id: &str) -> Result<Option<(u64, memvid_core::Frame)>> {
+        // Fast path: use registry index to find meta_frame_id.
+        if let Some(reg) = &self.registry {
+            for entry in reg.note_index.values() {
+                if entry.note_id == id {
+                    let frame_id = entry.meta_frame_id;
+                    let frame = match self.mem.frame_by_id(frame_id) {
+                        Ok(f) => f,
+                        Err(_) => break,
+                    };
+                    return Ok(Some((frame_id, frame)));
+                }
+            }
+        }
+        // Fallback: scan all frames.
         let frame_ids = self.collect_all_frame_ids()?;
         for frame_id in frame_ids.into_iter().rev() {
             let frame = match self.mem.frame_by_id(frame_id) {
@@ -1899,6 +2139,234 @@ impl KnowledgeBase {
             tag: tag.to_string(),
             related_tag: None,
         })
+    }
+
+    // -----------------------------------------------------------------------
+    // Registry — persistent metadata index
+    // -----------------------------------------------------------------------
+
+    /// Load existing registry from a `__kb_registry__` frame, or build one
+    /// from scratch by scanning all frames.
+    fn load_or_build_registry(&mut self) -> Result<()> {
+        let frame_ids = self.collect_all_frame_ids()?;
+
+        // Try to find an existing registry frame.
+        for frame_id in &frame_ids {
+            let frame = match self.mem.frame_by_id(*frame_id) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            if frame.tags.iter().any(|t| t == KB_REGISTRY_TAG) {
+                let mut reader = self.mem.blob_reader(frame.id)
+                    .map_err(|e| KbError::Memvid(e.to_string()))?;
+                let mut bytes = Vec::new();
+                use std::io::Read;
+                if reader.read_to_end(&mut bytes).is_ok() {
+                    if let Ok(mut reg) = serde_json::from_slice::<KbRegistry>(&bytes) {
+                        reg.registry_frame_id = Some(*frame_id);
+                        // Backfill the legacy in-memory note_path_registry.
+                        self.note_path_registry = reg.note_index.iter()
+                            .map(|(path, entry)| (path.clone(), entry.note_id.clone()))
+                            .collect();
+                        self.registry = Some(reg);
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        // No registry frame found — build from scratch.
+        self.build_registry_from_frames(frame_ids)
+    }
+
+    /// Scan all frames and build a fresh registry.
+    fn build_registry_from_frames(&mut self, frame_ids: Vec<u64>) -> Result<()> {
+        let mut reg = KbRegistry::default();
+        let mut folder_doc_counts: HashMap<String, usize> = HashMap::new();
+
+        for frame_id in &frame_ids {
+            let frame = match self.mem.frame_by_id(*frame_id) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+
+            // Note meta frames
+            if frame.tags.iter().any(|t| t == NOTE_META_TAG) {
+                let note_id = match frame.tags.iter().find_map(|t| t.strip_prefix(NOTE_ID_PREFIX).map(|s| s.to_string())) {
+                    Some(id) => id,
+                    None => continue,
+                };
+                let note_path = frame.tags.iter()
+                    .find_map(|t| t.strip_prefix(NOTE_PATH_PREFIX).map(|s| s.to_string()));
+
+                if let Some(path) = note_path {
+                    let mut content_frame_id: Option<u64> = None;
+                    // Find content frame with same note_id tag but not the meta tag.
+                    for fid in &frame_ids {
+                        if fid == frame_id { continue; }
+                        if let Ok(f2) = self.mem.frame_by_id(*fid) {
+                            if f2.tags.iter().any(|t| t == &format!("{NOTE_ID_PREFIX}{note_id}"))
+                                && !f2.tags.iter().any(|t| t == NOTE_META_TAG)
+                            {
+                                content_frame_id = Some(*fid);
+                                break;
+                            }
+                        }
+                    }
+
+                    let updated_at = frame.title.as_deref().unwrap_or("").to_string();
+                    reg.note_index.insert(path.clone(), NoteIndexEntry {
+                        note_id: note_id.clone(),
+                        meta_frame_id: *frame_id,
+                        content_frame_id,
+                        updated_at,
+                    });
+                    self.note_path_registry.insert(path, note_id);
+                }
+                continue;
+            }
+
+            // Folder meta frames
+            if frame.tags.iter().any(|t| t == FOLDER_META_TAG)
+                && !frame.tags.iter().any(|t| t == FOLDER_DELETED_TAG)
+            {
+                let folder_id = match extract_tag_value(&frame.tags, FOLDER_ID_PREFIX) {
+                    Some(id) => id,
+                    None => continue,
+                };
+                let name = extract_tag_value(&frame.tags, FOLDER_NAME_PREFIX).unwrap_or_else(|| folder_id.clone());
+                let parent_id = extract_tag_value(&frame.tags, FOLDER_PARENT_PREFIX).filter(|v| !v.is_empty());
+                let path = extract_tag_value(&frame.tags, FOLDER_PATH_PREFIX).unwrap_or_else(|| format!("/{}", name));
+                let created_at = extract_tag_value(&frame.tags, FOLDER_CREATED_PREFIX)
+                    .and_then(|v| v.parse::<i64>().ok()).unwrap_or_default();
+
+                reg.folder_index.insert(folder_id.clone(), FolderIndexEntry {
+                    folder_id: folder_id.clone(),
+                    frame_id: *frame_id,
+                    name,
+                    parent_id,
+                    path,
+                    doc_count: 0,
+                    created_at,
+                });
+                continue;
+            }
+
+            // Document frames — count folder membership.
+            for tag in &frame.tags {
+                if let Some(folder_id) = tag.strip_prefix("folder:") {
+                    *folder_doc_counts.entry(folder_id.to_string()).or_insert(0) += 1;
+                }
+            }
+
+            // Tags
+            for tag in &frame.tags {
+                if !tag.starts_with("note_id:") && !tag.starts_with("note_path:")
+                    && !tag.starts_with(FOLDER_ID_PREFIX) && !tag.starts_with(FOLDER_NAME_PREFIX)
+                    && !tag.starts_with(FOLDER_PARENT_PREFIX) && !tag.starts_with(FOLDER_PATH_PREFIX)
+                    && !tag.starts_with(FOLDER_CREATED_PREFIX) && !tag.starts_with("__")
+                    && *tag != "note-meta" && *tag != "note"
+                {
+                    *reg.tag_index.entry(tag.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Apply folder doc counts.
+        for (folder_id, count) in folder_doc_counts {
+            if let Some(entry) = reg.folder_index.get_mut(&folder_id) {
+                entry.doc_count = count;
+            }
+        }
+
+        reg.last_modified = chrono::Utc::now().timestamp();
+        self.registry = Some(reg);
+        Ok(())
+    }
+
+    /// Write the current registry to a persistent frame.
+    fn persist_registry(&mut self) -> Result<()> {
+        let reg = self.registry.as_mut().ok_or_else(|| KbError::Config("registry not initialized".to_string()))?;
+        reg.last_modified = chrono::Utc::now().timestamp();
+        let payload = serde_json::to_vec(&*reg)
+            .map_err(|e| KbError::Config(format!("serialize registry: {e}")))?;
+
+        if let Some(existing_frame_id) = reg.registry_frame_id {
+            let opts = PutOptions {
+                tags: vec![KB_REGISTRY_TAG.to_string()],
+                ..Default::default()
+            };
+            self.mem.update_frame(existing_frame_id, Some(payload), opts, None)
+                .map_err(|e| KbError::Memvid(e.to_string()))?;
+        } else {
+            let opts = PutOptions::builder()
+                .kind("__kb_registry__".to_string())
+                .push_tag(KB_REGISTRY_TAG.to_string())
+                .enable_embedding(false)
+                .build();
+            let seq = self.mem.put_bytes_with_options(&payload, opts)
+                .map_err(|e| KbError::Memvid(e.to_string()))?;
+            reg.registry_frame_id = Some(seq);
+        }
+        Ok(())
+    }
+
+    /// Sync the registry after a note change.
+    fn sync_registry_note(&mut self, path: &str, note_id: &str, meta_frame_id: u64, content_frame_id: Option<u64>) {
+        if let Some(reg) = self.registry.as_mut() {
+            reg.note_index.insert(path.to_string(), NoteIndexEntry {
+                note_id: note_id.to_string(),
+                meta_frame_id,
+                content_frame_id,
+                updated_at: format_timestamp(chrono::Utc::now().timestamp()),
+            });
+            self.note_path_registry.insert(path.to_string(), note_id.to_string());
+        }
+    }
+
+    /// Remove a note from the registry.
+    fn sync_registry_remove_note(&mut self, path: &str) {
+        if let Some(reg) = self.registry.as_mut() {
+            reg.note_index.remove(path);
+            self.note_path_registry.remove(path);
+        }
+    }
+
+    /// O(1) lookup: find note_id by path using the registry.
+    pub fn get_note_by_path(&self, path: &str) -> Option<&NoteIndexEntry> {
+        self.registry.as_ref()?.note_index.get(path)
+    }
+
+    /// Fast folder listing using the registry index.
+    pub fn list_folders_fast(&self) -> Vec<FolderIndexEntry> {
+        match &self.registry {
+            Some(reg) => reg.folder_index.values().cloned().collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Get tag counts from the registry.
+    pub fn tag_counts(&self) -> HashMap<String, usize> {
+        match &self.registry {
+            Some(reg) => reg.tag_index.clone(),
+            None => HashMap::new(),
+        }
+    }
+
+    /// Force-rebuild the registry from all frames and persist it.
+    pub fn backfill_registry(&mut self) -> Result<()> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        // Delete old registry frame if it exists.
+        if let Some(reg) = &self.registry {
+            if let Some(fid) = reg.registry_frame_id {
+                let _ = self.mem.delete_frame(fid);
+            }
+        }
+        self.registry = None;
+        self.build_registry_from_frames(frame_ids)?;
+        self.persist_registry()?;
+        self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+        Ok(())
     }
 
     /// Collect all frame IDs from the knowledge base using timeline enumeration.
