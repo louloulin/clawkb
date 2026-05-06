@@ -10,13 +10,15 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRuntimeModeInfo, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import { formatBytes } from '@/lib/format';
+import { DailyCalendar } from '@/components/ui/daily-calendar';
+import { api } from '@/api/commands';
 
 const navItems = [
   { id: 'home', label: '工作台', icon: Sparkles },
@@ -49,6 +51,34 @@ const pageLabels: Record<string, string> = {
 
 export function Sidebar() {
   const { currentPage, setPage, sidebarCollapsed, toggleSidebar, stats, kbPath, isKbOpen } = useKbStore();
+  const [dailyDates, setDailyDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isKbOpen) { setDailyDates([]); return; }
+    api.search('Daily Note', 50, 'lex').then(hits => {
+      const dates = hits
+        .map(h => h.title?.replace('Daily Note ', '').trim())
+        .filter((d): d is string => /^\d{4}-\d{2}-\d{2}$/.test(d));
+      setDailyDates(dates);
+    }).catch(() => setDailyDates([]));
+  }, [isKbOpen]);
+
+  const handleSelectDate = useCallback((dateStr: string) => {
+    const title = `Daily Note ${dateStr}`;
+    void (async () => {
+      try {
+        const hits = await api.search(title, 1, 'lex');
+        if (hits.length > 0 && hits[0].title === title) {
+          useKbStore.getState().openDocument(hits[0]);
+        } else {
+          await api.addNote(title, `# ${dateStr}\n\n`, ['daily']);
+          const newHits = await api.search(title, 1, 'lex');
+          if (newHits.length > 0) useKbStore.getState().openDocument(newHits[0]);
+        }
+        setPage('editor');
+      } catch { /* ignore */ }
+    })();
+  }, [setPage]);
 
   return (
     <aside
@@ -138,6 +168,13 @@ export function Sidebar() {
             return button;
           })}
         </nav>
+
+        {!sidebarCollapsed && (
+          <div className="px-3 mt-2">
+            <DailyCalendar dailyDates={dailyDates} onSelectDate={handleSelectDate} />
+          </div>
+        )}
+
         <div className="mt-auto" />
 
         <div className="border-t border-white/8 px-4 py-4">

@@ -417,6 +417,9 @@ export function ReaderPage({
 
   // Render content using react-markdown for safe rendering
   const renderContent = (text: string) => {
+    // Convert [[wiki links]] to clickable markdown links
+    const processed = text.replace(/\[\[([^\]]+)\]\]/g, '[$1](wiki:$1)');
+
     return (
       <Markdown
         components={{
@@ -434,9 +437,32 @@ export function ReaderPage({
               <code className="rounded bg-black/20 px-1 text-sm" {...props}>{children}</code>
             );
           },
+          a: ({ href, children }) => {
+            if (href?.startsWith('wiki:')) {
+              const title = decodeURIComponent(href.slice(5));
+              return (
+                <button
+                  type="button"
+                  className="text-amber-300 underline decoration-amber-300/40 hover:decoration-amber-300 transition cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      const hits = await api.search(title, 3, 'lex');
+                      const match = hits.find(h => h.title === title) || hits[0];
+                      if (match) {
+                        useKbStore.getState().openDocument(match);
+                      }
+                    } catch { /* ignore */ }
+                  }}
+                >
+                  {children}
+                </button>
+              );
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline">{children}</a>;
+          },
         }}
       >
-        {text}
+        {processed}
       </Markdown>
     );
   };

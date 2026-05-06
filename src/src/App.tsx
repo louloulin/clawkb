@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { CommandPalette } from '@/components/command/command-palette';
 import { getRuntimeMode, isBrowserPreview } from '@/api/platform';
 import { api } from '@/api/commands';
+import { safeStorageGet } from '@/store/persistence';
 import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGetString } from '@/store/persistence';
 import { useWorkspaceStore } from '@/store/workspace-store';
@@ -110,7 +111,7 @@ function App() {
               useKbStore.getState().openDocument(hits[0]);
             } else {
               // 创建新日记
-              const template = `# ${dateStr}\n\n`;
+              const template = safeStorageGet<string>('clawkb-daily-note-template', `# ${dateStr}\n\n## 今日待办\n\n## 笔记\n\n`);
               await api.addNote(dailyTitle, template, ['daily']);
               const newHits = await api.search(dailyTitle, 1, 'lex');
               if (newHits.length > 0) {

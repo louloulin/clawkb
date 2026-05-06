@@ -660,7 +660,7 @@ pub fn list_backlinks(note_id: &str) -> Vec<BacklinkEntry> {
 - [x] TipTap 编辑器拦截 `[[` 键盘输入，弹出笔记搜索下拉 — 2026-05-06 ✅ (wikilink-autocomplete.tsx)
 - [x] 下拉列表调用 `resolve_link` API，实时搜索已有笔记标题 — 2026-05-06 ✅ (resolve_note_link Tauri command)
 - [x] 选中标题后插入 `[[标题]]`，并存储 frame_id 用于高亮 — 2026-05-06 ✅ (wikilink-autocomplete.tsx insertLink)
-- [ ] 链接点击 → 调用 `resolve_link` → 跳转目标笔记
+- [x] 链接点击 → 调用 `resolve_link` → 跳转目标笔记 — 2026-05-06 ✅ (reader.tsx [[wiki link]] → search → openDocument)
 - [x] Reader 页面底部添加"反向链接"面板，调用 `list_backlinks` — 2026-05-06 ✅ (reader.tsx BacklinksPanel)
 - [ ] 笔记元数据帧新增 `outlinks` 和 `backlinks` 字段展示
 
@@ -830,8 +830,8 @@ pub fn get_calendar_heat_map(year: i32) -> CalendarHeatMap
 
 - [ ] 日历热力图组件（GraphPage 旁或独立页面）：展示每日笔记密度
 - [x] 快捷键 `Cmd+Shift+D`：打开今日日记（不存在则创建）— 2026-05-06 ✅ (App.tsx)
-- [ ] 日记模板支持（`journal_template` 存储在 registry 帧）
-- [ ] 侧边栏"日历"视图：月历 + 点击跳转
+- [x] 日记模板支持 — 2026-05-06 ✅ (clawkb-daily-note-template localStorage + App.tsx 使用模板)
+- [x] 侧边栏"日历"视图：月历 + 点击跳转 — 2026-05-06 ✅ (daily-calendar.tsx + layout.tsx 集成)
 
 ---
 

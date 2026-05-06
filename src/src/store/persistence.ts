@@ -26,6 +26,9 @@ export const STORAGE_KEYS = {
   multiKb: {
     store: 'clawkb-multi-kb',
   },
+  dailyNote: {
+    template: 'clawkb-daily-note-template',
+  },
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS][keyof (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS]];
