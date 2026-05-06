@@ -302,6 +302,78 @@ impl KnowledgeBase {
         Ok(note)
     }
 
+    /// Resolve a note link by title or partial title.
+    /// Returns notes matching the query, useful for [[wiki-link]] autocomplete.
+    pub fn resolve_note_link(&mut self, query: &str, limit: usize) -> Result<Vec<SearchHit>> {
+        let all_notes = self.list_note_records(None, 200)?;
+        let query_lower = query.to_lowercase();
+        let matches: Vec<SearchHit> = all_notes
+            .into_iter()
+            .filter(|note| {
+                note.title.to_lowercase().contains(&query_lower)
+                    || note.frontmatter.aliases.iter().any(|a| a.to_lowercase().contains(&query_lower))
+                    || note.path.as_str().to_lowercase().contains(&query_lower)
+            })
+            .take(limit)
+            .map(|note| SearchHit {
+                id: note.id.clone(),
+                title: note.title.clone(),
+                content: note.content.chars().take(200).collect(),
+                score: 1.0,
+                tags: note.frontmatter.tags.clone(),
+                created_at: note.created_at.clone(),
+                source: note.source.clone(),
+            })
+            .collect();
+        Ok(matches)
+    }
+
+    /// Backlink entry: note that references the target note.
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    pub struct BacklinkEntry {
+        pub note_id: String,
+        pub note_title: String,
+        pub context_snippet: String,
+    }
+
+    /// List all notes that reference the given note by its ID.
+    /// Scans content for [[title]] patterns and tag references.
+    pub fn list_backlinks(&mut self, note_id: &str) -> Result<Vec<BacklinkEntry>> {
+        let target = self.get_note_record(note_id)?;
+        let target_title = &target.title;
+        let target_title_lower = target_title.to_lowercase();
+
+        let all_notes = self.list_note_records(None, 500)?;
+        let mut backlinks = Vec::new();
+
+        for note in all_notes {
+            if note.id == note_id {
+                continue;
+            }
+
+            // Check [[title]] pattern in content
+            let wiki_patterns = [
+                format!("[[{}]]", target_title),
+                format!("[[{target_title_lower}]]"),
+            ];
+            let has_wiki_ref = wiki_patterns.iter().any(|p| note.content.contains(p));
+
+            // Also check if content mentions the title (broader match)
+            let has_title_ref = note.content.to_lowercase().contains(&target_title_lower);
+
+            if has_wiki_ref || has_title_ref {
+                let snippet = extract_snippet_around(&note.content, target_title, 80);
+                backlinks.push(BacklinkEntry {
+                    note_id: note.id,
+                    note_title: note.title,
+                    context_snippet: snippet,
+                });
+            }
+        }
+
+        Ok(backlinks)
+    }
+
     fn find_note_meta_by_path(&mut self, path: &str) -> Result<Option<(String, u64)>> {
         let frame_ids = self.collect_all_frame_ids()?;
         for frame_id in frame_ids.into_iter().rev() {
@@ -1863,6 +1935,36 @@ pub fn is_pdf_source(source: Option<&str>) -> bool {
     source
         .map(|s| s.to_lowercase().ends_with(".pdf"))
         .unwrap_or(false)
+}
+
+/// Extract a text snippet around the first occurrence of `needle` in `haystack`.
+fn extract_snippet_around(haystack: &str, needle: &str, context_chars: usize) -> String {
+    let haystack_lower = haystack.to_lowercase();
+    let needle_lower = needle.to_lowercase();
+    let start = match haystack_lower.find(&needle_lower) {
+        Some(pos) => pos,
+        None => return truncate_str(haystack, context_chars * 2),
+    };
+
+    let chars: Vec<char> = haystack.chars().collect();
+    let byte_offset = start;
+    let char_offset = haystack[..byte_offset].chars().count();
+    let needle_chars = needle.chars().count();
+
+    let from = char_offset.saturating_sub(context_chars);
+    let to = (char_offset + needle_chars + context_chars).min(chars.len());
+
+    let mut snippet = String::new();
+    if from > 0 {
+        snippet.push_str("…");
+    }
+    for ch in &chars[from..to] {
+        snippet.push(*ch);
+    }
+    if to < chars.len() {
+        snippet.push_str("…");
+    }
+    snippet
 }
 
 #[cfg(test)]

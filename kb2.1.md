@@ -657,11 +657,11 @@ pub fn list_backlinks(note_id: &str) -> Vec<BacklinkEntry> {
 
 **M2.2 前端集成**
 
-- [ ] TipTap 编辑器拦截 `[[` 键盘输入，弹出笔记搜索下拉
-- [ ] 下拉列表调用 `resolve_link` API，实时搜索已有笔记标题
-- [ ] 选中标题后插入 `[[标题]]`，并存储 frame_id 用于高亮
+- [x] TipTap 编辑器拦截 `[[` 键盘输入，弹出笔记搜索下拉 — 2026-05-06 ✅ (wikilink-autocomplete.tsx)
+- [x] 下拉列表调用 `resolve_link` API，实时搜索已有笔记标题 — 2026-05-06 ✅ (resolve_note_link Tauri command)
+- [x] 选中标题后插入 `[[标题]]`，并存储 frame_id 用于高亮 — 2026-05-06 ✅ (wikilink-autocomplete.tsx insertLink)
 - [ ] 链接点击 → 调用 `resolve_link` → 跳转目标笔记
-- [ ] Reader 页面底部添加"反向链接"面板，调用 `list_backlinks`
+- [x] Reader 页面底部添加"反向链接"面板，调用 `list_backlinks` — 2026-05-06 ✅ (reader.tsx BacklinksPanel)
 - [ ] 笔记元数据帧新增 `outlinks` 和 `backlinks` 字段展示
 
 **M2.3 回溯迁移**
@@ -770,18 +770,18 @@ enum FrameKind {
 - [x] 统一 ExploreShell Tab 为中文（搜索/导入/时间线/标签/实体/图谱/脑图/报告/播客）— 2026-05-06
 - [x] 审计所有按钮文本，统一中英文 — 2026-05-06
 
-### 8.5 Phase U4：笔记组织（3-5 天） ✅ 部分完成
+### 8.5 Phase U4：笔记组织（3-5 天） ✅ 全部完成
 
-- [ ] 后端：`resolve_note_link` 命令
-- [ ] 后端：`list_backlinks` 命令
-- [ ] 前端：Reader 底部反向链接面板（依赖后端 backlinks 命令）
+- [x] 后端：`resolve_note_link` 命令 — 2026-05-06 ✅ (kb.rs resolve_note_link + Tauri command)
+- [x] 后端：`list_backlinks` 命令 — 2026-05-06 ✅ (kb.rs list_backlinks + Tauri command)
+- [x] 前端：Reader 底部反向链接面板 — 2026-05-06 ✅ (reader.tsx BacklinksPanel 组件)
 - [x] 前端：TipTap `[[` 触发自动完成 — 2026-05-06 ✅ (wikilink-autocomplete.tsx + editor.tsx 集成)
 - [x] 模板管理：localStorage 模板存储 CRUD — 2026-05-06 ✅ (template-store.ts + template-manager.tsx)
 - [x] 新建笔记时模板选择器 — 2026-05-06 ✅ (editor.tsx 集成)
 
 ### 8.6 Phase U5：高级功能完善（3-5 天） ✅ 部分完成
 
-- [ ] Mind Map：SVG + D3 交互式脑图（径向布局）
+- [x] Mind Map：SVG + D3 交互式脑图（径向布局）— 2026-05-06 ✅ (mindmap.tsx SVG 径向布局 + 缩放/拖拽)
 - [x] Podcast：`handleRegenerateSegment` 接入 `aiAsk` API — 2026-05-06 ✅ (podcast.tsx)
 - [x] Graph：添加缩放/平移控制 + 节点位置持久化 — 2026-05-06 ✅ (graph.tsx)
 - [ ] Reader：PDF 文本选择 + 多侧边栏布局管理

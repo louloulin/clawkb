@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag } from 'lucide-react';
+import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2 } from 'lucide-react';
 import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
 import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
+import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 
 interface SelectionPopup {
@@ -565,6 +566,7 @@ export function ReaderPage({
                     {renderContent(selectedDoc.content)}
                   </article>
                 )}
+                <BacklinksPanel noteId={selectedDoc.id} />
                 </div>
               </div>
 
@@ -887,6 +889,86 @@ export function ReaderPage({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Backlinks panel — shows notes that reference the current note. */
+function BacklinksPanel({ noteId }: { noteId: string }) {
+  const [backlinks, setBacklinks] = useState<Array<{ note_id: string; note_title: string; context_snippet: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.listBacklinks(noteId)
+      .then((result) => { if (!cancelled) setBacklinks(result); })
+      .catch(() => { if (!cancelled) setBacklinks([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [noteId]);
+
+  if (loading) {
+    return (
+      <div className="mt-8 border-t border-white/10 pt-4">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          查找反向链接…
+        </div>
+      </div>
+    );
+  }
+
+  if (backlinks.length === 0) {
+    return (
+      <div className="mt-8 border-t border-white/10 pt-4">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1.5">
+          <Link2 className="h-3.5 w-3.5" />
+          反向链接
+        </div>
+        <p className="mt-2 text-xs text-slate-500">暂无笔记引用此文档。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 border-t border-white/10 pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400 hover:text-white transition"
+      >
+        <Link2 className="h-3.5 w-3.5" />
+        反向链接 ({backlinks.length})
+        <ChevronRight className={`h-3 w-3 transition ${expanded ? 'rotate-90' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="mt-3 grid gap-2">
+          {backlinks.map((bl) => (
+            <button
+              key={bl.note_id}
+              type="button"
+              className="rounded-xl border border-white/10 bg-white/4 p-3 text-left transition hover:border-white/20 hover:bg-white/8"
+              onClick={() => {
+                useKbStore.getState().openDocument({
+                  id: bl.note_id,
+                  title: bl.note_title,
+                  content: bl.context_snippet,
+                  score: 0,
+                  tags: [],
+                  created_at: '',
+                  source: null,
+                });
+              }}
+            >
+              <div className="text-sm font-medium text-white">{bl.note_title}</div>
+              <div className="mt-1 text-xs leading-6 text-slate-400 line-clamp-2">{bl.context_snippet}</div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

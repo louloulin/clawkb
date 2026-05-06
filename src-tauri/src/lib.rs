@@ -129,6 +129,8 @@ pub fn run() {
             commands::create_folder,
             commands::rename_folder,
             commands::delete_folder,
+            commands::resolve_note_link,
+            commands::list_backlinks,
             commands::move_document,
             commands::search_in_folder,
             commands::set_document_tags,

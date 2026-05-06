@@ -134,6 +134,18 @@ export const api = {
     }) as Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>;
   },
 
+  /** Resolve note by title for [[wiki-link]] autocomplete and navigation. */
+  async resolveNoteLink(query: string, limit = 10): Promise<SearchHit[]> {
+    const invoke = await getDesktopInvoke();
+    return invoke('resolve_note_link', { query, limit }) as Promise<SearchHit[]>;
+  },
+
+  /** List notes that reference the given note (backlinks). */
+  async listBacklinks(noteId: string): Promise<Array<{ note_id: string; note_title: string; context_snippet: string }>> {
+    const invoke = await getDesktopInvoke();
+    return invoke('list_backlinks', { note_id: noteId }) as Promise<Array<{ note_id: string; note_title: string; context_snippet: string }>>;
+  },
+
   async importFile(path: string, tags: string[]): Promise<ImportResult> {
     const invoke = await getDesktopInvoke();
     return invoke('import_file', { path, tags }) as Promise<ImportResult>;

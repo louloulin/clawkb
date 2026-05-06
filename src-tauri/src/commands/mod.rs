@@ -1096,3 +1096,26 @@ pub fn update_note(
     kb.update_note_record(note_id.as_str(), title_ref, content_ref, tags_ref)
         .map_err(|e| user_facing_command_error(e.to_string()))
 }
+
+#[tauri::command]
+pub fn resolve_note_link(
+    query: String,
+    limit: Option<usize>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<clawkb_core::search::SearchHit>, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.resolve_note_link(&query, limit.unwrap_or(10))
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn list_backlinks(
+    note_id: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<clawkb_core::kb::BacklinkEntry>, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.list_backlinks(&note_id)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
