@@ -114,6 +114,7 @@ export function KbChatPane({
                       <button
                         key={`${fragment.frame_id}-${fragment.rank}`}
                         type="button"
+                        aria-label={`查看来源：${fragment.title || fragment.uri || '未命名资料'}`}
                         onClick={() => onOpenSource?.(fragment)}
                         className="rounded-[1rem] border border-white/10 bg-white/4 p-3 text-left transition hover:border-white/20 hover:bg-white/8"
                       >

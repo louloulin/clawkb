@@ -8,9 +8,12 @@ import Link from '@tiptap/extension-link';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
   Undo, Redo, Sparkles, Wand2, ChevronDown, ChevronRight, Loader2, X, FileText, Save,
-  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight
+  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Settings
 } from 'lucide-react';
 import { OutlinePanel } from '@/components/ui/outline-panel';
+import { TemplateManager } from '@/components/ui/template-manager';
+import { WikiLinkAutocomplete, wikilinkPlugin, type WikiLinkState } from '@/components/ui/wikilink-autocomplete';
+import { getTemplates, type EditorTemplate } from '@/store/template-store';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/api/commands';
@@ -28,44 +31,7 @@ const AI_COMMANDS = [
 ];
 
 // Writing templates
-const TEMPLATES = [
-  {
-    id: 'blank',
-    label: '空白',
-    title: '无标题文档',
-    content: '',
-  },
-  {
-    id: 'article',
-    label: '文章',
-    title: '文章标题',
-    content: '<h2>引言</h2><p>以引人入胜的开头开始...</p><h2>要点</h2><p>讨论核心观点...</p><h2>总结</h2><p>归纳要点和收获...</p>',
-  },
-  {
-    id: 'report',
-    label: '报告',
-    title: '报告标题',
-    content: '<h2>摘要</h2><p>简要概述发现...</p><h2>背景</h2><p>上下文和动机...</p><h2>分析</h2><p>详细发现...</p><h2>建议</h2><ul><li>建议一</li><li>建议二</li></ul><h2>结论</h2><p>最终想法...</p>',
-  },
-  {
-    id: 'email',
-    label: '邮件',
-    title: '邮件草稿',
-    content: '<p>[收件人]，</p><p>你好！</p><p>[主要内容]</p><p>此致，<br/>[你的名字]</p>',
-  },
-  {
-    id: 'notes',
-    label: '会议纪要',
-    title: '会议纪要',
-    content: '<h2>会议：[主题]</h2><p><strong>日期：</strong>[日期] | <strong>参与者：</strong>[姓名]</p><h3>议程</h3><ol><li>议题一</li><li>议题二</li></ol><h3>待办事项</h3><ul><li>[ ] 任务一 — @负责人</li><li>[ ] 任务二 — @负责人</li></ul><h3>笔记</h3><p>讨论要点...</p>',
-  },
-  {
-    id: 'proposal',
-    label: '提案',
-    title: '提案标题',
-    content: '<h2>问题描述</h2><p>我们要解决什么问题？</p><h2>解决方案</h2><p>我们如何解决？</p><h2>实施计划</h2><ol><li>阶段一：...</li><li>阶段二：...</li></ol><h2>时间线与预算</h2><p>预估时间和成本...</p><h2>预期成果</h2><ul><li>成果一</li><li>成果二</li></ul>',
-  },
-];
+const TEMPLATES = getTemplates();
 
 interface EditorPageProps {
   embedded?: boolean;
@@ -93,9 +59,11 @@ export function EditorPage({
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [showCommands, setShowCommands] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [outlinePanelOpen, setOutlinePanelOpen] = useState(false);
+  const [wikilinkState, setWikilinkState] = useState<WikiLinkState | null>(null);
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
@@ -124,6 +92,16 @@ export function EditorPage({
       onDraftChange?.(title, nextContent);
     },
   });
+
+  // Register wikilink autocomplete plugin
+  useEffect(() => {
+    if (!editor) return;
+    const plugin = wikilinkPlugin(
+      (s) => setWikilinkState(s),
+      () => setWikilinkState(null),
+    );
+    editor.registerPlugin(plugin);
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -243,7 +221,7 @@ export function EditorPage({
   };
 
   // Handle template selection
-  const handleTemplateSelect = (template: typeof TEMPLATES[0]) => {
+  const handleTemplateSelect = (template: EditorTemplate) => {
     setTitle(template.title);
     if (editor) {
       editor.commands.setContent(template.content);
@@ -333,8 +311,16 @@ export function EditorPage({
               </Button>
               {showTemplates && (
                 <div className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg p-2 w-56 z-50">
-                  <div className="text-[10px] text-muted-foreground px-2 mb-1">写作模板</div>
-                  {TEMPLATES.map(t => (
+                  <div className="flex items-center justify-between px-2 mb-1">
+                    <div className="text-[10px] text-muted-foreground">写作模板</div>
+                    <button
+                      onClick={() => { setShowTemplates(false); setShowTemplateManager(true); }}
+                      className="text-[10px] text-primary hover:text-primary/80 transition-colors"
+                    >
+                      管理
+                    </button>
+                  </div>
+                  {getTemplates().map(t => (
                     <button
                       key={t.id}
                       onClick={() => handleTemplateSelect(t)}
@@ -600,6 +586,26 @@ export function EditorPage({
             </div>
           </div>
         </div>
+      )}
+
+      {showTemplateManager && (
+        <TemplateManager
+          onClose={() => setShowTemplateManager(false)}
+          onSelect={(template) => {
+            handleTemplateSelect(template);
+            setShowTemplates(false);
+          }}
+        />
+      )}
+
+      {wikilinkState && (
+        <WikiLinkAutocomplete
+          editor={editor}
+          state={wikilinkState}
+          onSelect={() => {}}
+          onClose={() => setWikilinkState(null)}
+          onQueryChange={(query) => setWikilinkState((s) => s ? { ...s, query } : null)}
+        />
       )}
     </div>
   );

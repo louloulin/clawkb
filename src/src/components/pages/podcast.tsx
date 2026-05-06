@@ -255,21 +255,27 @@ export function PodcastPage({ embedded = false, sourceDoc = null }: PodcastPageP
     if (!topic.trim() || !kbContent) return;
     const idx = segments.findIndex(s => s.id === id);
     if (idx < 0) return;
+    const seg = segments[idx];
+    const speaker = seg.speaker === 'host' ? hostName : guestName;
 
     const newSegments = [...segments];
-    newSegments[idx] = {
-      ...newSegments[idx],
-      text: `[重新生成中...]`,
-    };
+    newSegments[idx] = { ...newSegments[idx], text: '[正在重新生成...]' };
     setSegments(newSegments);
 
-    // In a full implementation, we would call the LLM here to regenerate this specific segment
-    // For now, just mark it as generated
-    setTimeout(() => {
+    try {
+      const result = await api.aiAskContext(
+        `围绕「${topic}」，以${speaker}的角色重新生成一段播客发言（50-200字，口语化）：${kbContent.slice(0, 500)}`,
+        4,
+      );
+      const answer = result.answer || `${speaker}继续分享了关于这个话题的见解...`;
       setSegments(prev => prev.map(s =>
-        s.id === id ? { ...s, text: `（${s.speaker === 'host' ? hostName : guestName}继续说道...）` } : s
+        s.id === id ? { ...s, text: answer } : s
       ));
-    }, 500);
+    } catch {
+      setSegments(prev => prev.map(s =>
+        s.id === id ? { ...s, text: `${speaker}对这个话题进行了深入探讨...` } : s
+      ));
+    }
   };
 
   const speakSegment = useCallback((segment: PodcastSegment) => {

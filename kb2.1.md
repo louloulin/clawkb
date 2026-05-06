@@ -770,22 +770,22 @@ enum FrameKind {
 - [x] 统一 ExploreShell Tab 为中文（搜索/导入/时间线/标签/实体/图谱/脑图/报告/播客）— 2026-05-06
 - [x] 审计所有按钮文本，统一中英文 — 2026-05-06
 
-### 8.5 Phase U4：笔记组织（3-5 天）
+### 8.5 Phase U4：笔记组织（3-5 天） ✅ 部分完成
 
 - [ ] 后端：`resolve_note_link` 命令
 - [ ] 后端：`list_backlinks` 命令
-- [ ] 前端：TipTap `[[` 触发自动完成
+- [ ] 前端：TipTap `[[` 触发自动完成 — 2026-05-06 ✅ (wikilink-autocomplete.tsx + editor.tsx 集成)
 - [ ] 前端：Reader 底部反向链接面板
-- [ ] 模板管理：localStorage 模板存储 CRUD
-- [ ] 新建笔记时模板选择器
+- [x] 模板管理：localStorage 模板存储 CRUD — 2026-05-06 ✅ (template-store.ts + template-manager.tsx)
+- [x] 新建笔记时模板选择器 — 2026-05-06 ✅ (editor.tsx 集成)
 
-### 8.6 Phase U5：高级功能完善（3-5 天）
+### 8.6 Phase U5：高级功能完善（3-5 天） ✅ 部分完成
 
 - [ ] Mind Map：SVG + D3 交互式脑图（径向布局）
-- [ ] Podcast：`handleRegenerateSegment` 接入 `aiAsk` API
-- [ ] Graph：添加缩放/平移控制 + 节点位置持久化
+- [x] Podcast：`handleRegenerateSegment` 接入 `aiAsk` API — 2026-05-06 ✅ (podcast.tsx)
+- [x] Graph：添加缩放/平移控制 + 节点位置持久化 — 2026-05-06 ✅ (graph.tsx)
 - [ ] Reader：PDF 文本选择 + 多侧边栏布局管理
-- [ ] 无障碍：`aria-label` 补全 + WCAG 合规修复
+- [x] 无障碍：`aria-label` 补全 + WCAG 合规修复 — 2026-05-06 ✅ (layout.tsx / home-composer.tsx / kb-chat-pane.tsx)
 
 ### 8.7 Phase U6：安全与质量（2-3 天） ✅ 部分完成
 

@@ -102,6 +102,7 @@ export function Sidebar() {
               <button
                 key={item.id}
                 onClick={() => setPage(item.id)}
+                aria-label={item.label}
                 className={`group flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
                   isActive
                     ? 'border-amber-200/30 bg-amber-200/12 text-white'
