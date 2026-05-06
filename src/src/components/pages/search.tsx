@@ -11,8 +11,10 @@ import {
 } from '@/components/ui/select';
 import { useSearch } from '@/hooks';
 import { useTags } from '@/hooks';
+import { useDocumentWorkspaceStore } from '@/store/document-workspace-store';
 import { useKbStore } from '@/store/kb-store';
 import { useFolderStore } from '@/store/folder-store';
+import { useWorkspaceStore } from '@/store/workspace-store';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/api';
 import { classifyAppError, userInputError } from '@/lib/app-error';
@@ -29,8 +31,12 @@ export function SearchPage() {
   const [graphResults, setGraphResults] = useState<SearchHit[]>([]);
   const { results, loading, search } = useSearch();
   const { tags } = useTags();
-  const openDocument = useKbStore(s => s.openDocument);
+  const setPage = useKbStore(s => s.setPage);
   const { selectedFolder, selectFolder } = useFolderStore();
+  const setActiveDocumentsView = useWorkspaceStore(s => s.setActiveDocumentsView);
+  const selectDocument = useDocumentWorkspaceStore(s => s.selectDocument);
+  const seedDraftFromDocument = useDocumentWorkspaceStore(s => s.seedDraftFromDocument);
+  const setActiveTab = useDocumentWorkspaceStore(s => s.setActiveTab);
   const { toast } = useToast();
 
   const handleSearch = useCallback(async () => {
@@ -98,6 +104,14 @@ export function SearchPage() {
     toast({ title: 'Exported', description: `${selected.length} documents exported.` });
   };
 
+  const handleOpenResult = (hit: SearchHit) => {
+    selectDocument(hit);
+    seedDraftFromDocument(hit);
+    setActiveDocumentsView('reader');
+    setActiveTab('reader');
+    setPage('reader');
+  };
+
   const handleBatchTag = async () => {
     if (!batchTag.trim()) return;
     setBatchLoading(true);
@@ -160,7 +174,7 @@ export function SearchPage() {
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
             placeholder="Search your knowledge base..."
             autoFocus
-            className="pl-10 h-10 rounded-xl bg-muted/30 border-border/50 focus:bg-background"
+            className="pl-10 h-10 rounded-xl bg-muted/30 border-border/50 focus:dark:bg-background focus:bg-white"
           />
         </div>
         <Select value={mode} onValueChange={(v) => setMode(v as SearchMode)}>
@@ -295,7 +309,7 @@ export function SearchPage() {
             hit={hit}
             rank={i + 1}
             selected={selectedIds.has(hit.id)}
-            onClick={() => openDocument(hit)}
+            onClick={() => handleOpenResult(hit)}
             onToggleSelect={() => toggleSelect(hit.id)}
           />
         ))}

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Upload, Loader2, File, CheckCircle2, XCircle, Folder, Globe, Link, Music, Image, Scan, Clipboard, AlertCircle, Hash, Sparkles } from 'lucide-react';
+import { Upload, Loader2, File, CheckCircle2, XCircle, Folder, Globe, Link, Music, Image, Scan, Clipboard, AlertCircle, Hash, Sparkles, ChevronDown, MessagesSquare, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,18 +16,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useKbStore } from '@/store/kb-store';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import { isBrowserPreview } from '@/api/platform';
+import { pickImportDirectoryPath, pickImportFilePath, pickMediaPath } from '@/lib/native-dialog';
 
 export function ImportPage() {
-  const { preferredImportView, setPreferredImportView } = useWorkspaceStore();
+  const { preferredImportView, setPreferredImportView, setActiveExploreView } = useWorkspaceStore();
+  const { kbPath, isKbOpen, setPage } = useKbStore();
+  const [showAdvancedImports, setShowAdvancedImports] = useState(
+    preferredImportView === 'media' || preferredImportView === 'screenshot',
+  );
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-1">Import</h2>
-        <p className="text-sm text-muted-foreground">Import files, directories, or web pages into your knowledge base</p>
+        <h2 className="text-xl font-semibold mb-1">导入资料</h2>
+        <p className="text-sm text-muted-foreground">先把文件、目录或网页放进当前知识库，再回到资料工作面继续检索和阅读</p>
+      </div>
+
+      <div className="mb-6 rounded-xl border border-border/50 bg-card p-4">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">当前知识库</div>
+        <div className="mt-2 text-sm font-medium text-foreground">
+          {isKbOpen ? kbPath.split('/').pop() || kbPath : '尚未打开知识库'}
+        </div>
+        <p className="mt-2 text-xs leading-6 text-muted-foreground">
+          {isKbOpen
+            ? '所有导入都会进入当前挂载的本地知识库，并在导入完成后回到资料工作面继续工作。'
+            : '请先打开或创建本地知识库。导入能力仍然可见，是为了说明主路径，但真实日常使用必须先完成桌面本地 KB 初始化。'}
+        </p>
       </div>
 
       <Tabs
@@ -41,19 +59,49 @@ export function ImportPage() {
           <TabsTrigger value="url" className="rounded-lg text-[13px] gap-1.5">
             <Globe className="h-3.5 w-3.5" /> Web Page
           </TabsTrigger>
-          <TabsTrigger value="media" className="rounded-lg text-[13px] gap-1.5">
-            <Music className="h-3.5 w-3.5" /> Media
-          </TabsTrigger>
-          <TabsTrigger value="screenshot" className="rounded-lg text-[13px] gap-1.5">
-            <Scan className="h-3.5 w-3.5" /> Screenshot
-          </TabsTrigger>
+          {showAdvancedImports && (
+            <>
+              <TabsTrigger value="media" className="rounded-lg text-[13px] gap-1.5">
+                <Music className="h-3.5 w-3.5" /> Media
+              </TabsTrigger>
+              <TabsTrigger value="screenshot" className="rounded-lg text-[13px] gap-1.5">
+                <Scan className="h-3.5 w-3.5" /> Screenshot
+              </TabsTrigger>
+            </>
+          )}
         </TabsList>
 
+        <div className="mb-6 flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowAdvancedImports((current) => !current)}
+            className="gap-1.5 rounded-xl h-9 text-[13px]"
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition ${showAdvancedImports ? 'rotate-180' : ''}`} />
+            {showAdvancedImports ? '隐藏高级导入方式' : '显示高级导入方式'}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            主路径只把文件、文件夹和网页导入作为第一层入口。
+          </p>
+        </div>
+
         <TabsContent value="file">
-          <FileImportTab />
+          <FileImportTab
+            onAskNext={() => setPage('home')}
+            onOpenDocumentsNext={() => {
+              setActiveExploreView('search');
+              setPage('documents');
+            }}
+          />
         </TabsContent>
         <TabsContent value="url">
-          <UrlFetchTab />
+          <UrlFetchTab
+            onAskNext={() => setPage('home')}
+            onOpenDocumentsNext={() => {
+              setActiveExploreView('search');
+              setPage('documents');
+            }}
+          />
         </TabsContent>
         <TabsContent value="media">
           <MediaImportTab />
@@ -66,8 +114,15 @@ export function ImportPage() {
   );
 }
 
-function FileImportTab() {
+function FileImportTab({
+  onAskNext,
+  onOpenDocumentsNext,
+}: {
+  onAskNext: () => void;
+  onOpenDocumentsNext: () => void;
+}) {
   const [path, setPath] = useState('');
+  const [targetKind, setTargetKind] = useState<'file' | 'directory'>('file');
   const [tags, setTags] = useState('');
   const [recursive, setRecursive] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -101,7 +156,7 @@ function FileImportTab() {
     setResults([]);
     try {
       const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
-      const isDir = path.endsWith('/');
+      const isDir = targetKind === 'directory' || path.endsWith('/');
       const res = isDir
         ? await api.importDirectory(path, tagList, recursive)
         : [await api.importFile(path, tagList)];
@@ -130,14 +185,55 @@ function FileImportTab() {
         <div>
           <Label className="mb-2 block text-xs font-medium text-muted-foreground uppercase tracking-wider">Path</Label>
           <div className="relative">
-            {path.endsWith('/') ? <Folder className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /> : <File className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+            {targetKind === 'directory' ? <Folder className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /> : <File className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
             <Input
               type="text"
               value={path}
-              onChange={e => setPath(e.target.value)}
-              placeholder="File or directory path (end with / for dir)"
+              onChange={e => {
+                setPath(e.target.value);
+                if (e.target.value.endsWith('/')) setTargetKind('directory');
+              }}
+              placeholder={targetKind === 'directory' ? '/path/to/folder' : '/path/to/document.pdf'}
               className="pl-10 rounded-xl border-border/50 h-10"
             />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (isBrowserPreview()) {
+                  toast(runtimeLimitError('Preview mode cannot browse local files. Use the desktop app.'));
+                  return;
+                }
+                const selected = await pickImportFilePath();
+                if (selected) {
+                  setPath(selected);
+                  setTargetKind('file');
+                }
+              }}
+              className="gap-1.5 rounded-xl h-9 text-[13px]"
+            >
+              <File className="h-3.5 w-3.5" />
+              Choose File
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (isBrowserPreview()) {
+                  toast(runtimeLimitError('Preview mode cannot browse local folders. Use the desktop app.'));
+                  return;
+                }
+                const selected = await pickImportDirectoryPath();
+                if (selected) {
+                  setPath(selected);
+                  setTargetKind('directory');
+                }
+              }}
+              className="gap-1.5 rounded-xl h-9 text-[13px]"
+            >
+              <Folder className="h-3.5 w-3.5" />
+              Choose Folder
+            </Button>
           </div>
         </div>
         <div>
@@ -160,7 +256,7 @@ function FileImportTab() {
           <p className="text-[11px] text-muted-foreground mb-2 font-medium">Supported formats:</p>
           <div className="flex flex-wrap gap-1.5">
             {supportedFormats.map(fmt => (
-              <span key={fmt.ext} className="inline-flex items-center px-1.5 py-0.5 rounded bg-background/60 text-[10px] font-mono text-muted-foreground">
+              <span key={fmt.ext} className="inline-flex items-center px-1.5 py-0.5 rounded dark:bg-background/60 bg-white/60 text-[10px] font-mono text-muted-foreground">
                 .{fmt.ext}
               </span>
             ))}
@@ -173,11 +269,21 @@ function FileImportTab() {
       </div>
 
       {results.length > 0 && <ResultSummary successCount={successCount} failCount={failCount} results={results.map(r => ({ title: r.title, success: r.success, error: r.error }))} />}
+
+      {successCount > 0 && (
+        <NextStepPanel onAskNext={onAskNext} onOpenDocumentsNext={onOpenDocumentsNext} />
+      )}
     </>
   );
 }
 
-function UrlFetchTab() {
+function UrlFetchTab({
+  onAskNext,
+  onOpenDocumentsNext,
+}: {
+  onAskNext: () => void;
+  onOpenDocumentsNext: () => void;
+}) {
   const [url, setUrl] = useState('');
   const [tags, setTags] = useState('');
   const [fetching, setFetching] = useState(false);
@@ -248,6 +354,10 @@ function UrlFetchTab() {
       </div>
 
       {results.length > 0 && <ResultSummary successCount={successCount} failCount={failCount} results={results.map(r => ({ title: r.success ? r.title : r.url, success: r.success, error: r.error }))} />}
+
+      {successCount > 0 && (
+        <NextStepPanel onAskNext={onAskNext} onOpenDocumentsNext={onOpenDocumentsNext} />
+      )}
     </>
   );
 }
@@ -637,6 +747,23 @@ function MediaImportTab() {
               className="pl-10 rounded-xl border-border/50 h-10"
             />
           </div>
+          <div className="mt-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (isBrowserPreview()) {
+                  toast(runtimeLimitError(`Preview mode cannot browse local ${type} files. Use the desktop app.`));
+                  return;
+                }
+                const selected = await pickMediaPath();
+                if (selected) setPath(selected);
+              }}
+              className="gap-1.5 rounded-xl h-9 text-[13px]"
+            >
+              {type === 'audio' ? <Music className="h-3.5 w-3.5" /> : <Image className="h-3.5 w-3.5" />}
+              {type === 'audio' ? 'Choose Audio File' : 'Choose Image File'}
+            </Button>
+          </div>
         </div>
 
         <div>
@@ -723,6 +850,35 @@ function ResultSummary({ successCount, failCount, results }: {
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function NextStepPanel({
+  onAskNext,
+  onOpenDocumentsNext,
+}: {
+  onAskNext: () => void;
+  onOpenDocumentsNext: () => void;
+}) {
+  return (
+    <div className="mt-6 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+        下一步
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        资料已经进入当前本地知识库。现在回到工作台继续提问，或回到资料工作面继续检索、阅读和进入笔记沉淀。
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button onClick={onAskNext} className="gap-1.5 rounded-xl h-9 text-[13px]">
+          <MessagesSquare className="h-3.5 w-3.5" />
+          在工作台继续提问
+        </Button>
+        <Button variant="outline" onClick={onOpenDocumentsNext} className="gap-1.5 rounded-xl h-9 text-[13px]">
+          <BookOpen className="h-3.5 w-3.5" />
+          打开资料工作面
+        </Button>
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import { DocumentDetailPanel } from '@/components/document-detail';
 import { SelectionPanel } from '@/components/selection-panel';
 import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { CommandPalette } from '@/components/command/command-palette';
 import { getRuntimeMode, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGetString } from '@/store/persistence';
@@ -20,7 +22,7 @@ const SettingsPage = lazy(() => import('@/components/pages/settings').then((modu
 const shellPages: Record<string, React.ComponentType> = {
   home: WorkbenchShell,
   spaces: KnowledgeSpaceShell,
-  documents: DocumentWorkspaceShell,
+  documents: ExploreShell,
   explore: ExploreShell,
   settings: SettingsPage,
   dashboard: WorkbenchShell,
@@ -43,12 +45,13 @@ function App() {
   const { currentPage, darkMode, openKb } = useKbStore();
   const { openExploreView } = useWorkspaceStore();
   const [selectionPanelOpen, setSelectionPanelOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const previewRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
-  }, []);
+  }, [darkMode]);
 
   useEffect(() => {
     document.documentElement.dataset.runtimeMode = getRuntimeMode();
@@ -87,6 +90,10 @@ function App() {
         e.preventDefault();
         openExploreView('search');
         useKbStore.getState().setPage('explore');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
       }
       if (e.key === 'Escape') {
         useKbStore.getState().closeDocument();
@@ -190,15 +197,17 @@ function App() {
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Header />
         <div className="flex-1 overflow-auto pb-16 md:pb-0">
-          <Suspense
-            fallback={
-              <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                Loading workspace...
-              </div>
-            }
-          >
-            <PageComponent />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense
+              fallback={
+                <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                  Loading workspace...
+                </div>
+              }
+            >
+              <PageComponent />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
 
@@ -206,6 +215,7 @@ function App() {
 
       <MobileBottomNav />
       <Toaster />
+      <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
 
       <SelectionPanel
         visible={selectionPanelOpen}

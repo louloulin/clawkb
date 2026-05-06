@@ -53,8 +53,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     try {
       const edges = await api.getEntityEdges(entity.id);
       set({ selectedEdges: edges });
-    } catch {
-      set({ selectedEdges: [] });
+    } catch (e) {
+      set({ selectedEdges: [], error: String(e) });
     }
   },
 

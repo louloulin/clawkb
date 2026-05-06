@@ -218,7 +218,7 @@ export function TagsPage() {
               key={mode}
               onClick={() => setSortMode(mode)}
               className={`px-2.5 py-1 text-[11px] rounded transition-colors cursor-pointer ${
-                sortMode === mode ? 'bg-background text-foreground font-medium shadow-sm' : 'text-muted-foreground'
+                sortMode === mode ? 'dark:bg-background bg-white text-foreground font-medium shadow-sm' : 'text-muted-foreground'
               }`}
             >
               {mode === 'count' ? 'By Count' : 'A-Z'}
@@ -381,7 +381,7 @@ export function TagsPage() {
       {/* Rename Modal */}
       {renameModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-background border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
+          <div className="dark:bg-background bg-white border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Edit3 className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">Rename Tag</h3>
@@ -421,7 +421,7 @@ export function TagsPage() {
       {/* Merge Modal */}
       {mergeModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-background border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
+          <div className="dark:bg-background bg-white border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
             <div className="flex items-center gap-2">
               <GitMerge className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">Merge Tag</h3>
@@ -436,7 +436,7 @@ export function TagsPage() {
                 <select
                   value={mergeModal.destTag}
                   onChange={e => setMergeModal(m => ({ ...m, destTag: e.target.value }))}
-                  className="w-full h-8 text-xs px-2 rounded-md border border-input bg-background"
+                  className="w-full h-8 text-xs px-2 rounded-md border border-input dark:bg-background bg-white"
                 >
                   <option value="">Select destination tag...</option>
                   {tags.filter(t => t.name !== mergeModal.sourceTag).map(t => (
@@ -463,7 +463,7 @@ export function TagsPage() {
       {/* Delete Confirm Modal */}
       {deleteConfirm.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-background border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
+          <div className="dark:bg-background bg-white border border-border rounded-2xl shadow-2xl w-[360px] p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive" />
               <h3 className="text-sm font-semibold">Delete Tag</h3>

@@ -98,7 +98,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
       }));
 
       set({ outline, sections, isGenerating: false });
-    } catch {
+    } catch (e) {
       set({ isGenerating: false });
     }
   },
@@ -130,7 +130,7 @@ Write comprehensive, well-structured content for this section.`;
         ),
         isGenerating: false,
       });
-    } catch {
+    } catch (e) {
       set({ isGenerating: false });
     }
   },

@@ -1,7 +1,6 @@
 import {
   BookOpen,
   BookOpenText,
-  Compass,
   Monitor,
   Moon,
   PanelLeft,
@@ -11,42 +10,41 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRuntimeModeInfo, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
-import { FolderTree } from '@/components/folder-tree';
 import { useWorkspaceStore } from '@/store/workspace-store';
 import { formatBytes } from '@/lib/format';
 
 const navItems = [
-  { id: 'home', label: 'Workbench', icon: Sparkles },
-  { id: 'spaces', label: 'Spaces', icon: BookOpenText },
-  { id: 'documents', label: 'Documents', icon: BookOpen },
-  { id: 'explore', label: 'Explore', icon: Compass },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'home', label: '工作台', icon: Sparkles },
+  { id: 'documents', label: '资料', icon: BookOpenText },
+  { id: 'reader', label: '笔记', icon: BookOpen },
+  { id: 'settings', label: '设置', icon: Settings },
 ] as const;
 
 const pageLabels: Record<string, string> = {
-  home: 'Workbench',
-  spaces: 'Knowledge Spaces',
-  documents: 'Document Workspace',
-  explore: 'Explore Workspace',
-  settings: 'Settings',
-  dashboard: 'Workbench',
-  search: 'Explore Workspace',
-  notes: 'Explore Workspace',
-  import: 'Explore Workspace',
-  timeline: 'Explore Workspace',
-  tags: 'Explore Workspace',
-  chat: 'Workbench',
-  graph: 'Explore Workspace',
-  reader: 'Document Workspace',
-  editor: 'Document Workspace',
-  mindmap: 'Explore Workspace',
-  report: 'Explore Workspace',
-  podcast: 'Explore Workspace',
-  entities: 'Explore Workspace',
+  home: '工作台',
+  spaces: '知识库管理',
+  documents: '资料',
+  explore: '工具',
+  settings: '设置',
+  dashboard: '工作台',
+  search: '工具',
+  notes: '工具',
+  import: '工具',
+  timeline: '工具',
+  tags: '工具',
+  chat: '工作台',
+  graph: '工具',
+  reader: '笔记',
+  editor: '笔记',
+  mindmap: '工具',
+  report: '工具',
+  podcast: '工具',
+  entities: '工具',
 };
 
 export function Sidebar() {
@@ -67,7 +65,7 @@ export function Sidebar() {
             {!sidebarCollapsed && (
               <div>
                 <div className="text-sm font-semibold tracking-tight">ClawKB</div>
-                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Workbench</div>
+                <div className="text-[11px] tracking-[0.22em] text-slate-500">本地知识工作台</div>
               </div>
             )}
           </div>
@@ -118,12 +116,7 @@ export function Sidebar() {
                   <Icon className="h-4.5 w-4.5" />
                 </div>
                 {!sidebarCollapsed && (
-                  <div>
-                    <div className="text-sm font-medium">{item.label}</div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                      {item.id}
-                    </div>
-                  </div>
+                  <div className="text-sm font-medium">{item.label}</div>
                 )}
               </button>
             );
@@ -144,12 +137,7 @@ export function Sidebar() {
             return button;
           })}
         </nav>
-
-        {!sidebarCollapsed && (
-          <div className="mt-4 min-h-0 flex-1 overflow-hidden border-t border-white/8 px-3 pt-4">
-            <FolderTree />
-          </div>
-        )}
+        <div className="mt-auto" />
 
         <div className="border-t border-white/8 px-4 py-4">
           {isKbOpen && stats ? (
@@ -162,7 +150,7 @@ export function Sidebar() {
               </div>
               {!sidebarCollapsed ? (
                 <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-                  <span>{stats.frame_count} docs</span>
+                  <span>{stats.frame_count} 篇资料</span>
                   <span>{formatBytes(stats.size_bytes)}</span>
                 </div>
               ) : (
@@ -171,7 +159,7 @@ export function Sidebar() {
             </div>
           ) : (
             <div className={`kb-panel-strong rounded-2xl border-dashed p-3 text-[11px] text-slate-500 ${sidebarCollapsed ? 'text-center' : ''}`}>
-              {sidebarCollapsed ? 'KB' : 'Open a knowledge base to activate the workspace.'}
+              {sidebarCollapsed ? 'KB' : '先打开本地知识库，再开始检索、阅读和沉淀笔记。'}
             </div>
           )}
         </div>
@@ -187,8 +175,19 @@ export function Header() {
 
   const handleSearchClick = () => {
     openExploreView('search');
-    setPage('explore');
+    setPage('documents');
   };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        handleSearchClick();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <header className="kb-panel-strong flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-5 text-white">
@@ -197,7 +196,7 @@ export function Header() {
         className="kb-chip flex h-10 w-full max-w-sm items-center gap-2.5 rounded-full px-4 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">Search your knowledge base…</span>
+        <span className="truncate">搜索你的知识库…</span>
         <kbd className="ml-auto hidden rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] text-slate-400 sm:inline-block">
           ⌘K
         </kbd>

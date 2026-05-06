@@ -168,7 +168,7 @@ export function TimelinePage() {
                 type="datetime-local"
                 value={new Date(earlierTs * 1000).toISOString().slice(0, 16)}
                 onChange={e => setEarlierTs(Math.floor(new Date(e.target.value).getTime() / 1000))}
-                className="w-full bg-background rounded-md border px-2 py-1.5 text-xs"
+                className="w-full dark:bg-background bg-white rounded-md border px-2 py-1.5 text-xs"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -179,7 +179,7 @@ export function TimelinePage() {
                 type="datetime-local"
                 value={new Date(laterTs * 1000).toISOString().slice(0, 16)}
                 onChange={e => setLaterTs(Math.floor(new Date(e.target.value).getTime() / 1000))}
-                className="w-full bg-background rounded-md border px-2 py-1.5 text-xs"
+                className="w-full dark:bg-background bg-white rounded-md border px-2 py-1.5 text-xs"
               />
             </div>
           </div>
@@ -326,7 +326,7 @@ export function TimelinePage() {
                 const ts = Math.floor(new Date(e.target.value).getTime() / 1000);
                 setTimeMachineTs(ts);
               }}
-              className="flex-1 bg-background rounded-md border px-2 py-1 text-xs"
+              className="flex-1 dark:bg-background bg-white rounded-md border px-2 py-1 text-xs"
             />
           </div>
           <div className="flex items-center gap-2 mb-3">
@@ -376,7 +376,7 @@ export function TimelinePage() {
                   <button
                     key={hit.id}
                     onClick={() => openDocument(hit)}
-                    className="w-full text-left p-2 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+                    className="w-full text-left p-2 rounded-lg border dark:bg-background bg-white hover:bg-muted/30 transition-colors cursor-pointer"
                   >
                     <div className="text-xs font-medium truncate">{hit.title || '(untitled)'}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{hit.content}</div>

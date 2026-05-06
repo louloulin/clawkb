@@ -85,7 +85,9 @@ export const useKbStore = create<KbState>((set, get) => ({
     try {
       const s = await api.getStats();
       set({ stats: s });
-    } catch {}
+    } catch (e) {
+      set({ error: String(e) });
+    }
   },
 
   setPage: (page: Page) => set({ currentPage: page }),

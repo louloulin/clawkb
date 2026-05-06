@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 use crate::error::Result;
 use crate::kb::KnowledgeBase;
+
+const MAX_CONTENT_LENGTH: usize = 10 * 1024 * 1024; // 10MB
+const HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FetchUrlResult {
@@ -19,7 +23,12 @@ impl KnowledgeBase {
         url: &str,
         tags: &[&str],
     ) -> Result<FetchUrlResult> {
-        let response = reqwest::blocking::get(url);
+        let client = reqwest::blocking::Client::builder()
+            .timeout(HTTP_TIMEOUT)
+            .build()
+            .unwrap_or_else(|_| reqwest::blocking::Client::new());
+
+        let response = client.get(url).send();
 
         let response = match response {
             Ok(r) => r,
@@ -50,7 +59,22 @@ impl KnowledgeBase {
         }
 
         let html = match response.text() {
-            Ok(b) => b,
+            Ok(b) => {
+                if b.len() > MAX_CONTENT_LENGTH {
+                    return Ok(FetchUrlResult {
+                        url: url.to_string(),
+                        title: String::new(),
+                        content_length: 0,
+                        success: false,
+                        error: Some(format!(
+                            "Content too large: {} bytes (max {}MB)",
+                            b.len(),
+                            MAX_CONTENT_LENGTH / (1024 * 1024)
+                        )),
+                    });
+                }
+                b
+            }
             Err(e) => {
                 return Ok(FetchUrlResult {
                     url: url.to_string(),
@@ -101,11 +125,13 @@ impl KnowledgeBase {
 /// Extract the <title> content from HTML.
 fn extract_title(html: &str) -> Option<String> {
     let lower = html.to_lowercase();
-    let start = lower.find("<title>")? + 7;
+    let start_tag = lower.find("<title>")?;
+    let start = start_tag.checked_add(7)?;
     let end = lower.find("</title>")?;
-    if end <= start {
+    if end <= start || start >= html.len() {
         return None;
     }
+    let end = end.min(html.len());
     Some(html[start..end].trim().to_string())
 }
 

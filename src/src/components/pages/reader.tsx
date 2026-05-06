@@ -3,6 +3,7 @@ import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Language
 import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
+import Markdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +82,7 @@ function PdfViewer({ source }: { source: string }) {
         />
       </Document>
       {numPages > 0 && (
-        <div className="flex items-center gap-3 py-3 sticky bottom-0 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center gap-3 py-3 sticky bottom-0 dark:bg-background/80 bg-transparent backdrop-blur-sm">
           <Button
             variant="outline"
             size="icon"
@@ -413,27 +414,30 @@ export function ReaderPage({
     setBookmarkOpen(false);
   };
 
-  // Render markdown-like content (basic formatting)
+  // Render content using react-markdown for safe rendering
   const renderContent = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      // Headers
-      if (line.startsWith('### ')) return <h3 key={i} className="text-base font-semibold mt-4 mb-2">{line.slice(4)}</h3>;
-      if (line.startsWith('## ')) return <h2 key={i} className="text-lg font-semibold mt-5 mb-2">{line.slice(3)}</h2>;
-      if (line.startsWith('# ')) return <h1 key={i} className="text-xl font-bold mt-6 mb-3">{line.slice(2)}</h1>;
-      // Bold
-      const boldLine = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      // List items
-      if (line.startsWith('- ') || line.startsWith('* ')) {
-        return <li key={i} className="ml-4 list-disc" dangerouslySetInnerHTML={{ __html: boldLine.slice(2) }} />;
-      }
-      if (/^\d+\.\s/.test(line)) {
-        return <li key={i} className="ml-4 list-decimal" dangerouslySetInnerHTML={{ __html: boldLine.replace(/^\d+\.\s/, '') }} />;
-      }
-      // Empty lines
-      if (!line.trim()) return <div key={i} className="h-2" />;
-      // Regular text
-      return <p key={i} className="mb-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: boldLine }} />;
-    });
+    return (
+      <Markdown
+        components={{
+          h1: ({ children }) => <h1 className="text-xl font-bold mt-6 mb-3">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-lg font-semibold mt-5 mb-2">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-base font-semibold mt-4 mb-2">{children}</h3>,
+          p: ({ children }) => <p className="mb-1 leading-relaxed">{children}</p>,
+          ul: ({ children }) => <ul className="ml-4 list-disc">{children}</ul>,
+          ol: ({ children }) => <ol className="ml-4 list-decimal">{children}</ol>,
+          code: ({ className, children, ...props }) => {
+            const isBlock = className?.includes('language-');
+            return isBlock ? (
+              <pre className="rounded bg-black/30 p-3 my-2 overflow-x-auto text-sm"><code className={className} {...props}>{children}</code></pre>
+            ) : (
+              <code className="rounded bg-black/20 px-1 text-sm" {...props}>{children}</code>
+            );
+          },
+        }}
+      >
+        {text}
+      </Markdown>
+    );
   };
 
   return (
@@ -676,7 +680,7 @@ export function ReaderPage({
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
                         placeholder="Ask about this doc..."
-                        className="flex-1 bg-background rounded-md border px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="flex-1 dark:bg-background bg-white rounded-md border px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                         disabled={chatLoading}
                       />
                       <Button type="submit" size="icon" disabled={chatLoading || !chatInput.trim()} className="h-7 w-7 shrink-0">
@@ -798,7 +802,7 @@ export function ReaderPage({
                             {editingHighlightId === hl.id ? (
                               <div className="mt-2 flex flex-col gap-1.5">
                                 <textarea
-                                  className="w-full text-[11px] bg-background/50 border rounded px-2 py-1 resize-none"
+                                  className="w-full text-[11px] dark:bg-background/50 bg-white/50 border rounded px-2 py-1 resize-none"
                                   rows={2}
                                   placeholder="Add a note..."
                                   value={highlightNote}

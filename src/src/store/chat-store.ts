@@ -8,6 +8,7 @@ const MAX_HISTORY = 100;
 
 interface SendMessageOptions {
   mode?: ChatMode;
+  historyKey?: string;
   modelLabel?: string;
   scopeLabel?: string;
   scopePaths?: string[];
@@ -72,6 +73,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       role: 'user',
       content,
       timestamp: new Date().toISOString(),
+      historyKey: options.historyKey,
       mode,
       modelLabel: options.modelLabel,
       scopeLabel: options.scopeLabel,
@@ -82,12 +84,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ messages: updated, isLoading: true, error: null });
     saveToStorage(updated);
 
+    const openedKbs: string[] = [];
     try {
       let result: AskResult;
 
       if (options.scopePaths && options.scopePaths.length > 0) {
         for (const path of options.scopePaths) {
           await api.openExtraKb(path);
+          openedKbs.push(path);
         }
       }
 
@@ -121,6 +125,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         role: 'assistant',
         content: result.answer || contextToText(result.context),
         timestamp: new Date().toISOString(),
+        historyKey: options.historyKey,
         mode,
         modelLabel: options.modelLabel,
         scopeLabel: options.scopeLabel,
@@ -138,6 +143,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       saveToStorage(final);
     } catch (e) {
       set({ isLoading: false, error: String(e) });
+    } finally {
+      for (const path of openedKbs) {
+        try { await api.closeExtraKb(path); } catch { /* best effort */ }
+      }
     }
   },
 

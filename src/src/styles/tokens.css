@@ -8,6 +8,10 @@
   --kb-chip: 220 20% 18%;
   --kb-glow: 39 84% 73%;
   --kb-shadow: 0 0% 0%;
+  --kb-accent: 43 96% 59%; /* amber-300 #fbbf24 */
+  --kb-accent-hover: 42 95% 70%;
+  --kb-surface: 224 28% 12%;
+  --kb-surface-elevated: 228 24% 16%;
 }
 
 .dark {
@@ -20,4 +24,8 @@
   --kb-chip: 220 20% 18%;
   --kb-glow: 39 84% 73%;
   --kb-shadow: 0 0% 0%;
+  --kb-accent: 43 96% 59%;
+  --kb-accent-hover: 42 95% 70%;
+  --kb-surface: 224 28% 12%;
+  --kb-surface-elevated: 228 24% 16%;
 }

@@ -36,3 +36,25 @@
   background-size: auto, 18px 18px, 22px 22px;
   border-radius: inherit;
 }
+
+/* Accent utility classes */
+.kb-accent {
+  background-color: hsl(var(--kb-accent));
+  color: hsl(224 64% 8%);
+}
+.kb-accent:hover {
+  background-color: hsl(var(--kb-accent-hover));
+}
+.kb-accent-soft {
+  background-color: hsl(var(--kb-accent) / 0.15);
+  color: hsl(var(--kb-accent));
+  border: 1px solid hsl(var(--kb-accent) / 0.3);
+}
+.kb-surface {
+  background: hsl(var(--kb-surface));
+  border: 1px solid hsl(var(--kb-outline) / 0.6);
+}
+.kb-surface-elevated {
+  background: hsl(var(--kb-surface-elevated));
+  border: 1px solid hsl(var(--kb-outline) / 0.7);
+}

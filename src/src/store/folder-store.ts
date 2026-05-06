@@ -51,9 +51,14 @@ export const useFolderStore = create<FolderState>((set, get) => ({
   },
 
   createFolder: async (name, parentId = null) => {
-    const folder = await api.createFolder(name, parentId);
-    await get().loadFolders();
-    return { ...folder, isExpanded: false };
+    try {
+      const folder = await api.createFolder(name, parentId);
+      await get().loadFolders();
+      return { ...folder, isExpanded: false };
+    } catch (e) {
+      set({ error: String(e) });
+      throw e;
+    }
   },
 
   renameFolder: async (folderId, newName) => {
@@ -80,8 +85,13 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     })),
 
   moveDocument: async (docId, folderId) => {
-    await api.moveDocument(docId, folderId);
-    await get().loadFolders();
+    try {
+      await api.moveDocument(docId, folderId);
+      await get().loadFolders();
+    } catch (e) {
+      set({ error: String(e) });
+      throw e;
+    }
   },
 
   getChildFolders: (parentId) => get().folders.filter((folder) => folder.parentId === parentId),

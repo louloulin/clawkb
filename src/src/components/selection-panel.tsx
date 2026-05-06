@@ -119,7 +119,7 @@ export function SelectionPanel({ visible, selectedText, onClose }: SelectionPane
 
   return (
     <div
-      className="fixed bottom-6 right-6 w-[420px] max-h-[70vh] bg-background border border-border/80 rounded-2xl shadow-2xl z-[100] flex flex-col overflow-hidden"
+      className="fixed bottom-6 right-6 w-[420px] max-h-[70vh] dark:bg-background bg-transparent border border-border/80 rounded-2xl shadow-2xl z-[100] flex flex-col overflow-hidden"
       ref={panelRef}
     >
       {/* Header */}

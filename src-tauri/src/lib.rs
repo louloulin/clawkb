@@ -14,6 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(AppState::default()))
         .setup(|app| {
             // Set up system tray
@@ -22,7 +23,9 @@ pub fn run() {
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(app.default_window_icon().cloned().unwrap_or_else(|| {
+                    tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).expect("bundled icon must exist")
+                }))
                 .menu(&menu)
                 .tooltip("ClawKB — Local-first AI Knowledge Base")
                 .on_menu_event(|app, event| {

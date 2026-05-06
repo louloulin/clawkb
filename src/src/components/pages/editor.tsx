@@ -2,9 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Typography from '@tiptap/extension-typography';
+import Underline from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
-  Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save
+  Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
+  Heading1, Heading2, Heading3, LinkIcon, Type
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -81,17 +85,21 @@ export function EditorPage({
 }: EditorPageProps) {
   const { toast } = useToast();
   const [content, setContent] = useState('');
+  const [wordCount, setWordCount] = useState(0);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [aiContext, setAiContext] = useState<ContextFragment[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [showCommands, setShowCommands] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
   const commandRef = useRef<HTMLDivElement>(null);
   const templateRef = useRef<HTMLDivElement>(null);
   const lastSeedRef = useRef<string>('');
+  const linkInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -99,11 +107,18 @@ export function EditorPage({
       Placeholder.configure({
         placeholder: 'Start writing, or type / for AI commands...',
       }),
+      Typography,
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
       const nextContent = editor.getHTML();
       setContent(nextContent);
+      setWordCount(editor.getText().split(/\s+/).filter(Boolean).length);
       onDraftChange?.(title, nextContent);
     },
   });
@@ -234,6 +249,44 @@ export function EditorPage({
     setShowTemplates(false);
   };
 
+  // Insert link
+  const handleInsertLink = () => {
+    if (!linkUrl.trim() || !editor) {
+      setShowLinkInput(false);
+      setLinkUrl('');
+      return;
+    }
+    const url = linkUrl.startsWith('http') ? linkUrl : `https://${linkUrl}`;
+    const { from, to } = editor.state.selection;
+    const hasText = from !== to;
+    if (hasText) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    } else {
+      editor.chain().focus().insertContent(`<a href="${url}">${linkUrl}</a>`).run();
+    }
+    setShowLinkInput(false);
+    setLinkUrl('');
+  };
+
+  // Insert code block
+  const handleInsertCodeBlock = () => {
+    editor?.chain().focus().toggleCodeBlock().run();
+  };
+
+  // Handle Cmd+K for link insertion
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowLinkInput(true);
+        setTimeout(() => linkInputRef.current?.focus(), 50);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editor]);
+
   return (
     <div className="flex h-full" onKeyDown={handleKeyDown}>
       {/* Main editor area */}
@@ -248,6 +301,7 @@ export function EditorPage({
             placeholder="Document title..."
           />
           <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{wordCount} 字</span>
             <Button
               variant="outline"
               size="sm"
@@ -256,7 +310,7 @@ export function EditorPage({
               disabled={saving || !title.trim() || !content.trim()}
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Save Draft
+              保存草稿
             </Button>
             <div className="relative" ref={templateRef}>
               <Button
@@ -334,6 +388,46 @@ export function EditorPage({
           </ToolbarButton>
           <div className="w-px h-5 bg-border mx-2" />
           <ToolbarButton
+            title="Heading 1"
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+            active={editor?.isActive('heading', { level: 1 })}
+          >
+            <Heading1 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            title="Heading 2"
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+            active={editor?.isActive('heading', { level: 2 })}
+          >
+            <Heading2 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            title="Heading 3"
+            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+            active={editor?.isActive('heading', { level: 3 })}
+          >
+            <Heading3 className="h-4 w-4" />
+          </ToolbarButton>
+          <div className="w-px h-5 bg-border mx-2" />
+          <ToolbarButton
+            title="Link (Cmd+K)"
+            onClick={() => {
+              setShowLinkInput(!showLinkInput);
+              if (!showLinkInput) setTimeout(() => linkInputRef.current?.focus(), 50);
+            }}
+            active={editor?.isActive('link')}
+          >
+            <LinkIcon className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            title="Code block"
+            onClick={() => handleInsertCodeBlock()}
+            active={editor?.isActive('codeBlock')}
+          >
+            <Type className="h-4 w-4" />
+          </ToolbarButton>
+          <div className="w-px h-5 bg-border mx-2" />
+          <ToolbarButton
             title="Bullet list"
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
             active={editor?.isActive('bulletList')}
@@ -364,6 +458,26 @@ export function EditorPage({
 
         {/* Editor content */}
         <div className="flex-1 overflow-auto relative">
+          {/* Link input popup */}
+          {showLinkInput && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-lg shadow-lg p-3 w-80 flex gap-2">
+              <input
+                ref={linkInputRef}
+                type="text"
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleInsertLink(); }
+                  if (e.key === 'Escape') { setShowLinkInput(false); setLinkUrl(''); }
+                }}
+                placeholder="https://example.com"
+                className="flex-1 px-3 py-1.5 rounded border dark:bg-background bg-white text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
+              <Button size="sm" onClick={handleInsertLink} className="text-xs">插入</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowLinkInput(false); setLinkUrl(''); }} className="text-xs">取消</Button>
+            </div>
+          )}
+
           {/* Slash commands popup */}
           {showCommands && (
             <div

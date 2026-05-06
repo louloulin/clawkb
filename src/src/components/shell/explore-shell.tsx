@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react';
-import { Compass, Search, Sparkles } from 'lucide-react';
+import { lazy, Suspense, useMemo, useState } from 'react';
+import { ChevronDown, Compass, Search, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWorkspaceStore, type ExploreView } from '@/store/workspace-store';
 
@@ -14,21 +15,27 @@ const MindMapPage = lazy(() => import('@/components/pages/mindmap').then((module
 const ReportPage = lazy(() => import('@/components/pages/report').then((module) => ({ default: module.ReportPage })));
 const PodcastPage = lazy(() => import('@/components/pages/podcast').then((module) => ({ default: module.PodcastPage })));
 
-const VIEWS: Array<{
+const PRIMARY_VIEWS: Array<{
   id: ExploreView;
   label: string;
   shortLabel: string;
 }> = [
-  { id: 'search', label: 'Search', shortLabel: 'Search' },
-  { id: 'import', label: 'Import', shortLabel: 'Import' },
-  { id: 'notes', label: 'Notes', shortLabel: 'Notes' },
-  { id: 'timeline', label: 'Timeline', shortLabel: 'Timeline' },
-  { id: 'tags', label: 'Tags', shortLabel: 'Tags' },
-  { id: 'entities', label: 'Entities', shortLabel: 'Entities' },
-  { id: 'graph', label: 'Graph', shortLabel: 'Graph' },
-  { id: 'mindmap', label: 'Mind Map', shortLabel: 'Mind Map' },
-  { id: 'report', label: 'Report', shortLabel: 'Report' },
-  { id: 'podcast', label: 'Podcast', shortLabel: 'Podcast' },
+  { id: 'search', label: '搜索', shortLabel: '搜索' },
+  { id: 'import', label: '导入', shortLabel: '导入' },
+];
+
+const ADVANCED_VIEWS: Array<{
+  id: ExploreView;
+  label: string;
+  shortLabel: string;
+}> = [
+  { id: 'timeline', label: '时间线', shortLabel: '时间线' },
+  { id: 'tags', label: '标签', shortLabel: '标签' },
+  { id: 'entities', label: '实体', shortLabel: '实体' },
+  { id: 'graph', label: '图谱', shortLabel: '图谱' },
+  { id: 'mindmap', label: '脑图', shortLabel: '脑图' },
+  { id: 'report', label: '报告', shortLabel: '报告' },
+  { id: 'podcast', label: '播客', shortLabel: '播客' },
 ];
 
 const viewRenderers: Record<ExploreView, React.ReactNode> = {
@@ -46,6 +53,13 @@ const viewRenderers: Record<ExploreView, React.ReactNode> = {
 
 export function ExploreShell() {
   const { activeExploreView, setActiveExploreView } = useWorkspaceStore();
+  const [showAdvanced, setShowAdvanced] = useState(
+    ['timeline', 'tags', 'entities', 'graph', 'mindmap', 'report', 'podcast'].includes(activeExploreView),
+  );
+  const visibleViews = useMemo(
+    () => (showAdvanced ? [...PRIMARY_VIEWS, ...ADVANCED_VIEWS] : PRIMARY_VIEWS),
+    [showAdvanced],
+  );
 
   return (
     <div className="kb-shell flex h-full flex-col text-white">
@@ -53,31 +67,31 @@ export function ExploreShell() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Explore Workspace</div>
-              <h1 className="mt-2 text-2xl font-semibold">One place for search, collection, structure, and generated outputs.</h1>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">资料工作面</div>
+              <h1 className="mt-2 text-2xl font-semibold">先搜索、导入和整理资料，再进入阅读与笔记沉淀。</h1>
               <p className="mt-2 text-sm leading-7 text-slate-300">
-                The old standalone utility pages now live under a single explore shell so the top-level product model stays focused.
+                这里负责管理你的来源资料：搜索、导入、快速整理，以及按需展开时间线、图谱和报告等高级资料工具。
               </p>
             </div>
             <div className="flex flex-wrap gap-2 text-xs text-slate-300">
               <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
                 <Compass className="mr-1.5 inline h-3.5 w-3.5" />
-                Explore
+                资料
               </span>
               <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
                 <Search className="mr-1.5 inline h-3.5 w-3.5" />
-                Search-first
+                搜索优先
               </span>
               <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
                 <Sparkles className="mr-1.5 inline h-3.5 w-3.5" />
-                Research tools
+                高级资料工具
               </span>
             </div>
           </div>
 
           <Tabs value={activeExploreView} onValueChange={(value) => setActiveExploreView(value as ExploreView)}>
             <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-2xl border border-white/10 bg-white/6 p-1">
-              {VIEWS.map((view) => (
+              {visibleViews.map((view) => (
                 <TabsTrigger
                   key={view.id}
                   value={view.id}
@@ -88,6 +102,20 @@ export function ExploreShell() {
               ))}
             </TabsList>
           </Tabs>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-xs uppercase tracking-[0.18em] text-white hover:bg-white/10"
+            >
+              <ChevronDown className={`mr-2 h-4 w-4 transition ${showAdvanced ? 'rotate-180' : ''}`} />
+              {showAdvanced ? '隐藏高级资料工具' : '显示高级资料工具'}
+            </Button>
+            <p className="text-xs text-slate-400">
+              高级资料工具仍然可用，但主路径只把 Search 和 Import 作为第一层入口。
+            </p>
+          </div>
         </div>
       </div>
 
