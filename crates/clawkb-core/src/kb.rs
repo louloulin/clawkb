@@ -1752,6 +1752,23 @@ impl KnowledgeBase {
     /// List all tags with their document counts.
     /// Uses timeline to enumerate frame IDs, then reads each frame to get tags.
     pub fn list_tags(&mut self) -> Result<Vec<TagInfo>> {
+        // Fast path: read from registry tag_index.
+        if let Some(reg) = &self.registry {
+            let mut tags: Vec<TagInfo> = reg.tag_index
+                .iter()
+                .filter(|(name, _)| {
+                    !name.starts_with("note_id:") && !name.starts_with("note_path:")
+                        && !name.starts_with(FOLDER_ID_PREFIX) && !name.starts_with(FOLDER_NAME_PREFIX)
+                        && !name.starts_with(FOLDER_PARENT_PREFIX) && !name.starts_with(FOLDER_PATH_PREFIX)
+                        && !name.starts_with(FOLDER_CREATED_PREFIX)
+                        && !name.starts_with("__") && *name != "note-meta" && *name != "note"
+                })
+                .map(|(name, count)| TagInfo { name: name.clone(), count: *count })
+                .collect();
+            tags.sort_by(|a, b| b.count.cmp(&a.count));
+            return Ok(tags);
+        }
+        // Fallback: scan all frames.
         let mut tag_map: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
         let frame_ids = self.collect_all_frame_ids()?;
 
@@ -2045,6 +2062,7 @@ impl KnowledgeBase {
 
         if updated > 0 {
             self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+            self.sync_tag_index_rename(old_tag, new_tag, updated);
         }
 
         Ok(TagOperationResult {
@@ -2099,6 +2117,7 @@ impl KnowledgeBase {
 
         if updated > 0 {
             self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+            self.sync_tag_index_merge(source_tag, dest_tag, updated);
         }
 
         Ok(TagOperationResult {
@@ -2132,6 +2151,7 @@ impl KnowledgeBase {
 
         if updated > 0 {
             self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+            self.sync_tag_index_delete(tag, updated);
         }
 
         Ok(TagOperationResult {
@@ -2139,6 +2159,60 @@ impl KnowledgeBase {
             tag: tag.to_string(),
             related_tag: None,
         })
+    }
+
+    // -----------------------------------------------------------------------
+    // Tag index sync helpers
+    // -----------------------------------------------------------------------
+
+    /// Update registry tag_index after a rename operation.
+    fn sync_tag_index_rename(&mut self, old_tag: &str, new_tag: &str, frames_updated: usize) {
+        if let Some(reg) = self.registry.as_mut() {
+            let old_count = reg.tag_index.get(old_tag).copied().unwrap_or(0);
+            let new_count = reg.tag_index.get(new_tag).copied().unwrap_or(0);
+            // old_tag count splits between old and new across frames_updated frames.
+            let remaining = old_count.saturating_sub(frames_updated);
+            let additional = old_count.saturating_sub(frames_updated);
+            if remaining > 0 {
+                reg.tag_index.insert(old_tag.to_string(), remaining);
+            } else {
+                reg.tag_index.remove(old_tag);
+            }
+            reg.tag_index.insert(new_tag.to_string(), new_count.saturating_add(additional));
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
+    }
+
+    /// Update registry tag_index after a merge operation (source → dest).
+    fn sync_tag_index_merge(&mut self, source_tag: &str, dest_tag: &str, frames_updated: usize) {
+        if let Some(reg) = self.registry.as_mut() {
+            let source_count = reg.tag_index.get(source_tag).copied().unwrap_or(0);
+            let dest_count = reg.tag_index.get(dest_tag).copied().unwrap_or(0);
+            // source tag is removed from frames_updated frames; dest tag gets those counts.
+            reg.tag_index.remove(source_tag);
+            if frames_updated > 0 {
+                let merged = dest_count.saturating_add(frames_updated);
+                reg.tag_index.insert(dest_tag.to_string(), merged);
+            }
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
+    }
+
+    /// Update registry tag_index after a delete operation.
+    fn sync_tag_index_delete(&mut self, tag: &str, frames_updated: usize) {
+        if let Some(reg) = self.registry.as_mut() {
+            let current = reg.tag_index.get(tag).copied().unwrap_or(0);
+            let remaining = current.saturating_sub(frames_updated);
+            if remaining > 0 {
+                reg.tag_index.insert(tag.to_string(), remaining);
+            } else {
+                reg.tag_index.remove(tag);
+            }
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
     }
 
     // -----------------------------------------------------------------------

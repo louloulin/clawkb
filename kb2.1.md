@@ -612,8 +612,10 @@ pub struct TagEntry {
 }
 ```
 
-- [ ] `list_tags()` 改为读取 registry.tag_index
-- [ ] `rename_tag()` / `merge_tag()` / `delete_tag()` 更新 tag_index
+- [x] `list_tags()` 改为优先读取 registry.tag_index（快速路径）— 2026-05-06 ✅ (kb.rs)
+- [x] `rename_tag()` 更新 registry tag_index — 2026-05-06 ✅ (kb.rs)
+- [x] `merge_tag()` 更新 registry tag_index — 2026-05-06 ✅ (kb.rs)
+- [x] `delete_tag()` 更新 registry tag_index — 2026-05-06 ✅ (kb.rs)
 
 **M1.3 回填脚本**
 
