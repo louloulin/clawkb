@@ -1092,7 +1092,14 @@ pub fn update_note(
     let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
     let title_ref = title.as_deref();
     let content_ref = content.as_deref();
-    let tags_ref = tags.map(|v| v.into_iter().map(|s| s.leak()).collect());
+    let tags_ref = tags.map(|v| {
+        v.into_iter()
+            .map(|s| {
+                let boxed = s.into_boxed_str();
+                Box::leak(boxed) as &str
+            })
+            .collect()
+    });
     kb.update_note_record(note_id.as_str(), title_ref, content_ref, tags_ref)
         .map_err(|e| user_facing_command_error(e.to_string()))
 }

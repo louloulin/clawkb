@@ -24,7 +24,7 @@ pub fn run() {
 
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().cloned().unwrap_or_else(|| {
-                    tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png")).expect("bundled icon must exist")
+                    tauri::image::Image::new(include_bytes!("../icons/32x32.png"), 32, 32)
                 }))
                 .menu(&menu)
                 .tooltip("ClawKB — Local-first AI Knowledge Base")
