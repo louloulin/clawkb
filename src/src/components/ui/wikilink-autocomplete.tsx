@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plugin, PluginKey } from '@tiptap/core';
-import type { EditorView } from '@tiptap/core';
+import { Plugin, PluginKey } from 'prosemirror-state';
+import type { EditorView } from 'prosemirror-view';
+import type { Editor } from '@tiptap/react';
 import { api } from '@/api';
 
 const wikilinkPluginKey = new PluginKey('wikilink-autocomplete');
 
-interface WikiLinkState {
+export interface WikiLinkState {
   active: boolean;
   query: string;
   pos: number;
@@ -20,7 +21,7 @@ export function wikilinkPlugin(
   return new Plugin({
     key: wikilinkPluginKey,
     props: {
-      handleTextInput(view, from, to, text) {
+      handleTextInput(view: EditorView, from: number, to: number, text: string) {
         const { state } = view;
         const $from = state.doc.resolve(from);
         const textBefore = $from.parent.textContent.slice(
@@ -43,7 +44,7 @@ export function wikilinkPlugin(
         onClose();
         return false;
       },
-      handleKeyDown(view, event) {
+      handleKeyDown(view: EditorView, event: KeyboardEvent) {
         const pluginState = wikilinkPluginKey.getState(view.state) as WikiLinkState | undefined;
         if (!pluginState?.active) return false;
 
@@ -58,7 +59,7 @@ export function wikilinkPlugin(
       init() {
         return { active: false, query: '', pos: 0, from: 0, to: 0 };
       },
-      apply(tr, prev) {
+      apply(tr: any, prev: WikiLinkState) {
         return tr.getMeta(wikilinkPluginKey) ?? prev;
       },
     },
@@ -66,7 +67,7 @@ export function wikilinkPlugin(
 }
 
 interface WikiLinkAutocompleteProps {
-  editor: EditorView | null;
+  editor: Editor;
   state: WikiLinkState;
   onSelect: (noteTitle: string) => void;
   onClose: () => void;
@@ -97,7 +98,6 @@ export function WikiLinkAutocomplete({ editor, state, onSelect, onClose, onQuery
 
   const insertLink = useCallback((noteTitle: string) => {
     if (!editor) return;
-    const { tr } = editor.state;
     const from = state.from;
     const to = editor.state.selection.from;
     const linkText = `[[${noteTitle}]]`;
@@ -126,9 +126,9 @@ export function WikiLinkAutocomplete({ editor, state, onSelect, onClose, onQuery
 
   // Position the dropdown near the cursor
   useEffect(() => {
-    if (!editor || !containerRef.current) return;
-    const coords = editor.coordsAtPos(state.pos);
-    const containerRect = editor.dom.getBoundingClientRect();
+    if (!editor?.view || !containerRef.current) return;
+    const coords = editor.view.coordsAtPos(state.pos);
+    const containerRect = editor.view.dom.getBoundingClientRect();
     const left = coords.left - containerRect.left;
     const top = coords.bottom - containerRect.top;
     containerRef.current.style.left = `${left}px`;

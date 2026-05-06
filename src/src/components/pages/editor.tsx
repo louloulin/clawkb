@@ -7,8 +7,8 @@ import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
-  Undo, Redo, Sparkles, Wand2, ChevronDown, ChevronRight, Loader2, X, FileText, Save,
-  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Settings
+  Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
+  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight
 } from 'lucide-react';
 import { OutlinePanel } from '@/components/ui/outline-panel';
 import { TemplateManager } from '@/components/ui/template-manager';
@@ -30,9 +30,7 @@ const AI_COMMANDS = [
   { id: 'fix', label: '修正语法', icon: Code, prompt: 'Fix any grammar or spelling errors in:' },
 ];
 
-// Writing templates
-const TEMPLATES = getTemplates();
-
+// Writing templates (loaded dynamically via TemplateManager)
 interface EditorPageProps {
   embedded?: boolean;
   initialTitle?: string;

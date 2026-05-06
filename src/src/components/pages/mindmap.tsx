@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Brain, Loader2, Copy, Check, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { api } from '@/api/commands';
 import { safeStorageGet, safeStorageSet } from '@/store/persistence';
 
@@ -253,7 +252,6 @@ Include at least 4-6 main branches with 2-4 sub-items each.`;
               {/* Nodes */}
               {positionedNodes.nodes.map((node, i) => {
                 const isRoot = i === 0;
-                const isBranch = node.level === (flat => { const f = flat; return f[1]?.level ?? 0; })(outline.split('\n').filter(l => l.trim()));
                 const branchIndex = tree?.children.findIndex(c => c.key === node.key) ?? -1;
                 const color = isRoot ? '#f59e0b' : branchIndex >= 0 ? BRANCH_COLORS[branchIndex % BRANCH_COLORS.length] : '#94a3b8';
 
