@@ -146,6 +146,12 @@ export const api = {
     return invoke('list_backlinks', { note_id: noteId }) as Promise<Array<{ note_id: string; note_title: string; context_snippet: string }>>;
   },
 
+  /** Get a note record by its ID (for outline extraction). */
+  async getNoteRecord(noteId: string): Promise<{ id: string; title: string; content: string; outlinks: string[]; backlinks: string[]; outline: Array<{ level: number; text: string; position: number }> } | null> {
+    const invoke = await getDesktopInvoke();
+    return invoke('get_note', { note_id: noteId }) as Promise<{ id: string; title: string; content: string; outlinks: string[]; backlinks: string[]; outline: Array<{ level: number; text: string; position: number }> } | null>;
+  },
+
   /** Rebuild the KB registry index from all frames. */
   async backfillRegistry(): Promise<void> {
     const invoke = await getDesktopInvoke();

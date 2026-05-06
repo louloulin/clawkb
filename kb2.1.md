@@ -782,7 +782,7 @@ enum FrameKind {
 - [x] Mind Map：SVG + D3 交互式脑图（径向布局）— 2026-05-06 ✅ (mindmap.tsx SVG 径向布局 + 缩放/拖拽)
 - [x] Podcast：`handleRegenerateSegment` 接入 `aiAsk` API — 2026-05-06 ✅ (podcast.tsx)
 - [x] Graph：添加缩放/平移控制 + 节点位置持久化 — 2026-05-06 ✅ (graph.tsx)
-- [ ] Reader：PDF 文本选择 + 多侧边栏布局管理
+- [x] Reader：PDF 文本选择 + 多侧边栏布局管理 — 2026-05-06 ✅ (reader.tsx: PdfViewer text layer selection, multi-panel toggle with outline/chat/annotations/bookmarks, outline panel left side, badge counts)
 - [x] 无障碍：`aria-label` 补全 + WCAG 合规修复 — 2026-05-06 ✅ (layout.tsx / home-composer.tsx / kb-chat-pane.tsx)
 
 ### 8.7 Phase U6：安全与质量（2-3 天） ✅ 部分完成

@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2 } from 'lucide-react';
-import { Document, Page } from 'react-pdf';
+import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2, PanelLeftClose, PanelRightClose, List, Columns2 } from 'lucide-react';
+import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import Markdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { OutlinePanel } from '@/components/ui/reader-outline-panel';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
 import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
 import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
+
+// Configure PDF.js worker — needed for text layer support
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface SelectionPopup {
   text: string;
@@ -27,6 +31,9 @@ interface Highlight {
   color: string;
   createdAt: string;
 }
+
+/** Sidebar panel identifiers */
+type PanelId = 'chat' | 'annotations' | 'bookmarks' | 'outline';
 
 const HIGHLIGHTS_KEY = STORAGE_KEYS.bookmarks.highlights;
 
@@ -50,38 +57,66 @@ function isPdfSource(source: string | null): boolean {
   return source.toLowerCase().endsWith('.pdf');
 }
 
-function PdfViewer({ source }: { source: string }) {
+interface PdfViewerProps {
+  source: string;
+  onSelectionChange?: (text: string, x: number, y: number) => void;
+}
+
+function PdfViewer({ source, onSelectionChange }: PdfViewerProps) {
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.2);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };
 
+  // Handle text selection in the PDF text layer
+  useEffect(() => {
+    if (!onSelectionChange) return;
+    const handleMouseUp = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) return;
+      // Only handle selection inside our PDF container
+      if (!containerRef.current?.contains(window.getSelection()?.getRangeAt(0)?.commonAncestorContainer as Node)) return;
+      const text = selection.toString().trim();
+      if (text.length < 2) return;
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      onSelectionChange(text, rect.left + rect.width / 2, rect.top - 10);
+    };
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [onSelectionChange]);
+
   return (
     <div className="flex flex-col items-center">
-      <Document
-        file={source}
-        onLoadSuccess={onDocumentLoadSuccess}
-        loading={
-          <div className="flex items-center gap-2 py-8 text-muted-foreground text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            正在加载 PDF...
-          </div>
-        }
-        error={
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Failed to load PDF. The file may not be accessible in browser mode.
-          </div>
-        }
-      >
-        <Page
-          pageNumber={pageNumber}
-          scale={scale}
-          className="shadow-lg mb-4"
-        />
-      </Document>
+      <div ref={containerRef} className="relative">
+        <Document
+          file={source}
+          onLoadSuccess={onDocumentLoadSuccess}
+          loading={
+            <div className="flex items-center gap-2 py-8 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              正在加载 PDF...
+            </div>
+          }
+          error={
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Failed to load PDF. The file may not be accessible in browser mode.
+            </div>
+          }
+        >
+          <Page
+            pageNumber={pageNumber}
+            scale={scale}
+            className="shadow-lg mb-4 relative"
+            renderTextLayer={true}
+            renderAnnotationLayer={false}
+          />
+        </Document>
+      </div>
       {numPages > 0 && (
         <div className="flex items-center gap-3 py-3 sticky bottom-0 dark:bg-background/80 bg-transparent backdrop-blur-sm">
           <Button
@@ -155,12 +190,31 @@ export function ReaderPage({
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [highlightColor, setHighlightColor] = useState<HighlightColor>('yellow');
   const [editingHighlightId, setEditingHighlightId] = useState<string | null>(null);
   const [highlightNote, setHighlightNote] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Which side panels are currently open
+  const openPanels = (['chat', 'annotations', 'bookmarks'] as PanelId[]).filter(p =>
+    p === 'chat' ? chatOpen : p === 'annotations' ? annotationsOpen : bookmarkOpen,
+  );
+
+  const togglePanel = (panel: PanelId) => {
+    if (panel === 'chat') setChatOpen(v => !v);
+    else if (panel === 'annotations') setAnnotationsOpen(v => !v);
+    else if (panel === 'bookmarks') setBookmarkOpen(v => !v);
+    else if (panel === 'outline') setOutlineOpen(v => !v);
+  };
+
+  // Handle PDF text selection
+  const handlePdfSelection = useCallback((text: string, x: number, y: number) => {
+    setSelectionPopup({ text, x, y });
+    setSelectionResult(null);
+  }, []);
 
   // Bookmark & progress stores
   const { loadBookmarks, addBookmark, removeBookmark, getBookmarksForDoc } = useBookmarkStore();
@@ -544,49 +598,80 @@ export function ReaderPage({
                   <BookOpen className="h-3.5 w-3.5" />
                   Summarize
                 </Button>
+                <div className="w-px h-4 bg-border" />
+                {/* Left panel — outline */}
                 <Button
-                  variant={annotationsOpen ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAnnotationsOpen(!annotationsOpen)}
-                  className="text-xs gap-1.5"
+                  variant={outlineOpen ? 'default' : 'outline'}
+                  size="icon"
+                  onClick={() => togglePanel('outline')}
+                  className="h-7 w-7"
+                  title="Outline"
                 >
-                  <Highlighter className="h-3.5 w-3.5" />
-                  Notes ({highlights.length})
+                  <List className="h-3.5 w-3.5" />
                 </Button>
-                <Button
-                  variant={chatOpen ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setChatOpen(!chatOpen)}
-                  className="text-xs gap-1.5"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Chat
-                </Button>
-                <Button
-                  variant={bookmarkOpen ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setBookmarkOpen(!bookmarkOpen)}
-                  className="text-xs gap-1.5"
-                  title="Bookmarks"
-                >
-                  <Bookmark className="h-3.5 w-3.5" />
-                  {currentBookmarks.length > 0 && (
-                    <span className="ml-0.5 text-[10px]">{currentBookmarks.length}</span>
-                  )}
-                </Button>
+                {/* Right panel toggles */}
+                <div className="flex items-center gap-0.5 border border-white/10 rounded-lg px-1 py-0.5">
+                  <Button
+                    variant={annotationsOpen ? 'default' : 'ghost'}
+                    size="icon"
+                    onClick={() => togglePanel('annotations')}
+                    className="relative h-6 w-6"
+                    title="Highlights"
+                  >
+                    <Highlighter className="h-3 w-3" />
+                    {highlights.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-amber-300 text-[8px] font-bold text-slate-950 flex items-center justify-center z-10">
+                        {highlights.length > 9 ? '9+' : highlights.length}
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    variant={bookmarkOpen ? 'default' : 'ghost'}
+                    size="icon"
+                    onClick={() => togglePanel('bookmarks')}
+                    className="relative h-6 w-6"
+                    title="Bookmarks"
+                  >
+                    <Bookmark className="h-3 w-3" />
+                    {currentBookmarks.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-400 text-[8px] font-bold text-slate-950 flex items-center justify-center z-10">
+                        {currentBookmarks.length > 9 ? '9+' : currentBookmarks.length}
+                      </span>
+                    )}
+                  </Button>
+                  <Button
+                    variant={chatOpen ? 'default' : 'ghost'}
+                    size="icon"
+                    onClick={() => togglePanel('chat')}
+                    className="h-6 w-6"
+                    title="Document Chat"
+                  >
+                    <MessageSquare className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </div>
 
             <div className="flex flex-1 overflow-hidden relative">
+              {/* Outline panel — left side */}
+              {outlineOpen && (
+                <div className="w-64 shrink-0 border-r border-white/10 overflow-auto">
+                  <OutlinePanel noteId={selectedDoc.id} />
+                </div>
+              )}
+
               {/* Document content */}
               <div
-                className={`flex-1 overflow-auto ${chatOpen ? 'border-r' : ''}`}
+                className={`flex-1 overflow-auto ${openPanels.length > 0 ? 'border-r' : ''}`}
                 ref={scrollAreaRef as unknown as React.RefObject<HTMLDivElement>}
                 onScroll={handleScroll}
               >
                 <div className="p-6">
                 {isPdfSource(selectedDoc.source) ? (
-                  <PdfViewer source={selectedDoc.source!} />
+                  <PdfViewer
+                    source={selectedDoc.source!}
+                    onSelectionChange={handlePdfSelection}
+                  />
                 ) : (
                   <article ref={contentRef} className="prose prose-sm dark:prose-invert max-w-none">
                     {renderContent(selectedDoc.content)}
