@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -34,7 +33,7 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
   // Build calendar grid
   const days = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1);
-    let startWeekday = firstDay.getDay() - 1; // Monday = 0
+    let startWeekday = firstDay.getDay() - 1;
     if (startWeekday < 0) startWeekday = 6;
 
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -43,7 +42,6 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
 
     const cells: Array<{ day: number; dateStr: string; isToday: boolean; hasNote: boolean } | null> = [];
 
-    // Empty cells before first day
     for (let i = 0; i < startWeekday; i++) {
       cells.push(null);
     }
@@ -61,7 +59,37 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
     return cells;
   }, [viewYear, viewMonth, dailySet]);
 
+  // Build heatmap grid (last 12 weeks ~ 84 days)
+  const heatmapCells = useMemo(() => {
+    const today = new Date();
+    const cells: Array<{ dateStr: string; hasNote: boolean; isToday: boolean; isFuture: boolean }> = [];
+
+    // Start from 11 weeks ago, aligned to Monday
+    const endDate = new Date(today);
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 83); // 12 weeks
+    // Align to Monday
+    const dayOfWeek = startDate.getDay();
+    const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - offset);
+
+    const d = new Date(startDate);
+    while (d <= endDate) {
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      cells.push({
+        dateStr,
+        hasNote: dailySet.has(dateStr),
+        isToday: dateStr === todayStr,
+        isFuture: d > today,
+      });
+      d.setDate(d.getDate() + 1);
+    }
+    return cells;
+  }, [dailySet]);
+
   const monthLabel = `${viewYear}年${viewMonth + 1}月`;
+  const totalNotes = dailyDates.length;
 
   return (
     <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3">
@@ -80,6 +108,48 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
           <button onClick={nextMonth} className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-white/6 transition">
             <ChevronRight className="h-3 w-3" />
           </button>
+        </div>
+      </div>
+
+      {/* Heatmap — last ~12 weeks */}
+      <div className="mb-3">
+        <div className="flex items-center gap-1 mb-1">
+          <span className="text-[9px] text-slate-500">{totalNotes} 篇日记</span>
+          <div className="ml-auto flex items-center gap-0.5">
+            <span className="text-[8px] text-slate-600">少</span>
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-white/4" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/20" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/40" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-300/60" />
+            <span className="text-[8px] text-slate-600">多</span>
+          </div>
+        </div>
+        <div className="flex gap-[2px] overflow-hidden">
+          {Array.from({ length: 12 }, (_, weekIdx) => (
+            <div key={weekIdx} className="flex flex-col gap-[2px]">
+              {Array.from({ length: 7 }, (_, dayIdx) => {
+                const cellIdx = weekIdx * 7 + dayIdx;
+                const cell = heatmapCells[cellIdx];
+                if (!cell || cell.isFuture) {
+                  return <div key={dayIdx} className="h-2.5 w-2.5 rounded-[2px]" />;
+                }
+                return (
+                  <button
+                    key={dayIdx}
+                    onClick={() => onSelectDate(cell.dateStr)}
+                    className={`h-2.5 w-2.5 rounded-[2px] transition hover:ring-1 hover:ring-amber-200/40 ${
+                      cell.isToday
+                        ? 'ring-1 ring-amber-300'
+                        : cell.hasNote
+                          ? 'bg-amber-200/40'
+                          : 'bg-white/4 hover:bg-white/8'
+                    }`}
+                    title={`${cell.dateStr}${cell.hasNote ? ' ✦' : ''}`}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 

@@ -695,9 +695,9 @@ pub fn save_outline(note_id: &str, outline: Vec<OutlineNode>) {
 ```
 
 - [ ] 后端实现大纲提取
-- [ ] 前端 `<OutlinePanel />`：EditorPage 侧边栏
-- [ ] 点击大纲条目 → 滚动到对应位置
-- [ ] 大纲内拖拽调整段落顺序（更新 content + outline）
+- [x] 前端 `<OutlinePanel />`：EditorPage 侧边栏 — 2026-05-06 ✅ (outline-panel.tsx)
+- [x] 点击大纲条目 → 滚动到对应位置 — 2026-05-06 ✅ (scrollToHeading)
+- [x] 大纲内拖拽调整段落顺序（更新 content + outline）— 2026-05-06 ✅ (outline-panel.tsx HTML5 drag-and-drop)
 
 ### 7.4 Phase M4：MV2 文件格式扩展（低优先级，长期）
 
@@ -828,7 +828,7 @@ pub fn get_calendar_heat_map(year: i32) -> CalendarHeatMap
 
 ### 9.2 前端组件
 
-- [ ] 日历热力图组件（GraphPage 旁或独立页面）：展示每日笔记密度
+- [x] 日历热力图组件（GraphPage 旁或独立页面）：展示每日笔记密度 — 2026-05-06 ✅ (daily-calendar.tsx 热力图+月历二合一)
 - [x] 快捷键 `Cmd+Shift+D`：打开今日日记（不存在则创建）— 2026-05-06 ✅ (App.tsx)
 - [x] 日记模板支持 — 2026-05-06 ✅ (clawkb-daily-note-template localStorage + App.tsx 使用模板)
 - [x] 侧边栏"日历"视图：月历 + 点击跳转 — 2026-05-06 ✅ (daily-calendar.tsx + layout.tsx 集成)

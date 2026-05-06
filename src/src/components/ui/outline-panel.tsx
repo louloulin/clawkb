@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from 'react';
-import { ChevronRight, List, FileText } from 'lucide-react';
+import { useMemo, useCallback, useState } from 'react';
+import { ChevronRight, List, FileText, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Editor } from '@tiptap/react';
@@ -39,6 +39,8 @@ export function extractOutline(editor: Editor | null): OutlineNode[] {
 
 export function OutlinePanel({ editor, open, onClose }: OutlinePanelProps) {
   const outline = useMemo(() => extractOutline(editor), [editor?.state.doc]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
 
   const scrollToHeading = useCallback(
     (pos: number) => {
@@ -47,6 +49,46 @@ export function OutlinePanel({ editor, open, onClose }: OutlinePanelProps) {
       editor.commands.scrollIntoView();
     },
     [editor],
+  );
+
+  // Move heading at fromIdx to toIdx position in the document
+  const handleDrop = useCallback(
+    (fromIdx: number, toIdx: number) => {
+      if (!editor || fromIdx === toIdx) return;
+
+      const fromNode = outline[fromIdx];
+      const toNode = outline[toIdx];
+      if (!fromNode || !toNode) return;
+
+      // Find the range of content under fromNode (from this heading to the next heading of same or higher level)
+      const nextHeadingIdx = outline.findIndex(
+        (n, i) => i > fromIdx && n.level <= fromNode.level,
+      );
+      const fromEnd = nextHeadingIdx > 0
+        ? outline[nextHeadingIdx].pos - 1
+        : editor.state.doc.content.size;
+
+      // Extract the content block
+      const slice = editor.state.doc.slice(fromNode.pos, fromEnd);
+      const tr = editor.state.tr;
+
+      // Delete from original position
+      const deleteFrom = fromNode.pos;
+      const deleteTo = fromEnd;
+      tr.delete(deleteFrom, deleteTo);
+
+      // Insert at target position (adjust for deletion)
+      const adjustedPos = toIdx > fromIdx
+        ? toNode.pos - (fromEnd - fromNode.pos)
+        : toNode.pos;
+
+      tr.insert(adjustedPos, slice.content);
+      editor.view.dispatch(tr);
+
+      setDragIdx(null);
+      setDropIdx(null);
+    },
+    [editor, outline],
   );
 
   if (!open) return null;
@@ -78,18 +120,37 @@ export function OutlinePanel({ editor, open, onClose }: OutlinePanelProps) {
           </div>
         ) : (
           <div className="space-y-0.5">
-            {outline.map((node) => {
+            {outline.map((node, i) => {
               const indent = ((node.level - 1) / (maxLevel - 1 || 1)) * 12;
+              const isDragging = dragIdx === i;
+              const isDropTarget = dropIdx === i;
               return (
-                <button
+                <div
                   key={node.id}
-                  onClick={() => scrollToHeading(node.pos)}
-                  className="w-full rounded-lg px-2 py-1.5 text-left text-[12px] leading-5 text-slate-400 transition hover:bg-white/6 hover:text-white"
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={(e) => { e.preventDefault(); setDropIdx(i); }}
+                  onDragLeave={() => setDropIdx(null)}
+                  onDrop={() => { if (dragIdx !== null) handleDrop(dragIdx, i); }}
+                  onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
+                  className={`flex items-center gap-1 rounded-lg text-left text-[12px] leading-5 transition ${
+                    isDragging
+                      ? 'opacity-40 bg-white/4'
+                      : isDropTarget
+                        ? 'bg-amber-200/10 ring-1 ring-amber-200/30'
+                        : 'text-slate-400 hover:bg-white/6 hover:text-white'
+                  }`}
                   style={{ paddingLeft: `${8 + indent}px` }}
                 >
-                  <span className="mr-1.5 text-[10px] text-slate-500">H{node.level}</span>
-                  <span className="line-clamp-2">{node.text}</span>
-                </button>
+                  <GripVertical className="h-3 w-3 shrink-0 text-slate-600 cursor-grab" />
+                  <button
+                    onClick={() => scrollToHeading(node.pos)}
+                    className="flex-1 py-1.5 text-left"
+                  >
+                    <span className="mr-1.5 text-[10px] text-slate-500">H{node.level}</span>
+                    <span className="line-clamp-2">{node.text}</span>
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -98,7 +159,7 @@ export function OutlinePanel({ editor, open, onClose }: OutlinePanelProps) {
 
       {outline.length > 0 && (
         <div className="border-t border-white/10 px-4 py-2 text-[10px] text-slate-500">
-          {outline.filter((n) => n.level === 1).length} 个章节 · {outline.length} 个标题
+          {outline.filter((n) => n.level === 1).length} 个章节 · {outline.length} 个标题 · 拖拽可排序
         </div>
       )}
     </div>
