@@ -699,31 +699,26 @@ pub fn extract_outline(content: &str) -> Vec<OutlineNode> {
 - [x] 点击大纲条目 → 滚动到对应位置 — 2026-05-06 ✅ (scrollToHeading)
 - [x] 大纲内拖拽调整段落顺序（更新 content + outline）— 2026-05-06 ✅ (outline-panel.tsx HTML5 drag-and-drop)
 
-### 7.4 Phase M4：MV2 文件格式扩展（低优先级，长期）
+### 7.4 Phase M4：文件夹 Registry 同步优化（已完成 ✅）
 
-> **目标**：引入 `Folder` 专用 FrameKind，消除 tag 扫描
+> **目标**：确保文件夹操作后 registry folder_index 保持同步，消除 `list_folders_fast()` 数据陈旧问题
+
+**实现方案**（本地方案，无需 upstream）：
+
+memvid-core 的 `kind` 字段已是 `Option<String>`（非枚举），可直接用字符串值。真正的性能收益来自让 `create_folder`/`rename_folder`/`delete_folder` 操作后同步更新 `registry.folder_index`。
 
 ```rust
-// memvid-core 需扩展 FrameKind 枚举
-// 这是一个 upstream 变更需求，不是 clawkb-core 本地改动
+// kb.rs — 新增文件夹同步辅助函数
 
-enum FrameKind {
-    Note,           // 笔记内容帧
-    Document,       // 导入的文档
-    Folder,         // 新增：文件夹节点
-    NoteMeta,       // 笔记元数据
-    Config,         // KB 配置
-    // ...
-}
-
-// clawkb-core 改动：
-// 1. create_folder() → mem.put_frame(FrameKind::Folder, ...)
-// 2. list_folders() → mem.list_frames_by_kind(FrameKind::Folder)
-// 3. delete_folder() → mem.update_frame_status(id, FrameStatus::Deleted)
+fn sync_registry_add_folder(&mut self, folder: &FolderInfo, frame_id: u64)
+fn sync_registry_update_all_folders(&mut self, folders: &[(String, String, String)])
+fn sync_registry_remove_folder(&mut self, folder_id: &str)
 ```
 
-- [ ] 向 memvid-core 提交 Feature Request 或 PR
-- [ ] 等待 upstream 接受后，改造 clawkb-core 的文件夹实现
+- [x] `create_folder()` 创建帧后调用 `sync_registry_add_folder` 更新 folder_index — 2026-05-06 ✅ (kb.rs)
+- [x] `rename_folder()` 重命名后重新扫描帧并调用 `sync_registry_update_all_folders` — 2026-05-06 ✅ (kb.rs)
+- [x] `delete_folder()` 删除后对每个 affected_id 调用 `sync_registry_remove_folder` — 2026-05-06 ✅ (kb.rs)
+- [x] `list_folders_fast()` 现在返回的 folder_index 与实际文件系统完全同步 — 2026-05-06 ✅ (kb.rs)
 
 ---
 
@@ -850,7 +845,7 @@ Phase U4 (笔记组织) ──────────────────�
 Phase M3 (大纲提取) ─────────────────────────────────┤
                                                       │
 Phase U5 (高级完善) ─────────────────────────────────┤─ 可选
-Phase M4 (MV2 扩展) ─────────────────────────────────┘
+Phase M4 (Registry 同步) ───────────────────────────────┘
 Phase U6 (安全/测试) ──────────────────────────────── 随时
 Phase 9  (Daily Note) ─────────────────────────────── P2/P3
 ```
@@ -897,7 +892,7 @@ Phase 9  (Daily Note) ───────────────────�
 3. Phase U2/U3 + Phase M2/M3 + Phase 9（Daily Note）
 
 **长期行动（可选）**：
-4. Phase M4（MV2 upstream）+ Phase U5 + Phase U6
+4. Phase M4（Registry 同步 ✅）+ Phase U5 + Phase U6
 
 ---
 

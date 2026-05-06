@@ -1512,19 +1512,22 @@ impl KnowledgeBase {
             builder = builder.push_tag(format!("{FOLDER_PARENT_PREFIX}{}", parent_folder.id));
         }
 
-        let _ = self.mem
+        let frame_id = self.mem
             .put_bytes_with_options(payload.as_bytes(), builder.build())
             .map_err(|e| KbError::Memvid(e.to_string()))?;
         self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
 
-        Ok(FolderInfo {
-            id,
+        let folder = FolderInfo {
+            id: id.clone(),
             name: name.to_string(),
             parent_id: parent_id.map(ToString::to_string),
-            path,
+            path: path.clone(),
             doc_count: 0,
             created_at,
-        })
+        };
+        self.sync_registry_add_folder(&folder, frame_id);
+
+        Ok(folder)
     }
 
     pub fn rename_folder(&mut self, folder_id: &str, new_name: &str) -> Result<()> {
@@ -1591,6 +1594,20 @@ impl KnowledgeBase {
         }
 
         self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        // Re-read folder frames after commit to get updated paths, then sync registry.
+        let updated_folders = self.folder_meta_frames()?;
+        let affected: Vec<(String, String, String)> = updated_folders
+            .iter()
+            .filter(|(_, folder)| {
+                folder.path == new_path || folder.path.starts_with(&(new_path.clone() + "/"))
+            })
+            .map(|(_, folder)| (folder.id.clone(), folder.name.clone(), folder.path.clone()))
+            .collect();
+        if !affected.is_empty() {
+            self.sync_registry_update_all_folders(&affected);
+        }
+
         Ok(())
     }
 
@@ -1647,6 +1664,12 @@ impl KnowledgeBase {
         }
 
         self.mem.commit().map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        // Sync registry: remove target folder and all subfolders.
+        for id in &affected_ids {
+            self.sync_registry_remove_folder(id);
+        }
+
         Ok(())
     }
 
@@ -2210,6 +2233,60 @@ impl KnowledgeBase {
             } else {
                 reg.tag_index.remove(tag);
             }
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
+    }
+
+    /// Add a folder to the registry after create_folder.
+    fn sync_registry_add_folder(&mut self, folder: &FolderInfo, frame_id: u64) {
+        if let Some(reg) = self.registry.as_mut() {
+            reg.folder_index.insert(folder.id.clone(), FolderIndexEntry {
+                folder_id: folder.id.clone(),
+                frame_id,
+                name: folder.name.clone(),
+                parent_id: folder.parent_id.clone(),
+                path: folder.path.clone(),
+                doc_count: 0,
+                created_at: folder.created_at,
+            });
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
+    }
+
+    /// Update a folder in the registry after rename_folder.
+    fn sync_registry_update_folder(&mut self, folder_id: &str, name: &str, path: &str) {
+        if let Some(reg) = self.registry.as_mut() {
+            if let Some(entry) = reg.folder_index.get_mut(folder_id) {
+                entry.name = name.to_string();
+                entry.path = path.to_string();
+                reg.last_modified = chrono::Utc::now().timestamp();
+                drop(self.persist_registry());
+            }
+        }
+    }
+
+    /// Batch-update all folder entries in the registry (used after rename to update
+    /// the target folder and all its subfolders at once).
+    fn sync_registry_update_all_folders(&mut self, folders: &[(String, String, String)]) {
+        // folders: [(folder_id, name, path)]
+        if self.registry.is_none() { return; }
+        let reg = self.registry.as_mut().unwrap();
+        for (folder_id, name, path) in folders {
+            if let Some(entry) = reg.folder_index.get_mut(folder_id) {
+                entry.name = name.clone();
+                entry.path = path.clone();
+            }
+        }
+        reg.last_modified = chrono::Utc::now().timestamp();
+        drop(self.persist_registry());
+    }
+
+    /// Remove a folder from the registry after delete_folder.
+    fn sync_registry_remove_folder(&mut self, folder_id: &str) {
+        if let Some(reg) = self.registry.as_mut() {
+            reg.folder_index.remove(folder_id);
             reg.last_modified = chrono::Utc::now().timestamp();
             drop(self.persist_registry());
         }
