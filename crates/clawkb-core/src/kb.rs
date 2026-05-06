@@ -134,6 +134,14 @@ pub struct KnowledgeBase {
     registry: Option<KbRegistry>,
 }
 
+/// Backlink entry: note that references the target note.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacklinkEntry {
+    pub note_id: String,
+    pub note_title: String,
+    pub context_snippet: String,
+}
+
 impl KnowledgeBase {
     /// Create a new knowledge base at the given path.
     pub fn create(path: impl Into<PathBuf>) -> Result<Self> {
@@ -397,14 +405,6 @@ impl KnowledgeBase {
             })
             .collect();
         Ok(matches)
-    }
-
-    /// Backlink entry: note that references the target note.
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct BacklinkEntry {
-        pub note_id: String,
-        pub note_title: String,
-        pub context_snippet: String,
     }
 
     /// List all notes that reference the given note by its ID.
@@ -2210,7 +2210,7 @@ impl KnowledgeBase {
     /// Update registry tag_index after a merge operation (source → dest).
     fn sync_tag_index_merge(&mut self, source_tag: &str, dest_tag: &str, frames_updated: usize) {
         if let Some(reg) = self.registry.as_mut() {
-            let source_count = reg.tag_index.get(source_tag).copied().unwrap_or(0);
+            let _source_count = reg.tag_index.get(source_tag).copied().unwrap_or(0);
             let dest_count = reg.tag_index.get(dest_tag).copied().unwrap_or(0);
             // source tag is removed from frames_updated frames; dest tag gets those counts.
             reg.tag_index.remove(source_tag);

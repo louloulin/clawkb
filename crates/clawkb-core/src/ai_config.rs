@@ -95,7 +95,7 @@ pub fn set_embedding_config(config: EmbeddingConfig) {
     if let Ok(mut store) = AI_CONFIG.write() {
         store.embedding = Some(config);
     } else {
-        log::error!("AI config store is poisoned, cannot set embedding config");
+        tracing::error!("AI config store is poisoned, cannot set embedding config");
     }
 }
 
@@ -109,7 +109,7 @@ pub fn set_llm_config(config: LlmConfig) {
     if let Ok(mut store) = AI_CONFIG.write() {
         store.llm = Some(config);
     } else {
-        log::error!("AI config store is poisoned, cannot set LLM config");
+        tracing::error!("AI config store is poisoned, cannot set LLM config");
     }
 }
 
@@ -124,6 +124,6 @@ pub fn clear_config() {
         store.embedding = None;
         store.llm = None;
     } else {
-        log::error!("AI config store is poisoned, cannot clear config");
+        tracing::error!("AI config store is poisoned, cannot clear config");
     }
 }
