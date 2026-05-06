@@ -1,6 +1,6 @@
 import {
   BookOpen,
-  BookOpenText,
+  LibraryBig,
   Monitor,
   Moon,
   PanelLeft,
@@ -22,31 +22,32 @@ import { api } from '@/api/commands';
 
 const navItems = [
   { id: 'home', label: '工作台', icon: Sparkles },
-  { id: 'documents', label: '资料', icon: BookOpenText },
+  { id: 'documents', label: '探索', icon: Search },
   { id: 'reader', label: '笔记', icon: BookOpen },
+  { id: 'spaces', label: '知识库', icon: LibraryBig },
   { id: 'settings', label: '设置', icon: Settings },
 ] as const;
 
 const pageLabels: Record<string, string> = {
   home: '工作台',
-  spaces: '知识库管理',
-  documents: '资料',
-  explore: '工具',
+  spaces: '知识库',
+  documents: '探索',
+  explore: '探索',
   settings: '设置',
   dashboard: '工作台',
-  search: '工具',
-  notes: '工具',
-  import: '工具',
-  timeline: '工具',
-  tags: '工具',
-  chat: '工作台',
-  graph: '工具',
+  search: '搜索',
+  notes: '笔记',
+  import: '导入',
+  timeline: '时间线',
+  tags: '标签',
+  chat: '对话',
+  graph: '图谱',
   reader: '笔记',
-  editor: '笔记',
-  mindmap: '工具',
-  report: '工具',
-  podcast: '工具',
-  entities: '工具',
+  editor: '编辑器',
+  mindmap: '脑图',
+  report: '报告',
+  podcast: '播客',
+  entities: '实体',
 };
 
 export function Sidebar() {
@@ -124,48 +125,41 @@ export function Sidebar() {
           </div>
         )}
 
-        <nav className="mt-6 flex flex-col gap-2 px-3">
-          {navItems.map((item) => {
+        <nav className="mt-4 flex flex-col gap-1 px-2">
+          {navItems.map((item, index) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
-            const button = (
-              <button
-                key={item.id}
-                onClick={() => setPage(item.id)}
-                aria-label={item.label}
-                className={`group flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
-                  isActive
-                    ? 'border-amber-200/30 bg-amber-200/12 text-white'
-                    : 'border-transparent text-slate-400 hover:border-white/8 hover:bg-white/4 hover:text-white'
-                } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-                    isActive ? 'bg-black/20 text-amber-200' : 'bg-white/4'
-                  }`}
-                >
-                  <Icon className="h-4.5 w-4.5" />
-                </div>
-                {!sidebarCollapsed && (
-                  <div className="text-sm font-medium">{item.label}</div>
+            // Add separator after home for visual grouping
+            const showSeparator = index === 1;
+
+            return (
+              <>
+                {showSeparator && !sidebarCollapsed && (
+                  <div className="my-3 h-px bg-white/8" />
                 )}
-              </button>
+                <button
+                  key={item.id}
+                  onClick={() => setPage(item.id)}
+                  aria-label={item.label}
+                  className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                    isActive
+                      ? 'bg-amber-200/10 text-white'
+                      : 'text-slate-400 hover:bg-white/4 hover:text-white'
+                  } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
+                >
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      isActive ? 'bg-amber-200/15 text-amber-200' : ''
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  {!sidebarCollapsed && (
+                    <span className="text-sm font-medium">{item.label}</span>
+                  )}
+                </button>
+              </>
             );
-
-            if (sidebarCollapsed) {
-              return (
-                <TooltipProvider key={item.id}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
-                    <TooltipContent side="right" className="rounded-xl border-white/10 bg-slate-950 text-xs text-white">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              );
-            }
-
-            return button;
           })}
         </nav>
 

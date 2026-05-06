@@ -8,7 +8,8 @@ import Link from '@tiptap/extension-link';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
   Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
-  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight
+  Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Minus,
+  ListChecks, ToggleRight, BookOpen, Image, LayoutGrid
 } from 'lucide-react';
 import { OutlinePanel } from '@/components/ui/outline-panel';
 import { TemplateManager } from '@/components/ui/template-manager';
@@ -28,6 +29,23 @@ const AI_COMMANDS = [
   { id: 'shorten', label: '精简内容', icon: ChevronDown, prompt: 'Make this more concise while keeping the key points:' },
   { id: 'expand', label: '展开细节', icon: List, prompt: 'Expand on this with more details and examples:' },
   { id: 'fix', label: '修正语法', icon: Code, prompt: 'Fix any grammar or spelling errors in:' },
+];
+
+// Slash command options for block insertion (Notion-style)
+const SLASH_COMMANDS = [
+  { id: 'heading1', label: '标题 1', description: '大标题', icon: Heading1, action: () => editor?.chain().focus().toggleHeading({ level: 1 }).run(), category: 'basic' },
+  { id: 'heading2', label: '标题 2', description: '中标题', icon: Heading2, action: () => editor?.chain().focus().toggleHeading({ level: 2 }).run(), category: 'basic' },
+  { id: 'heading3', label: '标题 3', description: '小标题', icon: Heading3, action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(), category: 'basic' },
+  { id: 'bullet', label: '无序列表', description: '创建一个项目符号列表', icon: List, action: () => editor?.chain().focus().toggleBulletList().run(), category: 'list' },
+  { id: 'numbered', label: '有序列表', description: '创建一个编号列表', icon: ListOrdered, action: () => editor?.chain().focus().toggleOrderedList().run(), category: 'list' },
+  { id: 'todo', label: '待办事项', description: '创建任务清单', icon: ListChecks, action: () => { /* TODO: implement todo list */ editor?.chain().focus().toggleBulletList().run(); }, category: 'list' },
+  { id: 'quote', label: '引用块', description: '引用文本', icon: Quote, action: () => editor?.chain().focus().toggleBlockquote().run(), category: 'basic' },
+  { id: 'callout', label: '标注框', description: '高亮显示重要内容', icon: ToggleRight, action: () => { /* TODO: implement callout */ }, category: 'basic' },
+  { id: 'code', label: '代码块', description: '代码片段', icon: Code, action: () => editor?.chain().focus().toggleCodeBlock().run(), category: 'advanced' },
+  { id: 'divider', label: '分割线', description: '水平分隔线', icon: Minus, action: () => editor?.chain().focus().setHorizontalRule().run(), category: 'basic' },
+  { id: 'wikilink', label: '页面引用', description: '链接到其他笔记', icon: BookOpen, action: () => { /* wikilink handled separately */ }, category: 'advanced' },
+  { id: 'image', label: '图片', description: '插入图片', icon: Image, action: () => { /* TODO: implement image insert */ }, category: 'media' },
+  { id: 'table', label: '表格', description: '插入表格', icon: LayoutGrid, action: () => { /* TODO: implement table */ }, category: 'advanced' },
 ];
 
 // Writing templates (loaded dynamically via TemplateManager)
@@ -64,10 +82,13 @@ export function EditorPage({
   const [wikilinkState, setWikilinkState] = useState<WikiLinkState | null>(null);
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
+  const [slashFilter, setSlashFilter] = useState('');
+  const [selectedSlashIndex, setSelectedSlashIndex] = useState(0);
   const commandRef = useRef<HTMLDivElement>(null);
   const templateRef = useRef<HTMLDivElement>(null);
   const lastSeedRef = useRef<string>('');
   const linkInputRef = useRef<HTMLInputElement>(null);
+  const slashInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -206,8 +227,45 @@ export function EditorPage({
     </button>
   );
 
+  // Filter slash commands based on filter text
+  const filteredSlashCommands = SLASH_COMMANDS.filter(cmd =>
+    cmd.label.toLowerCase().includes(slashFilter.toLowerCase()) ||
+    cmd.description.toLowerCase().includes(slashFilter.toLowerCase())
+  );
+
   // Check for slash command
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle slash command menu keyboard navigation
+    if (showCommands) {
+      const totalItems = AI_COMMANDS.length + filteredSlashCommands.length;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSlashIndex((prev) => (prev + 1) % totalItems);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSlashIndex((prev) => (prev - 1 + totalItems) % totalItems);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const idx = selectedSlashIndex;
+        if (idx < AI_COMMANDS.length) {
+          handleAICommand(AI_COMMANDS[idx]);
+        } else {
+          const cmdIdx = idx - AI_COMMANDS.length;
+          if (filteredSlashCommands[cmdIdx]) {
+            filteredSlashCommands[cmdIdx].action();
+            setShowCommands(false);
+            setSlashFilter('');
+          }
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowCommands(false);
+        setSlashFilter('');
+        setSelectedSlashIndex(0);
+      }
+      return;
+    }
+
     if (e.key === '/' && editor?.isEmpty) {
       setShowCommands(true);
     }
@@ -479,23 +537,81 @@ export function EditorPage({
             </div>
           )}
 
-          {/* Slash commands popup */}
+          {/* Slash commands popup - Notion style */}
           {showCommands && (
             <div
               ref={commandRef}
-              className="absolute top-4 left-6 z-50 bg-card border rounded-lg shadow-lg p-2 w-64"
+              className="absolute top-12 left-1/2 -translate-x-1/2 z-50 bg-[hsl(224,44%,10%)] border border-white/10 rounded-xl shadow-lg w-80 overflow-hidden"
             >
-              <div className="text-[10px] text-muted-foreground px-2 mb-1">AI Commands</div>
-              {AI_COMMANDS.map(cmd => (
-                <button
-                  key={cmd.id}
-                  onClick={() => handleAICommand(cmd)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left text-[13px]"
-                >
-                  <cmd.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{cmd.label}</span>
-                </button>
-              ))}
+              {/* Search input */}
+              <div className="p-3 border-b border-white/8">
+                <input
+                  ref={slashInputRef}
+                  type="text"
+                  value={slashFilter}
+                  onChange={(e) => {
+                    setSlashFilter(e.target.value);
+                    setSelectedSlashIndex(0);
+                  }}
+                  placeholder="Filter commands..."
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:border-amber-200/30"
+                  autoFocus
+                />
+              </div>
+              {/* Command categories */}
+              <div className="max-h-80 overflow-y-auto p-2">
+                {/* AI Commands */}
+                <div className="mb-2">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider px-2 py-1">AI 辅助</div>
+                  {AI_COMMANDS.map((cmd) => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => handleAICommand(cmd)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/6 text-left transition"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-200/10 text-amber-200">
+                        <cmd.icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-white">{cmd.label}</div>
+                        <div className="text-[10px] text-slate-500">{cmd.prompt.slice(0, 30)}...</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {/* Block commands */}
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider px-2 py-1">插入块</div>
+                  {SLASH_COMMANDS.filter(cmd => 
+                    cmd.label.toLowerCase().includes(slashFilter.toLowerCase()) ||
+                    cmd.description.toLowerCase().includes(slashFilter.toLowerCase())
+                  ).map((cmd) => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => {
+                        cmd.action();
+                        setShowCommands(false);
+                        setSlashFilter('');
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/6 text-left transition"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/6 text-slate-400">
+                        <cmd.icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-white">{cmd.label}</div>
+                        <div className="text-[10px] text-slate-500">{cmd.description}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Keyboard hint */}
+              <div className="p-2 border-t border-white/8 flex items-center justify-between text-[10px] text-slate-500">
+                <span>↑↓ 导航</span>
+                <span>Enter 选择</span>
+                <span>Esc 关闭</span>
+              </div>
             </div>
           )}
 

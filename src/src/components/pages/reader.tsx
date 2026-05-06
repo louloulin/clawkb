@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2, List } from 'lucide-react';
+import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2, List, Copy, Share2, Palette, Type, MessageSquarePlus } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -414,7 +414,12 @@ export function ReaderPage({
   }, [selectedDoc, saveProgress]);
 
   // Handle text selection for AI explain/translate
-  const handleSelectionAction = async (action: 'explain' | 'translate') => {
+  const handleSelectionAction = async (action: 'explain' | 'translate' | 'copy') => {
+    if (action === 'copy') {
+      await navigator.clipboard.writeText(selectionPopup?.text || '');
+      setSelectionPopup(null);
+      return;
+    }
     if (!selectionPopup || !selectedDoc) return;
     setSelectionLoading(true);
     setSelectionResult(null);
@@ -681,7 +686,7 @@ export function ReaderPage({
                 </div>
               </div>
 
-              {/* Selection popup for AI explain/translate */}
+              {/* Selection popup — enhanced with annotation drawer */}
               {selectionPopup && selectedDoc && (
                 <div
                   className="selection-popup absolute z-50"
@@ -691,56 +696,154 @@ export function ReaderPage({
                     transform: 'translate(-50%, -100%)',
                   }}
                 >
-                  <div className="bg-card border rounded-lg shadow-lg p-1.5 flex items-center gap-1">
+                  {/* Main action bar */}
+                  <div className="bg-[hsl(224,44%,10%)] border border-white/10 rounded-xl shadow-lg p-1.5 flex items-center gap-0.5">
+                    {/* Copy */}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs gap-1"
-                      onClick={handleHighlight}
+                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      onClick={() => handleSelectionAction('copy')}
+                      title="Copy text"
                     >
-                      <Highlighter className="h-3 w-3" />
-                      Highlight
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>复制</span>
                     </Button>
+
+                    <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                    {/* Highlight with color picker */}
+                    <div className="relative group">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                        onClick={handleHighlight}
+                      >
+                        <Highlighter className="h-3.5 w-3.5" />
+                        <span>高亮</span>
+                        <Palette className="h-3 w-3 ml-0.5 opacity-50" />
+                      </Button>
+                      {/* Color picker tooltip */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <div className="flex gap-1.5">
+                          {(Object.keys(HIGHLIGHT_COLORS) as HighlightColor[]).map(color => (
+                            <button
+                              key={color}
+                              className={`w-5 h-5 rounded-full transition-transform hover:scale-110 ${HIGHLIGHT_COLORS[color].light}`}
+                              title={HIGHLIGHT_COLORS[color].label}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Change highlight color
+                                setHighlightColor(color);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs gap-1"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
                       onClick={() => handleSelectionAction('explain')}
                       disabled={selectionLoading}
                     >
-                      <Sparkles className="h-3 w-3" />
-                      Explain
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>解释</span>
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs gap-1"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
                       onClick={() => handleSelectionAction('translate')}
                       disabled={selectionLoading}
                     >
-                      <Languages className="h-3 w-3" />
-                      Translate
+                      <Languages className="h-3.5 w-3.5" />
+                      <span>翻译</span>
                     </Button>
+
+                    <div className="w-px h-5 bg-white/10 mx-0.5" />
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      onClick={() => {
+                        // Add note/annotation
+                        const note = window.prompt('添加笔记:');
+                        if (note) {
+                          // Save with note
+                          const h: Highlight = {
+                            id: `hl-${Date.now()}`,
+                            docId: selectedDoc.id,
+                            text: selectionPopup.text,
+                            note,
+                            color: highlightColor,
+                            createdAt: new Date().toISOString(),
+                          };
+                          saveHighlight(h);
+                          setHighlights(prev => [...prev, h]);
+                        }
+                        setSelectionPopup(null);
+                      }}
+                    >
+                      <MessageSquarePlus className="h-3.5 w-3.5" />
+                      <span>笔记</span>
+                    </Button>
+
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8 text-slate-500 hover:text-white hover:bg-white/6"
                       onClick={() => { setSelectionPopup(null); setSelectionResult(null); }}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {/* Processing indicator */}
                   {selectionLoading && (
-                    <div className="mt-1 bg-card border rounded-lg shadow-lg p-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Processing...
+                    <div className="mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-3 flex items-center gap-3">
+                      <Loader2 className="h-4 w-4 animate-spin text-amber-200" />
+                      <span className="text-sm text-slate-300">正在处理...</span>
                     </div>
                   )}
+
+                  {/* AI result display */}
                   {selectionResult && (
-                    <div className="mt-1 bg-card border rounded-lg shadow-lg p-3 max-w-xs text-xs leading-relaxed">
-                      {selectionResult}
+                    <div className="mt-1 bg-[hsl(224,44%,10%)] border border-amber-200/20 rounded-xl shadow-lg p-4 max-w-sm">
+                      <div className="text-[10px] uppercase tracking-wider text-amber-200/60 mb-2">AI 回复</div>
+                      <p className="text-sm text-white leading-relaxed">{selectionResult}</p>
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs border-white/10 bg-white/4 hover:bg-white/8"
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectionResult);
+                          }}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          复制
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-slate-400 hover:text-white"
+                          onClick={() => { setSelectionResult(null); }}
+                        >
+                          关闭
+                        </Button>
+                      </div>
                     </div>
                   )}
+
+                  {/* Selected text preview */}
+                  <div className="mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-2 max-w-sm">
+                    <div className="text-[10px] text-slate-500 truncate">{selectionPopup.text.slice(0, 100)}{selectionPopup.text.length > 100 ? '...' : ''}</div>
+                  </div>
                 </div>
               )}
 

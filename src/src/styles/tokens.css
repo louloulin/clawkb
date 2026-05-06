@@ -1,4 +1,7 @@
+/* ClawKB Design Tokens — Based on plan3.md specifications */
+
 :root {
+  /* Core Shell Colors */
   --kb-shell: 228 36% 9%;
   --kb-shell-elevated: 228 30% 13%;
   --kb-panel: 220 24% 12%;
@@ -6,12 +9,70 @@
   --kb-panel-soft: 220 18% 20%;
   --kb-outline: 220 18% 24%;
   --kb-chip: 220 20% 18%;
+
+  /* Accent Colors */
   --kb-glow: 39 84% 73%;
-  --kb-shadow: 0 0% 0%;
   --kb-accent: 43 96% 59%; /* amber-300 #fbbf24 */
   --kb-accent-hover: 42 95% 70%;
+  --kb-accent-subtle: 43 96% 59% / 15%;
+
+  /* Surface Colors */
   --kb-surface: 224 28% 12%;
   --kb-surface-elevated: 228 24% 16%;
+
+  /* Semantic Colors */
+  --kb-success: 158 64% 52%;
+  --kb-warning: 38 92% 50%;
+  --kb-error: 0 84% 60%;
+  --kb-info: 217 91% 60%;
+
+  /* Text Colors */
+  --kb-text-primary: 210 30% 95%;
+  --kb-text-secondary: 215 18% 65%;
+  --kb-text-muted: 215 14% 50%;
+
+  /* Border Colors */
+  --kb-border-default: 220 18% 16% / 80%;
+  --kb-border-hover: 220 18% 24% / 100%;
+
+  /* Shadows */
+  --kb-shadow-sm: 0 1px 2px hsl(0 0% 0% / 30%);
+  --kb-shadow-md: 0 4px 12px hsl(0 0% 0% / 40%);
+  --kb-shadow-lg: 0 8px 24px hsl(0 0% 0% / 50%);
+
+  /* Spacing Scale (4px base) */
+  --kb-space-1: 4px;
+  --kb-space-2: 8px;
+  --kb-space-3: 12px;
+  --kb-space-4: 16px;
+  --kb-space-6: 24px;
+  --kb-space-8: 32px;
+  --kb-space-12: 48px;
+
+  /* Border Radius */
+  --kb-radius-sm: 4px;
+  --kb-radius-md: 6px;
+  --kb-radius-lg: 8px;
+  --kb-radius-xl: 12px;
+  --kb-radius-2xl: 16px;
+  --kb-radius-full: 9999px;
+
+  /* Typography Scale */
+  --kb-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;
+  --kb-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --kb-text-xs: 11px;
+  --kb-text-sm: 13px;
+  --kb-text-base: 14px;
+  --kb-text-lg: 16px;
+  --kb-text-xl: 18px;
+  --kb-text-2xl: 24px;
+
+  /* Z-index Scale */
+  --kb-z-dropdown: 100;
+  --kb-z-modal: 200;
+  --kb-z-tooltip: 300;
+  --kb-z-toast: 400;
 }
 
 .dark {
@@ -23,9 +84,9 @@
   --kb-outline: 220 18% 24%;
   --kb-chip: 220 20% 18%;
   --kb-glow: 39 84% 73%;
-  --kb-shadow: 0 0% 0%;
   --kb-accent: 43 96% 59%;
   --kb-accent-hover: 42 95% 70%;
+  --kb-accent-subtle: 43 96% 59% / 15%;
   --kb-surface: 224 28% 12%;
   --kb-surface-elevated: 228 24% 16%;
 }
