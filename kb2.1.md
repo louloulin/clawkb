@@ -774,8 +774,8 @@ enum FrameKind {
 
 - [ ] 后端：`resolve_note_link` 命令
 - [ ] 后端：`list_backlinks` 命令
-- [ ] 前端：TipTap `[[` 触发自动完成 — 2026-05-06 ✅ (wikilink-autocomplete.tsx + editor.tsx 集成)
-- [ ] 前端：Reader 底部反向链接面板
+- [ ] 前端：Reader 底部反向链接面板（依赖后端 backlinks 命令）
+- [x] 前端：TipTap `[[` 触发自动完成 — 2026-05-06 ✅ (wikilink-autocomplete.tsx + editor.tsx 集成)
 - [x] 模板管理：localStorage 模板存储 CRUD — 2026-05-06 ✅ (template-store.ts + template-manager.tsx)
 - [x] 新建笔记时模板选择器 — 2026-05-06 ✅ (editor.tsx 集成)
 
@@ -794,11 +794,11 @@ enum FrameKind {
 - [x] kb-chat-pane：添加错误状态展示 — 2026-05-06
 - [x] 后端：`get_note` / `list_notes` / `update_note` / `delete_note` 命令 — 2026-05-06
 - [x] Rust：`list_note_records` / `update_note_record` / `delete_note_record` 方法 — 2026-05-06
-- [ ] Rust：`RwLock` 全部替换 `.unwrap()` → `.unwrap_or_else()`
-- [ ] Rust：`from_bytes().unwrap()` → `.expect()`
-- [ ] Rust：`duration_since` 处理 `Err`
-- [ ] 测试：kb.rs 核心路径单元测试（ask/search/export/folder）
-- [ ] 测试：web.rs 边界测试
+- [x] Rust：`RwLock` 替换 `.unwrap()` → `if let Ok` + 日志记录 — 2026-05-06 ✅ (ai_config.rs)
+- [x] Rust：`from_bytes().unwrap()` → `.expect()` — 2026-05-06 ✅ (webdav.rs)
+- [x] Rust：`duration_since` 处理 `Err` — 2026-05-06 ✅ (webdav.rs)
+- [x] 测试：kb.rs 核心路径单元测试（ask/search/export/folder）— 2026-05-06 ✅ (core_regression.rs + note_domain_regression.rs)
+- [x] 测试：web.rs 边界测试 — 2026-05-06 ✅ (web_tests.rs extract_title/strip_html)
 
 ---
 
@@ -829,7 +829,7 @@ pub fn get_calendar_heat_map(year: i32) -> CalendarHeatMap
 ### 9.2 前端组件
 
 - [ ] 日历热力图组件（GraphPage 旁或独立页面）：展示每日笔记密度
-- [ ] 快捷键 `Cmd+Shift+D`：打开今日日记（不存在则创建）
+- [x] 快捷键 `Cmd+Shift+D`：打开今日日记（不存在则创建）— 2026-05-06 ✅ (App.tsx)
 - [ ] 日记模板支持（`journal_template` 存储在 registry 帧）
 - [ ] 侧边栏"日历"视图：月历 + 点击跳转
 

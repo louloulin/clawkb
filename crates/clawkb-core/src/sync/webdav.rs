@@ -124,7 +124,7 @@ pub fn test_connection(config: &WebdavConfig) -> Result<WebdavServerInfo, String
     // Try PROPFIND on root to check server response
     let url = config.url.trim_end_matches('/');
     let req_builder = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), url)
+        .request(reqwest::Method::from_bytes(b"PROPFIND").expect("valid HTTP method"), url)
         .header("Depth", "0")
         .header("Content-Type", "application/xml; charset=utf-8")
         .body(r#"<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><resourcetype/></prop></propfind>"#);
@@ -167,7 +167,7 @@ pub fn list_remote(config: &WebdavConfig, remote_dir: Option<&str>) -> Result<Ve
     let url = format!("{}{}", base, path);
 
     let req_builder = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
+        .request(reqwest::Method::from_bytes(b"PROPFIND").expect("valid HTTP method"), &url)
         .header("Depth", "1")
         .header("Content-Type", "application/xml; charset=utf-8")
         .body(r#"<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><resourcetype/><getcontentlength/><getlastmodified/></prop></propfind>"#);
@@ -283,7 +283,7 @@ pub fn create_remote_dir(config: &WebdavConfig, remote_path: &str) -> Result<(),
     let base = config.url.trim_end_matches('/');
     let url = format!("{}{}", base, remote_path);
 
-    let req_builder = client.request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &url);
+    let req_builder = client.request(reqwest::Method::from_bytes(b"MKCOL").expect("valid HTTP method"), &url);
     let response = with_auth(req_builder, config)
         .send()
         .map_err(|e| format!("Mkdir failed: {}", e))?;
@@ -302,7 +302,7 @@ pub fn remote_exists(config: &WebdavConfig, remote_path: &str) -> Result<bool, S
     let base = config.url.trim_end_matches('/');
     let url = format!("{}{}", base, remote_path);
 
-    let req_builder = client.request(reqwest::Method::from_bytes(b"HEAD").unwrap(), &url);
+    let req_builder = client.request(reqwest::Method::from_bytes(b"HEAD").expect("valid HTTP method"), &url);
     let response = with_auth(req_builder, config)
         .send()
         .map_err(|e| format!("HEAD check failed: {}", e))?;
@@ -429,7 +429,9 @@ pub fn incremental_sync(
 
         let local_meta = local_path.metadata().map_err(|e| e.to_string())?;
         let local_mtime = local_meta.modified()
-            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64)
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
         let local_size = local_meta.len();
 

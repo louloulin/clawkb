@@ -122,8 +122,8 @@ impl KnowledgeBase {
     }
 }
 
-/// Extract the <title> content from HTML.
-fn extract_title(html: &str) -> Option<String> {
+/// Extract the <title> content from HTML (pub(crate) for testing).
+pub(crate) fn extract_title(html: &str) -> Option<String> {
     let lower = html.to_lowercase();
     let start_tag = lower.find("<title>")?;
     let start = start_tag.checked_add(7)?;
@@ -135,8 +135,8 @@ fn extract_title(html: &str) -> Option<String> {
     Some(html[start..end].trim().to_string())
 }
 
-/// Strip HTML tags to get plain text.
-fn strip_html(html: &str) -> String {
+/// Strip HTML tags to get plain text (pub(crate) for testing).
+pub(crate) fn strip_html(html: &str) -> String {
     let mut result = String::with_capacity(html.len() / 2);
     let mut in_tag = false;
     let mut in_script = false;

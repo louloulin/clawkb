@@ -92,31 +92,38 @@ static AI_CONFIG: RwLock<AiConfigStore> = RwLock::new(AiConfigStore {
 
 /// Set the global embedding configuration.
 pub fn set_embedding_config(config: EmbeddingConfig) {
-    let mut store = AI_CONFIG.write().unwrap();
-    store.embedding = Some(config);
+    if let Ok(mut store) = AI_CONFIG.write() {
+        store.embedding = Some(config);
+    } else {
+        log::error!("AI config store is poisoned, cannot set embedding config");
+    }
 }
 
 /// Get the current embedding configuration.
 pub fn get_embedding_config() -> Option<EmbeddingConfig> {
-    let store = AI_CONFIG.read().unwrap();
-    store.embedding.clone()
+    AI_CONFIG.read().ok().and_then(|store| store.embedding.clone())
 }
 
 /// Set the global LLM (Ask) configuration.
 pub fn set_llm_config(config: LlmConfig) {
-    let mut store = AI_CONFIG.write().unwrap();
-    store.llm = Some(config);
+    if let Ok(mut store) = AI_CONFIG.write() {
+        store.llm = Some(config);
+    } else {
+        log::error!("AI config store is poisoned, cannot set LLM config");
+    }
 }
 
 /// Get the current LLM configuration.
 pub fn get_llm_config() -> Option<LlmConfig> {
-    let store = AI_CONFIG.read().unwrap();
-    store.llm.clone()
+    AI_CONFIG.read().ok().and_then(|store| store.llm.clone())
 }
 
 /// Clear all AI configuration (useful for resets).
 pub fn clear_config() {
-    let mut store = AI_CONFIG.write().unwrap();
-    store.embedding = None;
-    store.llm = None;
+    if let Ok(mut store) = AI_CONFIG.write() {
+        store.embedding = None;
+        store.llm = None;
+    } else {
+        log::error!("AI config store is poisoned, cannot clear config");
+    }
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { CommandPalette } from '@/components/command/command-palette';
 import { getRuntimeMode, isBrowserPreview } from '@/api/platform';
+import { api } from '@/api/commands';
 import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGetString } from '@/store/persistence';
 import { useWorkspaceStore } from '@/store/workspace-store';
@@ -94,6 +95,33 @@ function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
         setCommandPaletteOpen(true);
+      }
+      // Cmd+Shift+D: 打开或创建今日日记
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'd') {
+        e.preventDefault();
+        const today = new Date();
+        const dateStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+        const dailyTitle = `Daily Note ${dateStr}`;
+        void (async () => {
+          try {
+            // 先搜索今日日记是否已存在
+            const hits = await api.search(dailyTitle, 1, 'lex');
+            if (hits.length > 0 && hits[0].title === dailyTitle) {
+              useKbStore.getState().openDocument(hits[0]);
+            } else {
+              // 创建新日记
+              const template = `# ${dateStr}\n\n`;
+              await api.addNote(dailyTitle, template, ['daily']);
+              const newHits = await api.search(dailyTitle, 1, 'lex');
+              if (newHits.length > 0) {
+                useKbStore.getState().openDocument(newHits[0]);
+              }
+            }
+            useKbStore.getState().setPage('editor');
+          } catch (err) {
+            console.error('[Cmd+Shift+D] 创建今日日记失败:', err);
+          }
+        })();
       }
       if (e.key === 'Escape') {
         useKbStore.getState().closeDocument();
