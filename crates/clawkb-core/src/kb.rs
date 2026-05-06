@@ -21,6 +21,7 @@ use crate::folder::{
     FOLDER_ID_PREFIX, FOLDER_META_TAG, FOLDER_NAME_PREFIX, FOLDER_PARENT_PREFIX, FOLDER_PATH_PREFIX,
 };
 use crate::import::ImportResult;
+use crate::note::{NotePath, NoteRecord, NOTE_ID_PREFIX, NOTE_META_TAG, NOTE_PATH_PREFIX};
 use crate::parsers::{self, DocumentFormat};
 use crate::replay::{CompareHit, CompareResult};
 use crate::search::{SearchHit, SearchMode};
@@ -67,6 +68,7 @@ pub struct KbStats {
 pub struct KnowledgeBase {
     mem: Memvid,
     path: PathBuf,
+    note_path_registry: std::collections::HashMap<String, String>,
 }
 
 impl KnowledgeBase {
@@ -75,7 +77,7 @@ impl KnowledgeBase {
         let path = path.into();
         let mem = Memvid::create(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path })
+        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
     }
 
     /// Open an existing knowledge base.
@@ -86,7 +88,7 @@ impl KnowledgeBase {
         }
         let mem = Memvid::open(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path })
+        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
     }
 
     /// Open in read-only mode.
@@ -97,7 +99,7 @@ impl KnowledgeBase {
         }
         let mem = Memvid::open_read_only(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path })
+        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new() })
     }
 
     /// Add a note/document to the knowledge base.
@@ -126,6 +128,257 @@ impl KnowledgeBase {
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
         Ok(format!("{}", seq))
+    }
+
+    /// Create a structured note record and persist a metadata frame for note-domain APIs.
+    pub fn create_note_record(&mut self, mut note: NoteRecord) -> Result<NoteRecord> {
+        let path = note.path.as_str().to_string();
+        if self.note_path_registry.contains_key(&path)
+            || self.find_note_meta_by_path(&path)?.is_some()
+            || self.search_in_note_meta_payload(&path)?.is_some() {
+            return Err(KbError::Conflict(format!("note path already exists: {path}")));
+        }
+
+        let tags: Vec<String> = note.frontmatter.tags.clone();
+        let tag_refs: Vec<&str> = tags.iter().map(String::as_str).collect();
+        let content_frame_id = self.add_note(&note.title, &note.content, &tag_refs)?;
+        let now = format_timestamp(chrono::Utc::now().timestamp());
+        let note_id = format!("note:{}", uuid::Uuid::new_v4());
+
+        note.id = note_id.clone();
+        note.created_at = now.clone();
+        note.updated_at = now;
+
+        let meta_payload = serde_json::to_string(&note)?;
+        let note_id_tag = format!("{NOTE_ID_PREFIX}{note_id}");
+        let note_path_tag = format!("{NOTE_PATH_PREFIX}{path}");
+        let meta_tags = vec![NOTE_META_TAG, note_id_tag.as_str(), note_path_tag.as_str(), "note-meta"];
+        self.add_note(&note.title, &meta_payload, &meta_tags)?;
+
+        // keep source pointer to the content frame for later migrations
+        note.source = Some(content_frame_id);
+        self.note_path_registry.insert(path, note.id.clone());
+        Ok(note)
+    }
+
+    /// Get a structured note record by stable note id.
+    pub fn get_note_record(&mut self, id: &str) -> Result<NoteRecord> {
+        let (_, frame) = self.find_note_meta_by_id(id)?
+            .ok_or_else(|| KbError::Config(format!("note not found: {id}")))?;
+        self.note_record_from_meta_frame(frame)
+    }
+
+    /// Rename a note record without changing its stable id.
+    pub fn rename_note_record(&mut self, id: &str, new_title: &str, new_path: NotePath) -> Result<NoteRecord> {
+        if let Some((other_id, _)) = self.find_note_meta_by_path(new_path.as_str())? {
+            if other_id != id {
+                return Err(KbError::Conflict(format!("note path already exists: {}", new_path.as_str())));
+            }
+        }
+
+        let existing_registry_path = self.note_path_registry.iter()
+            .find_map(|(path, note_id)| if note_id == id { Some(path.clone()) } else { None });
+        let (meta_frame_id, frame) = self.find_note_meta_by_id(id)?
+            .ok_or_else(|| KbError::Config(format!("note not found: {id}")))?;
+        let mut note = self.note_record_from_meta_frame(frame)?;
+        note.title = new_title.to_string();
+        note.path = new_path;
+        note.updated_at = format_timestamp(chrono::Utc::now().timestamp());
+
+        let payload = serde_json::to_vec(&note)?;
+        let opts = PutOptions {
+            title: Some(note.title.clone()),
+            tags: vec![NOTE_META_TAG.to_string(), format!("{NOTE_ID_PREFIX}{}", note.id), format!("{NOTE_PATH_PREFIX}{}", note.path.as_str()), "note-meta".to_string()],
+            ..Default::default()
+        };
+        self.mem.update_frame(meta_frame_id, Some(payload), opts, None)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        if let Some(old_path) = existing_registry_path {
+            self.note_path_registry.remove(&old_path);
+        }
+        self.note_path_registry.insert(note.path.as_str().to_string(), note.id.clone());
+
+        Ok(note)
+    }
+
+    /// List all note records, optionally filtered by tag.
+    pub fn list_note_records(&mut self, tag_filter: Option<&str>, limit: usize) -> Result<Vec<NoteRecord>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        let mut notes = Vec::new();
+        for frame_id in frame_ids.into_iter().rev() {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+            if !frame.tags.contains(&NOTE_META_TAG.to_string()) {
+                continue;
+            }
+            if let Some(filter) = tag_filter {
+                if !frame.tags.iter().any(|t| t == filter) {
+                    continue;
+                }
+            }
+            match self.note_record_from_meta_frame(frame) {
+                Ok(note) => {
+                    notes.push(note);
+                    if notes.len() >= limit {
+                        break;
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+        Ok(notes)
+    }
+
+    /// Delete a note record by its stable note id.
+    pub fn delete_note_record(&mut self, id: &str) -> Result<()> {
+        let (meta_frame_id, _frame) = self.find_note_meta_by_id(id)?
+            .ok_or_else(|| KbError::Config(format!("note not found: {id}")))?;
+
+        // Find and delete the content frame too.
+        let all_ids = self.collect_all_frame_ids()?;
+        for fid in all_ids {
+            let frame = match self.mem.frame_by_id(fid) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            if frame.tags.contains(&format!("{NOTE_ID_PREFIX}{id}")) && !frame.tags.contains(&NOTE_META_TAG.to_string()) {
+                let _ = self.mem.delete_frame(fid);
+            }
+        }
+
+        let _ = self.mem.delete_frame(meta_frame_id);
+
+        if let Some(path) = self.note_path_registry.iter()
+            .find_map(|(p, nid)| if nid == id { Some(p.clone()) } else { None })
+        {
+            self.note_path_registry.remove(&path);
+        }
+
+        Ok(())
+    }
+
+    /// Update the content and tags of an existing note record.
+    pub fn update_note_record(
+        &mut self,
+        id: &str,
+        title: Option<&str>,
+        content: Option<&str>,
+        tags: Option<Vec<&str>>,
+    ) -> Result<NoteRecord> {
+        let (meta_frame_id, frame) = self.find_note_meta_by_id(id)?
+            .ok_or_else(|| KbError::Config(format!("note not found: {id}")))?;
+        let mut note = self.note_record_from_meta_frame(frame)?;
+
+        if let Some(t) = title {
+            note.title = t.to_string();
+        }
+        if let Some(c) = content {
+            note.content = c.to_string();
+        }
+        if let Some(t) = tags {
+            note.frontmatter.tags = t.into_iter().map(|s| s.to_string()).collect();
+        }
+        note.updated_at = format_timestamp(chrono::Utc::now().timestamp());
+
+        let payload = serde_json::to_vec(&note)?;
+        let mut note_tags = vec![
+            NOTE_META_TAG.to_string(),
+            format!("{NOTE_ID_PREFIX}{}", note.id),
+            format!("{NOTE_PATH_PREFIX}{}", note.path.as_str()),
+            "note-meta".to_string(),
+        ];
+        note_tags.extend(note.frontmatter.tags.clone());
+        let opts = PutOptions {
+            title: Some(note.title.clone()),
+            tags: note_tags,
+            ..Default::default()
+        };
+        self.mem.update_frame(meta_frame_id, Some(payload), opts, None)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        Ok(note)
+    }
+
+    fn find_note_meta_by_path(&mut self, path: &str) -> Result<Option<(String, u64)>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        for frame_id in frame_ids.into_iter().rev() {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+            if !frame.tags.iter().any(|tag| tag == NOTE_META_TAG) {
+                continue;
+            }
+            let matches_path = frame.tags.iter().any(|tag| tag == &format!("{NOTE_PATH_PREFIX}{path}"));
+            if !matches_path {
+                continue;
+            }
+            let note_id = frame.tags.iter().find_map(|tag| tag.strip_prefix(NOTE_ID_PREFIX).map(|s| s.to_string()))
+                .ok_or_else(|| KbError::Config("note meta frame missing note id tag".to_string()))?;
+            return Ok(Some((note_id, frame_id)));
+        }
+        Ok(None)
+    }
+
+    fn search_in_note_meta_payload(&mut self, path: &str) -> Result<Option<(u64, memvid_core::Frame)>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        for frame_id in frame_ids.into_iter().rev() {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+            if !frame.tags.iter().any(|tag| tag == NOTE_META_TAG) {
+                continue;
+            }
+            let mut reader = match self.mem.blob_reader(frame.id) {
+                Ok(reader) => reader,
+                Err(_) => continue,
+            };
+            let mut bytes = Vec::new();
+            use std::io::Read;
+            if reader.read_to_end(&mut bytes).is_err() {
+                continue;
+            }
+            let note = match serde_json::from_slice::<NoteRecord>(&bytes) {
+                Ok(note) => note,
+                Err(_) => continue,
+            };
+            if note.path.as_str() == path {
+                return Ok(Some((frame_id, frame)));
+            }
+        }
+        Ok(None)
+    }
+
+    fn find_note_meta_by_id(&mut self, id: &str) -> Result<Option<(u64, memvid_core::Frame)>> {
+        let frame_ids = self.collect_all_frame_ids()?;
+        for frame_id in frame_ids.into_iter().rev() {
+            let frame = match self.mem.frame_by_id(frame_id) {
+                Ok(frame) => frame,
+                Err(_) => continue,
+            };
+            if !frame.tags.iter().any(|tag| tag == NOTE_META_TAG) {
+                continue;
+            }
+            let matches_id = frame.tags.iter().any(|tag| tag == &format!("{NOTE_ID_PREFIX}{id}"));
+            if matches_id {
+                return Ok(Some((frame_id, frame)));
+            }
+        }
+        Ok(None)
+    }
+
+    fn note_record_from_meta_frame(&mut self, frame: memvid_core::Frame) -> Result<NoteRecord> {
+        let mut reader = self.mem.blob_reader(frame.id)
+            .map_err(|e| KbError::Memvid(e.to_string()))?;
+        let mut bytes = Vec::new();
+        use std::io::Read;
+        reader.read_to_end(&mut bytes)?;
+        let note = serde_json::from_slice::<NoteRecord>(&bytes)?;
+        Ok(note)
     }
 
     /// Update the tags of an existing frame.

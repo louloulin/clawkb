@@ -99,6 +99,41 @@ export const api = {
     return invoke('add_note', { title, content, tags }) as Promise<string>;
   },
 
+  async getNote(noteId: string): Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }> {
+    const invoke = await getDesktopInvoke();
+    return invoke('get_note', { note_id: noteId }) as Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>;
+  },
+
+  async listNotes(tag?: string, limit?: number): Promise<Array<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>> {
+    const invoke = await getDesktopInvoke();
+    return invoke('list_notes', { tag: tag ?? null, limit: limit ?? 100 }) as Promise<Array<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>>;
+  },
+
+  async renameNote(noteId: string, newTitle: string): Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }> {
+    const invoke = await getDesktopInvoke();
+    return invoke('rename_note', { note_id: noteId, new_title: newTitle }) as Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>;
+  },
+
+  async deleteNote(noteId: string): Promise<void> {
+    const invoke = await getDesktopInvoke();
+    return invoke('delete_note', { note_id: noteId }) as Promise<void>;
+  },
+
+  async updateNote(
+    noteId: string,
+    title?: string,
+    content?: string,
+    tags?: string[],
+  ): Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }> {
+    const invoke = await getDesktopInvoke();
+    return invoke('update_note', {
+      note_id: noteId,
+      title: title ?? null,
+      content: content ?? null,
+      tags: tags ?? null,
+    }) as Promise<{ id: string; path: string; title: string; content: string; tags: string[]; created_at: string; updated_at: string }>;
+  },
+
   async importFile(path: string, tags: string[]): Promise<ImportResult> {
     const invoke = await getDesktopInvoke();
     return invoke('import_file', { path, tags }) as Promise<ImportResult>;

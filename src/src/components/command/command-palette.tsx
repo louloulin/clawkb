@@ -53,7 +53,7 @@ export function CommandPalette({ open, onClose, commands = [] }: CommandPaletteP
     }
     if (query.trim().length > 1) {
       for (const r of searchResults) {
-        items.push({ type: 'result', label: r.title || 'Untitled', sublabel: r.content?.slice(0, 60), action: () => { onClose(); } });
+        items.push({ type: 'result', label: r.title || '未命名笔记', sublabel: r.content?.slice(0, 60), action: () => { onClose(); } });
       }
     }
     return items;

@@ -37,25 +37,25 @@ export function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">Legacy Compatibility Entry</p>
-        <h2 className="text-xl font-semibold mb-1">Dashboard</h2>
-        <p className="text-sm text-muted-foreground">A compatibility overview page. Workbench is the main product entry point.</p>
+        <h2 className="text-xl font-semibold mb-1">概览</h2>
+        <p className="text-sm text-muted-foreground">知识库运行状态总览。工作台是主要产品入口。</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Documents" value={stats.frame_count.toString()} />
-        <StatCard label="Storage" value={formatBytes(stats.size_bytes)} />
-        <StatCard label="Lex Index" value={stats.has_lex_index ? 'Active' : 'Inactive'} accent={stats.has_lex_index} />
-        <StatCard label="Vec Index" value={stats.has_vec_index ? 'Active' : 'Inactive'} accent={stats.has_vec_index} />
+        <StatCard label="资料" value={stats.frame_count.toString()} />
+        <StatCard label="存储" value={formatBytes(stats.size_bytes)} />
+        <StatCard label="全文索引" value={stats.has_lex_index ? '已激活' : '未激活'} accent={stats.has_lex_index} />
+        <StatCard label="向量索引" value={stats.has_vec_index ? '已激活' : '未激活'} accent={stats.has_vec_index} />
       </div>
 
       {/* Compression */}
       <div className="rounded-xl bg-muted/40 p-4 mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium">Compression Ratio</div>
+            <div className="text-sm font-medium">压缩率</div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {formatBytes(stats.payload_bytes)} payload in {formatBytes(stats.size_bytes)} storage
+              {formatBytes(stats.payload_bytes)} 原始数据存储为 {formatBytes(stats.size_bytes)}
             </div>
           </div>
           <div className="text-2xl font-semibold text-primary tabular-nums">
@@ -66,13 +66,13 @@ export function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="mb-2">
-        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">快捷操作</h3>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        <ActionCard label="Search" icon={<Search className="h-5 w-5" />} onClick={() => setPage('search')} />
-        <ActionCard label="Add Note" icon={<Plus className="h-5 w-5" />} onClick={() => setPage('notes')} />
-        <ActionCard label="Import" icon={<Upload className="h-5 w-5" />} onClick={() => setPage('import')} />
-        <ActionCard label="Tags" icon={<Tag className="h-5 w-5" />} onClick={() => setPage('tags')} />
+        <ActionCard label="搜索" icon={<Search className="h-5 w-5" />} onClick={() => setPage('search')} />
+        <ActionCard label="笔记" icon={<Plus className="h-5 w-5" />} onClick={() => setPage('notes')} />
+        <ActionCard label="导入" icon={<Upload className="h-5 w-5" />} onClick={() => setPage('import')} />
+        <ActionCard label="标签" icon={<Tag className="h-5 w-5" />} onClick={() => setPage('tags')} />
       </div>
     </div>
   );

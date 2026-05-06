@@ -744,14 +744,14 @@ enum FrameKind {
 
 > ort-sys/onnxruntime 编译错误为环境问题（非代码问题），不影响已完成的修复
 
-### 8.2 Phase U1：核心写作体验（3-5 天） ✅ 部分完成
+### 8.2 Phase U1：核心写作体验（3-5 天） ✅ 全部完成
 
 - [x] 提取 TipTap 编辑器为 `<RichEditor />` 共享组件 — 2026-05-06
 - [x] NotesPage：`Textarea` → `<RichEditor />` + 自动保存（3s debounce）— 2026-05-06
 - [x] EditorPage：添加 H1/H2/H3、link insertion（Cmd+K）、code block — 2026-05-06
 - [x] EditorPage：添加字数统计 + 保存状态提示 — 2026-05-06
-- [ ] NotesPage：支持编辑已有笔记（URL 参数 `:id`）
-- [ ] `<OutlinePanel />` 创建（EditorPage 侧边栏）
+- [x] NotesPage：支持编辑已有笔记（URL 参数 `:id`）— 2026-05-06
+- [x] `<OutlinePanel />` 创建（EditorPage 侧边栏）— 2026-05-06
 
 ### 8.3 Phase U2：对话与命令面板（3-4 天） ✅ 全部完成
 
@@ -762,13 +762,13 @@ enum FrameKind {
 - [x] 修复 `chat-store` — 对话结束时关闭 `openExtraKb` handles — 2026-05-06（Phase U0 已完成）
 - [x] `layout.tsx` Header Cmd+K 搜索添加实际 keydown 监听 — 2026-05-06
 
-### 8.4 Phase U3：视觉一致性（2-3 天） ✅ 大部分完成
+### 8.4 Phase U3：视觉一致性（2-3 天） ✅ 全部完成
 
 - [x] 创建 `src/styles/tokens.css` 暗色主题变量集（已有）— 2026-05-06 增强
 - [x] tokens.css 添加 `--kb-accent: amber-300` 强调色变量 — 2026-05-06
 - [x] 替换自定义组件的 `bg-background` → `dark:bg-background bg-white`（12+ 文件）— 2026-05-06
 - [x] 统一 ExploreShell Tab 为中文（搜索/导入/时间线/标签/实体/图谱/脑图/报告/播客）— 2026-05-06
-- [ ] 审计所有按钮文本，统一中英文
+- [x] 审计所有按钮文本，统一中英文 — 2026-05-06
 
 ### 8.5 Phase U4：笔记组织（3-5 天）
 
@@ -792,6 +792,8 @@ enum FrameKind {
 - [x] 前端：所有 Store 的空 catch 替换为 `set({ error: ... })` — 2026-05-06（Phase U0）
 - [x] kb-list-pane：删除确认 Dialog（两阶段确认）— 2026-05-06
 - [x] kb-chat-pane：添加错误状态展示 — 2026-05-06
+- [x] 后端：`get_note` / `list_notes` / `update_note` / `delete_note` 命令 — 2026-05-06
+- [x] Rust：`list_note_records` / `update_note_record` / `delete_note_record` 方法 — 2026-05-06
 - [ ] Rust：`RwLock` 全部替换 `.unwrap()` → `.unwrap_or_else()`
 - [ ] Rust：`from_bytes().unwrap()` → `.expect()`
 - [ ] Rust：`duration_since` 处理 `Err`

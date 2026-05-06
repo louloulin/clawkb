@@ -66,7 +66,7 @@ function PdfViewer({ source }: { source: string }) {
         loading={
           <div className="flex items-center gap-2 py-8 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading PDF...
+            正在加载 PDF...
           </div>
         }
         error={
@@ -804,7 +804,7 @@ export function ReaderPage({
                                 <textarea
                                   className="w-full text-[11px] dark:bg-background/50 bg-white/50 border rounded px-2 py-1 resize-none"
                                   rows={2}
-                                  placeholder="Add a note..."
+                                  placeholder="添加注释..."
                                   value={highlightNote}
                                   onChange={e => setHighlightNote(e.target.value)}
                                   autoFocus

@@ -1028,3 +1028,71 @@ pub fn compare_timeline(
     kb.compare_as_of(&query, earlier_ts, later_ts, top_k.unwrap_or(20))
         .map_err(|e| e.to_string())
 }
+
+// ── Note Commands ────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn get_note(
+    note_id: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::note::NoteRecord, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.get_note_record(&note_id)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn list_notes(
+    tag: Option<String>,
+    limit: Option<usize>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<clawkb_core::note::NoteRecord>, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.list_note_records(tag.as_deref(), limit.unwrap_or(100))
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn rename_note(
+    note_id: String,
+    new_title: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::note::NoteRecord, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    let note_path = kb.get_note_record(&note_id)
+        .map_err(|e| user_facing_command_error(e.to_string()))?
+        .path;
+    kb.rename_note_record(&note_id, &new_title, note_path)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn delete_note(
+    note_id: String,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    kb.delete_note_record(&note_id)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}
+
+#[tauri::command]
+pub fn update_note(
+    note_id: String,
+    title: Option<String>,
+    content: Option<String>,
+    tags: Option<Vec<String>>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<clawkb_core::note::NoteRecord, String> {
+    let mut app_state = state.lock().map_err(|e| user_facing_command_error(e.to_string()))?;
+    let kb = app_state.kb.as_mut().ok_or("Knowledge base not open")?;
+    let title_ref = title.as_deref();
+    let content_ref = content.as_deref();
+    let tags_ref = tags.map(|v| v.into_iter().map(|s| s.leak()).collect());
+    kb.update_note_record(note_id.as_str(), title_ref, content_ref, tags_ref)
+        .map_err(|e| user_facing_command_error(e.to_string()))
+}

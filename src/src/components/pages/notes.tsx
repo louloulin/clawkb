@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Loader2, FileText, Tags, CheckCircle2, CloudOff, Cloud } from 'lucide-react';
+import { Loader2, FileText, Tags, CheckCircle2, CloudOff, Cloud, Pencil, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,9 @@ interface NotesPageProps {
   initialTitle?: string;
   initialContent?: string;
   initialTags?: string[];
+  initialNoteId?: string;
   onSaved?: () => void;
+  onBack?: () => void;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -24,7 +26,9 @@ export function NotesPage({
   initialTitle = '',
   initialContent = '',
   initialTags = [],
+  initialNoteId,
   onSaved,
+  onBack,
 }: NotesPageProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -32,17 +36,38 @@ export function NotesPage({
   const [tags, setTags] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(initialNoteId ?? null);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaved = useRef<string>('');
 
-  // Sync initial values
+  // Load existing note when initialNoteId is provided
   useEffect(() => {
+    if (!initialNoteId) return;
+    setLoading(true);
+    setEditingNoteId(initialNoteId);
+    api.getNote(initialNoteId)
+      .then((note) => {
+        setTitle(note.title);
+        setContent(note.content);
+        setTags(note.tags.join(', '));
+        lastSaved.current = `${note.title}::${note.content}`;
+      })
+      .catch(() => {
+        toast({ title: '加载失败', description: '无法加载笔记，请确认笔记存在。', variant: 'destructive' });
+      })
+      .finally(() => setLoading(false));
+  }, [initialNoteId]);
+
+  // Sync initial values (only for new notes)
+  useEffect(() => {
+    if (editingNoteId) return; // Skip for existing notes
     setTitle(initialTitle);
     setContent(initialContent);
     setTags(initialTags.join(', '));
     lastSaved.current = `${initialTitle}::${initialContent}`;
-  }, [initialTitle, initialContent, initialTags.join(',')]);
+  }, [initialTitle, initialContent, initialTags.join(','), editingNoteId]);
 
   // Debounced auto-save
   const scheduleAutoSave = useCallback(() => {
@@ -58,8 +83,12 @@ export function NotesPage({
       setSaveStatus('saving');
       try {
         const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
-        await api.addNote(title, content, tagList);
-        await api.commit();
+        if (editingNoteId) {
+          await api.updateNote(editingNoteId, title, content, tagList);
+        } else {
+          await api.addNote(title, content, tagList);
+          await api.commit();
+        }
         lastSaved.current = snapshot;
         setSaveStatus('saved');
       } catch {
@@ -68,7 +97,7 @@ export function NotesPage({
         setSaving(false);
       }
     }, AUTO_SAVE_DELAY_MS);
-  }, [title, content, tags, plainText]);
+  }, [title, content, tags, plainText, editingNoteId]);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -93,12 +122,16 @@ export function NotesPage({
     setSaveStatus('saving');
     try {
       const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
-      await api.addNote(title, content, tagList);
-      await api.commit();
+      if (editingNoteId) {
+        await api.updateNote(editingNoteId, title, content, tagList);
+      } else {
+        await api.addNote(title, content, tagList);
+        await api.commit();
+      }
       lastSaved.current = `${title}::${content}`;
       setSaveStatus('saved');
       onSaved?.();
-      toast({ title: '已保存', description: `"${title}" 已添加到知识库。` });
+      toast({ title: '已保存', description: `"${title}" 已保存到知识库。` });
     } catch {
       setSaveStatus('error');
       toast({ title: '保存失败', description: '请确认已打开本地知识库。', variant: 'destructive' });
@@ -132,13 +165,38 @@ export function NotesPage({
 
   const tagList = tags.split(',').map(t => t.trim()).filter(Boolean);
 
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       {!embedded && (
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-1">添加笔记</h2>
-          <p className="text-sm text-muted-foreground">捕捉新想法或知识片段，3 秒自动保存</p>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-lg">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <div>
+              <h2 className="text-xl font-semibold mb-1">
+                {editingNoteId ? (
+                  <span className="flex items-center gap-2">
+                    <Pencil className="h-4 w-4" /> 编辑笔记
+                  </span>
+                ) : '添加笔记'}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {editingNoteId ? '修改笔记内容，3 秒自动保存' : '捕捉新想法或知识片段，3 秒自动保存'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -205,7 +263,7 @@ export function NotesPage({
             {saving ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> 保存中...</>
             ) : (
-              <><CheckCircle2 className="h-4 w-4" /> 保存笔记</>
+              <><CheckCircle2 className="h-4 w-4" /> {editingNoteId ? '保存修改' : '保存笔记'}</>
             )}
           </Button>
         </div>
