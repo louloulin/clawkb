@@ -1147,21 +1147,21 @@ Week 13+: 白板 + 优化
   - [x] 优先级 (P0/P1/P2)
   - [x] 本地存储持久化
   - [x] 看板视图 (KanbanView with drag-and-drop between TODO/DOING/DONE)
-  - [ ] 时间块 (Scheduled/Deadline)
+  - [x] 时间块 (Scheduled/Deadline) — 快速设置今天/明天/本周 + 日期选择器
 
 ### Phase 4：高级功能（Week 9-12）
 
-- [ ] **Inline Database**
-  - [ ] Table View
-  - [ ] 属性类型
-  - [ ] 视图切换
-  - [ ] 关联字段
+- [x] **Inline Database** ✅
+  - [x] Table View (sortable columns, inline editing)
+  - [x] 属性类型 (text, number, select, date, checkbox)
+  - [x] 视图切换 (Table/Kanban)
+  - [ ] 关联字段 (Relation)
 
-- [ ] **Whiteboard**
-  - [ ] 无限画布
-  - [ ] 卡片拖拽
-  - [ ] 连接线
-  - [ ] 导出
+- [x] **Whiteboard** ✅
+  - [x] 无限画布 (pan/zoom with grid)
+  - [x] 卡片拖拽 (note/text/image cards)
+  - [x] 连接线 (SVG connections between cards)
+  - [x] 导出 PNG (exportImage with canvas)
 
 ---
 

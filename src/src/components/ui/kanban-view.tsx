@@ -48,6 +48,11 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
   const [showAddFor, setShowAddFor] = useState<TaskStatus | null>(null);
   const [newTaskText, setNewTaskText] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('p2');
+  const [newTaskScheduled, setNewTaskScheduled] = useState('');
+  const [newTaskDeadline, setNewTaskDeadline] = useState('');
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editScheduled, setEditScheduled] = useState('');
+  const [editDeadline, setEditDeadline] = useState('');
 
   // Load tasks
   useEffect(() => {
@@ -85,11 +90,33 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
       status,
       priority: newTaskPriority,
       createdAt: Date.now(),
+      scheduledAt: newTaskScheduled ? new Date(newTaskScheduled).setHours(9, 0, 0, 0) : undefined,
+      deadlineAt: newTaskDeadline ? new Date(newTaskDeadline).setHours(23, 59, 59, 999) : undefined,
     };
     setTasks(prev => [task, ...prev]);
     setNewTaskText('');
+    setNewTaskPriority('p2');
+    setNewTaskScheduled('');
+    setNewTaskDeadline('');
     setShowAddFor(null);
-  }, [newTaskText, newTaskPriority]);
+  }, [newTaskText, newTaskPriority, newTaskScheduled, newTaskDeadline]);
+
+  // Set task scheduled/deadline
+  const setTaskScheduled = useCallback((taskId: string, date: string | null) => {
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      if (!date) return { ...t, scheduledAt: undefined };
+      return { ...t, scheduledAt: new Date(date).setHours(9, 0, 0, 0) };
+    }));
+  }, []);
+
+  const setTaskDeadline = useCallback((taskId: string, date: string | null) => {
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      if (!date) return { ...t, deadlineAt: undefined };
+      return { ...t, deadlineAt: new Date(date).setHours(23, 59, 59, 999) };
+    }));
+  }, []);
 
   // Move task to a different column
   const moveTask = useCallback((taskId: string, newStatus: TaskStatus) => {
@@ -176,7 +203,11 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
 
               {/* Column tasks */}
               <div className="p-1.5 space-y-1 min-h-[60px]">
-                {columnTasks.map(task => (
+                {columnTasks.map(task => {
+                  const isOverdue = task.deadlineAt && task.deadlineAt < Date.now() && task.status !== 'done';
+                  const formatDate = (ts: number) => new Date(ts).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+
+                  return (
                   <div
                     key={task.id}
                     draggable
@@ -206,26 +237,58 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                     </div>
 
                     {/* Scheduled/Deadline indicators */}
-                    {(task.scheduledAt || task.deadlineAt) && (
-                      <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-white/5">
-                        {task.scheduledAt && (
-                          <span className="text-[9px] text-slate-500 flex items-center gap-1">
-                            <Calendar className="h-2.5 w-2.5" />
-                            {new Date(task.scheduledAt).toLocaleDateString()}
-                          </span>
-                        )}
-                        {task.deadlineAt && (
-                          <span className={`text-[9px] flex items-center gap-1 ${
-                            task.deadlineAt < Date.now() ? 'text-red-400' : 'text-slate-500'
-                          }`}>
-                            <Clock className="h-2.5 w-2.5" />
-                            {new Date(task.deadlineAt).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-white/5">
+                      {task.scheduledAt ? (
+                        <div className="flex items-center gap-1 text-[9px] text-blue-400">
+                          <Calendar className="h-2.5 w-2.5" />
+                          <span>{formatDate(task.scheduledAt)}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setTaskScheduled(task.id, null); }}
+                            className="text-slate-600 hover:text-white ml-0.5"
+                          >×</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                            setTaskScheduled(task.id, tomorrow.toISOString().split('T')[0]);
+                          }}
+                          className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-blue-400 transition"
+                          title="设置计划日期"
+                        >
+                          <Calendar className="h-2.5 w-2.5" />
+                          <span>计划</span>
+                        </button>
+                      )}
+                      {task.deadlineAt ? (
+                        <div className={`flex items-center gap-1 text-[9px] ${isOverdue ? 'text-red-400 animate-pulse' : 'text-orange-400'}`}>
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>{formatDate(task.deadlineAt)}</span>
+                          {isOverdue && <span className="text-[8px]">逾期</span>}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setTaskDeadline(task.id, null); }}
+                            className="text-slate-600 hover:text-white ml-0.5"
+                          >×</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+                            setTaskDeadline(task.id, tomorrow.toISOString().split('T')[0]);
+                          }}
+                          className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-orange-400 transition"
+                          title="设置截止日期"
+                        >
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>截止</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
+                );
+                })}
 
                 {/* Empty state */}
                 {columnTasks.length === 0 && (
@@ -245,22 +308,40 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                       onChange={(e) => setNewTaskText(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') addTask(col.id);
-                        if (e.key === 'Escape') { setShowAddFor(null); setNewTaskText(''); }
+                        if (e.key === 'Escape') { setShowAddFor(null); setNewTaskText(''); setNewTaskScheduled(''); setNewTaskDeadline(''); }
                       }}
                       placeholder="任务内容..."
                       className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[11px] text-white placeholder:text-slate-500 outline-none focus:border-amber-200/30"
                       autoFocus
                     />
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <select
                         value={newTaskPriority}
                         onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
                         className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-slate-400 outline-none"
                       >
-                        <option value="p2">P2 普通</option>
-                        <option value="p1">P1 重要</option>
-                        <option value="p0">P0 紧急</option>
+                        <option value="p2">P2</option>
+                        <option value="p1">P1</option>
+                        <option value="p0">P0</option>
                       </select>
+                      <input
+                        type="date"
+                        value={newTaskScheduled}
+                        onChange={(e) => setNewTaskScheduled(e.target.value)}
+                        placeholder="计划"
+                        className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-blue-400 outline-none"
+                        title="计划日期"
+                      />
+                      <input
+                        type="date"
+                        value={newTaskDeadline}
+                        onChange={(e) => setNewTaskDeadline(e.target.value)}
+                        placeholder="截止"
+                        className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-orange-400 outline-none"
+                        title="截止日期"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => addTask(col.id)}
                         className="ml-auto px-2 py-1 bg-amber-200/20 text-amber-200 rounded-md text-[10px] hover:bg-amber-200/30 transition"
@@ -268,7 +349,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                         添加
                       </button>
                       <button
-                        onClick={() => { setShowAddFor(null); setNewTaskText(''); }}
+                        onClick={() => { setShowAddFor(null); setNewTaskText(''); setNewTaskScheduled(''); setNewTaskDeadline(''); }}
                         className="px-1.5 py-1 text-slate-500 hover:text-slate-300 rounded-md text-[10px] transition"
                       >
                         <X className="h-3 w-3" />

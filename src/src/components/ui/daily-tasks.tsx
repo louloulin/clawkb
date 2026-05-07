@@ -115,6 +115,46 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
       return { ...task, priority: nextPriority[task.priority] };
     }));
   }, []);
+
+  // Set scheduled date
+  const setScheduledDate = useCallback((taskId: string, date: string | null) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
+      if (!date) return { ...task, scheduledAt: undefined };
+      const d = new Date(date);
+      d.setHours(9, 0, 0, 0);
+      return { ...task, scheduledAt: d.getTime() };
+    }));
+  }, []);
+
+  // Set deadline date
+  const setDeadlineDate = useCallback((taskId: string, date: string | null) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
+      if (!date) return { ...task, deadlineAt: undefined };
+      const d = new Date(date);
+      d.setHours(23, 59, 59, 999);
+      return { ...task, deadlineAt: d.getTime() };
+    }));
+  }, []);
+
+  // Format date for display
+  const formatDate = (timestamp: number) => {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (d.toDateString() === now.toDateString()) return '今天';
+    if (d.toDateString() === tomorrow.toDateString()) return '明天';
+    return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  };
+
+  // Check if deadline is overdue
+  const isOverdue = (deadlineAt?: number) => {
+    if (!deadlineAt) return false;
+    return deadlineAt < Date.now();
+  };
   
   // Filtered tasks
   const filteredTasks = filter === 'all' 
@@ -131,29 +171,38 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
   
   // Task card component
   const TaskCard = ({ task }: { task: Task }) => {
-    const PriorityIcon = task.priority === 'p0' ? AlertCircle 
-      : task.priority === 'p1' ? Flame 
+    const PriorityIcon = task.priority === 'p0' ? AlertCircle
+      : task.priority === 'p1' ? Flame
       : Circle;
-    const StatusIcon = task.status === 'done' ? CheckCircle2 
-      : task.status === 'doing' ? Loader2 
+    const StatusIcon = task.status === 'done' ? CheckCircle2
+      : task.status === 'doing' ? Loader2
       : task.status === 'cancelled' ? Circle
       : Circle;
-    
+
     const statusStyles = {
       todo: 'border-border/50 hover:border-border',
       doing: 'border-amber-200/30 bg-amber-200/5',
       done: 'border-emerald-200/30 bg-emerald-200/5 opacity-60',
       cancelled: 'border-border/30 bg-muted/20 opacity-40',
     };
-    
+
     const priorityColors = {
       p0: 'text-red-400',
       p1: 'text-amber-400',
       p2: 'text-muted-foreground/50',
     };
-    
+
+    const taskOverdue = task.status !== 'done' && task.status !== 'cancelled' && isOverdue(task.deadlineAt);
+
+    // Quick date setters
+    const getQuickDateStr = (daysFromNow: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + daysFromNow);
+      return d.toISOString().split('T')[0];
+    };
+
     return (
-      <div 
+      <div
         className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors cursor-pointer ${statusStyles[task.status]}`}
         onClick={() => onTaskClick?.(task)}
       >
@@ -161,14 +210,14 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
         <button
           onClick={(e) => { e.stopPropagation(); toggleStatus(task.id); }}
           className={`mt-0.5 shrink-0 transition-colors ${
-            task.status === 'done' ? 'text-emerald-400' 
+            task.status === 'done' ? 'text-emerald-400'
             : task.status === 'doing' ? 'text-amber-400'
             : 'text-muted-foreground/40 hover:text-muted-foreground'
           }`}
         >
           <StatusIcon className={`h-4 w-4 ${task.status === 'doing' ? 'animate-spin' : ''}`} />
         </button>
-        
+
         {/* Task content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2">
@@ -176,14 +225,122 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
               {task.text}
             </span>
           </div>
-          {task.scheduledAt && (
-            <div className="text-[10px] text-muted-foreground/50 mt-1 flex items-center gap-1">
-              <Calendar className="h-2.5 w-2.5" />
-              {new Date(task.scheduledAt).toLocaleDateString()}
-            </div>
-          )}
+
+          {/* Time blocks */}
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            {/* Scheduled indicator */}
+            {task.scheduledAt ? (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] ${
+                task.status === 'done' ? 'bg-emerald-200/10 text-emerald-400/70' : 'bg-blue-200/15 text-blue-400'
+              }`}>
+                <Calendar className="h-2.5 w-2.5" />
+                <span>{formatDate(task.scheduledAt)}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, null); }}
+                  className="ml-0.5 hover:text-white/80"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="relative group/sched">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, getQuickDateStr(0)); }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-blue-400 hover:bg-blue-200/10 transition"
+                  title="设置计划日期"
+                >
+                  <Calendar className="h-2.5 w-2.5" />
+                  <span>计划</span>
+                </button>
+                {/* Quick date dropdown */}
+                <div className="absolute left-0 top-full mt-1 hidden group-hover/sched:block z-10">
+                  <div className="bg-popover border border-border rounded-lg shadow-lg p-1.5 min-w-[120px]">
+                    <div className="text-[9px] text-slate-500 mb-1 px-1">计划日期</div>
+                    {[
+                      { label: '今天', days: 0 },
+                      { label: '明天', days: 1 },
+                      { label: '后天', days: 2 },
+                      { label: '本周', days: 7 - new Date().getDay() },
+                    ].map(item => (
+                      <button
+                        key={item.label}
+                        onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, getQuickDateStr(item.days)); }}
+                        className="w-full text-left px-2 py-1 text-[11px] text-slate-300 hover:bg-blue-200/15 hover:text-blue-300 rounded transition"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <div className="mt-1 pt-1 border-t border-border/50">
+                      <input
+                        type="date"
+                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-blue-400/50"
+                        onChange={(e) => { e.stopPropagation(); setScheduledDate(task.id, e.target.value || null); }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Deadline indicator */}
+            {task.deadlineAt ? (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] ${
+                taskOverdue ? 'bg-red-200/20 text-red-400 animate-pulse' : 'bg-orange-200/15 text-orange-400'
+              }`}>
+                <AlertCircle className="h-2.5 w-2.5" />
+                <span>{formatDate(task.deadlineAt)}</span>
+                {taskOverdue && <span className="text-[8px]">逾期</span>}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, null); }}
+                  className="ml-0.5 hover:text-white/80"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="relative group/dead">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, getQuickDateStr(1)); }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-orange-400 hover:bg-orange-200/10 transition"
+                  title="设置截止日期"
+                >
+                  <AlertCircle className="h-2.5 w-2.5" />
+                  <span>截止</span>
+                </button>
+                {/* Quick deadline dropdown */}
+                <div className="absolute left-0 top-full mt-1 hidden group-hover/dead:block z-10">
+                  <div className="bg-popover border border-border rounded-lg shadow-lg p-1.5 min-w-[120px]">
+                    <div className="text-[9px] text-slate-500 mb-1 px-1">截止日期</div>
+                    {[
+                      { label: '今天', days: 0 },
+                      { label: '明天', days: 1 },
+                      { label: '后天', days: 2 },
+                      { label: '本周', days: 7 - new Date().getDay() },
+                    ].map(item => (
+                      <button
+                        key={item.label}
+                        onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, getQuickDateStr(item.days)); }}
+                        className="w-full text-left px-2 py-1 text-[11px] text-slate-300 hover:bg-orange-200/15 hover:text-orange-300 rounded transition"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <div className="mt-1 pt-1 border-t border-border/50">
+                      <input
+                        type="date"
+                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-orange-400/50"
+                        onChange={(e) => { e.stopPropagation(); setDeadlineDate(task.id, e.target.value || null); }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        
+
         {/* Priority badge */}
         <button
           onClick={(e) => { e.stopPropagation(); cyclePriority(task.id); }}
@@ -192,7 +349,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
         >
           <PriorityIcon className="h-3.5 w-3.5" />
         </button>
-        
+
         {/* Delete button */}
         <button
           onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
