@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { GitBranch, X, User, Building2, MapPin, Box, Tag, Loader2, Brain, Network, LayoutGrid, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { GitBranch, X, User, Building2, MapPin, Box, Tag, Loader2, Brain, Network, LayoutGrid, ZoomIn, ZoomOut, Maximize2, Search, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -47,12 +47,15 @@ interface GraphLink extends SimulationLinkDatum<GraphNode> {
   link: string;
 }
 
-function ForceGraph({ entities, edges, onSelect }: {
+function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlightedNodeId }: {
   entities: EntityInfo[];
   edges: RelationEdge[];
   onSelect: (entity: EntityInfo) => void;
+  svgRef?: React.RefObject<SVGSVGElement>;
+  highlightedNodeId?: number | null;
 }) {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const internalSvgRef = useRef<SVGSVGElement>(null);
+  const svgRef = externalSvgRef || internalSvgRef;
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [links, setLinks] = useState<GraphLink[]>([]);
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
@@ -256,9 +259,10 @@ function ForceGraph({ entities, edges, onSelect }: {
         {/* Nodes */}
         {nodes.map(node => {
           if (node.x == null || node.y == null) return null;
-          const dimmed = highlightedIds && !highlightedIds.has(node.id);
+          const dimmed = (highlightedIds && !highlightedIds.has(node.id)) || (highlightedNodeId !== null && highlightedNodeId !== node.id);
           const isHovered = hoveredNode === node.id;
-          const r = isHovered ? 14 : 10;
+          const isHighlighted = highlightedNodeId === node.id;
+          const r = isHovered || isHighlighted ? 14 : 10;
           const color = getKindColor(node.kind);
           return (
             <g
@@ -273,8 +277,9 @@ function ForceGraph({ entities, edges, onSelect }: {
               className="cursor-pointer"
               opacity={dimmed ? 0.15 : 1}
             >
-              <circle r={r} fill={color} opacity={0.2} />
-              <circle r={r} fill="none" stroke={color} strokeWidth={isHovered ? 2.5 : 1.5} />
+              {isHighlighted && <circle r={r + 6} fill="none" stroke={color} strokeWidth={2} opacity={0.4} />}
+              <circle r={r} fill={color} opacity={isHighlighted ? 0.5 : 0.2} />
+              <circle r={r} fill="none" stroke={color} strokeWidth={isHovered || isHighlighted ? 2.5 : 1.5} />
               <text
                 y={r + 14}
                 textAnchor="middle"
@@ -295,8 +300,72 @@ export function GraphPage() {
   const { entities, edges, stats, memories, selectedEntity, selectedEdges, isLoading, error, kindFilter, loadGraph, selectEntity, setKindFilter } = useGraphStore();
   const [showMemories, setShowMemories] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [highlightedNodeId, setHighlightedNodeId] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => { loadGraph(); }, [loadGraph]);
+
+  // Search handler - highlight matching node
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setHighlightedNodeId(null);
+      return;
+    }
+    const lower = query.toLowerCase();
+    const match = entities.find(e => 
+      e.display_name.toLowerCase().includes(lower) ||
+      e.kind.toLowerCase().includes(lower)
+    );
+    setHighlightedNodeId(match?.id ?? null);
+    
+    // Auto-switch to graph view and select entity
+    if (match) {
+      setViewMode('graph');
+      selectEntity(match);
+    }
+  }, [entities, selectEntity]);
+
+  // Export SVG handler
+  const handleExportSvg = useCallback(() => {
+    if (!svgRef.current) return;
+    
+    // Clone the SVG to avoid modifying the original
+    const svgClone = svgRef.current.cloneNode(true) as SVGSVGElement;
+    
+    // Get current styles and embed them
+    const styles = `
+      .node { fill: #3b82f6; }
+      .link { stroke: #6b7280; stroke-width: 1.5px; }
+      .label { fill: #e2e8f0; font-size: 10px; font-family: system-ui, sans-serif; }
+      text { fill: #e2e8f0; font-size: 10px; font-family: system-ui, sans-serif; }
+    `;
+    
+    // Create a style element and insert it
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = styles;
+    svgClone.insertBefore(styleEl, svgClone.firstChild);
+    
+    // Set background
+    svgClone.setAttribute('style', 'background: #0a0c12;');
+    
+    // Serialize to string
+    const serializer = new XMLSerializer();
+    let svgString = serializer.serializeToString(svgClone);
+    
+    // Add XML declaration
+    svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
+    
+    // Create download
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clawkb-graph-${Date.now()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
 
   const uniqueKinds = [...new Set(entities.map(e => e.kind))];
   const filteredEntities = kindFilter ? entities.filter(e => e.kind === kindFilter) : entities;
@@ -319,6 +388,24 @@ export function GraphPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/* Search input */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="搜索节点..."
+                  className="h-7 pl-8 pr-3 text-xs rounded-md bg-muted/40 border border-border/50 w-36 focus:w-48 transition-all outline-none focus:border-primary/30"
+                />
+              </div>
+              
+              {/* Export SVG button */}
+              <Button variant="ghost" size="sm" onClick={handleExportSvg} className="text-xs h-7 gap-1" title="导出 SVG">
+                <Download className="h-3.5 w-3.5" />
+                导出
+              </Button>
+              
               <div className="flex items-center border rounded-md overflow-hidden">
                 <button
                   onClick={() => setViewMode('grid')}
@@ -387,6 +474,8 @@ export function GraphPage() {
               entities={filteredEntities}
               edges={edges}
               onSelect={selectEntity}
+              svgRef={svgRef}
+              highlightedNodeId={highlightedNodeId}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
