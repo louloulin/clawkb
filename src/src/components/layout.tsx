@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getRuntimeModeInfo, isBrowserPreview } from '@/api/platform';
 import { useKbStore } from '@/store/kb-store';
 import { useWorkspaceStore } from '@/store/workspace-store';

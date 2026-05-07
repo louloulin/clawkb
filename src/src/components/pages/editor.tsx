@@ -17,8 +17,7 @@ import {
   Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
   Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Minus,
   ListChecks, ToggleRight, BookOpen, Image as ImageIcon, LayoutGrid,
-  CheckSquare, Table as TableIcon, Columns, ColumnsIcon, GripVertical,
-  Link2, Copy, Trash2, MessageSquare, ChevronRight
+  CheckSquare, MessageSquare, ChevronRight
 } from 'lucide-react';
 import {
   BlockIdExtension,
