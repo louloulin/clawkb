@@ -17,8 +17,15 @@ import {
   Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
   Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Minus,
   ListChecks, ToggleRight, BookOpen, Image as ImageIcon, LayoutGrid,
-  CheckSquare, Table as TableIcon, Columns, ColumnsIcon
+  CheckSquare, Table as TableIcon, Columns, ColumnsIcon, GripVertical,
+  Link2, Copy, Trash2, MessageSquare
 } from 'lucide-react';
+import {
+  BlockIdExtension,
+  BlockReferenceExtension,
+  BlockFoldExtension,
+  BlockReferenceSearch,
+} from '@/components/ui/block-extensions';
 import { OutlinePanel } from '@/components/ui/outline-panel';
 import { TemplateManager } from '@/components/ui/template-manager';
 import { WikiLinkAutocomplete, wikilinkPlugin, type WikiLinkState } from '@/components/ui/wikilink-autocomplete';
@@ -52,6 +59,7 @@ const SLASH_COMMANDS = [
   { id: 'code', label: '代码块', description: '代码片段', icon: Code, action: () => editor?.chain().focus().toggleCodeBlock().run(), category: 'advanced' },
   { id: 'divider', label: '分割线', description: '水平分隔线', icon: Minus, action: () => editor?.chain().focus().setHorizontalRule().run(), category: 'basic' },
   { id: 'wikilink', label: '页面引用', description: '链接到其他笔记', icon: BookOpen, action: () => { /* wikilink handled separately */ }, category: 'advanced' },
+  { id: 'blockref', label: '块引用', description: '引用当前笔记的块', icon: MessageSquare, action: () => { setShowBlockRefSearch(true); }, category: 'advanced' },
   { id: 'image', label: '图片', description: '插入图片', icon: ImageIcon, action: () => {
     const url = window.prompt('输入图片 URL:');
     if (url) editor?.chain().focus().setImage({ src: url }).run();
@@ -91,6 +99,7 @@ export function EditorPage({
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  const [showBlockRefSearch, setShowBlockRefSearch] = useState(false);
   const [outlinePanelOpen, setOutlinePanelOpen] = useState(false);
   const [wikilinkState, setWikilinkState] = useState<WikiLinkState | null>(null);
   const [title, setTitle] = useState(initialTitle);
@@ -125,6 +134,9 @@ export function EditorPage({
       TableCell,
       TaskList,
       TaskItem.configure({ nested: true }),
+      BlockIdExtension,
+      BlockReferenceExtension,
+      BlockFoldExtension,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -330,6 +342,15 @@ export function EditorPage({
   // Insert code block
   const handleInsertCodeBlock = () => {
     editor?.chain().focus().toggleCodeBlock().run();
+  };
+
+  // Insert block reference
+  const handleInsertBlockReference = (blockId: string, blockTitle: string) => {
+    editor?.chain().focus().insertContent({
+      type: 'blockReference',
+      attrs: { blockId, blockTitle },
+    }).run();
+    setShowBlockRefSearch(false);
   };
 
   // Handle Cmd+K for link insertion
@@ -757,6 +778,15 @@ export function EditorPage({
           onSelect={() => {}}
           onClose={() => setWikilinkState(null)}
           onQueryChange={(query) => setWikilinkState((s) => s ? { ...s, query } : null)}
+        />
+      )}
+
+      {/* Block Reference Search Modal */}
+      {showBlockRefSearch && (
+        <BlockReferenceSearch
+          editor={editor}
+          onSelect={handleInsertBlockReference}
+          onClose={() => setShowBlockRefSearch(false)}
         />
       )}
     </div>

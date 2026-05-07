@@ -1095,10 +1095,10 @@ Week 13+: 白板 + 优化
   - [x] 待办事项列表（TaskList）
   - [x] 表格插入（Table）
   - [x] 图片插入
-  - [ ] 块拖拽排序
+  - [x] 块拖拽排序（BlockDragHandle + drag handle menu）
   - [ ] 块缩进/折叠
-  - [ ] 页面引用 [[ ]] 预览
-  - [ ] 块引用系统
+  - [x] 页面引用 [[ ]] 预览（WikiLinkAutocomplete）
+  - [x] 块引用系统（BlockReference + BlockReferenceSearch）
 
 - [x] **Reader 增强** ✅
   - [x] PDF 文字选择
@@ -1111,13 +1111,13 @@ Week 13+: 白板 + 优化
   - [x] 标签筛选
   - [x] 时间筛选（today/week/month/year）
   - [x] 排序选项（relevance/time）
-  - [ ] 结果预览
+  - [x] 结果预览（hover 400ms延迟显示完整内容）
 
 - [x] **Daily Notes** ✅
-  - [x] 热力图日历
+  - [x] 热力图日历（DailyCalendar）
   - [x] 今日面板
   - [x] 日记模板
-  - [ ] 任务管理（TODO/DOING/DONE）
+  - [x] 任务管理（TODO/DOING/DONE + 优先级 + DailyTasks组件）
 
 ### Phase 3：高阶功能（Week 5-8）
 

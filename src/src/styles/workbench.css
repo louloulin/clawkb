@@ -178,3 +178,179 @@ img {
 .ProseMirror > *:hover {
   background-color: hsl(var(--kb-outline) / 0.08);
 }
+
+/* ---- Block Extensions: Drag Handle Container ---- */
+
+.drag-handle-container {
+  position: absolute;
+  left: -32px;
+  top: 2px;
+  z-index: 10;
+  display: none;
+}
+
+.ProseMirror > *:hover > .drag-handle-container,
+.ProseMirror > *:hover .drag-handle-container {
+  display: block;
+}
+
+.drag-handle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--kb-outline) / 0.5);
+  background: hsl(var(--kb-panel));
+  color: hsl(var(--kb-text-muted));
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.ProseMirror > *:hover .drag-handle-btn {
+  opacity: 0.5;
+}
+
+.drag-handle-btn:hover,
+.drag-handle-btn.dragging {
+  opacity: 1 !important;
+  background: hsl(var(--kb-panel-strong));
+  color: hsl(var(--kb-text-primary));
+}
+
+.drag-handle-btn:active {
+  cursor: grabbing;
+}
+
+/* Drag Handle context menu */
+.drag-handle-menu {
+  position: absolute;
+  left: 28px;
+  top: 0;
+  background: hsl(var(--kb-panel-strong));
+  border: 1px solid hsl(var(--kb-outline) / 0.7);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px hsl(var(--kb-shadow) / 0.4);
+  padding: 4px;
+  min-width: 140px;
+  z-index: 50;
+}
+
+.drag-handle-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: hsl(var(--kb-text-secondary));
+  transition: background 0.1s;
+}
+
+.drag-handle-menu button:hover {
+  background: hsl(var(--kb-outline) / 0.15);
+  color: hsl(var(--kb-text-primary));
+}
+
+/* ---- Block Reference ---- */
+
+.block-reference {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-size: 0.875em;
+  color: #fbbf24;
+  transition: background 0.15s;
+}
+
+.block-reference:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+/* ---- Block Indent Guide Lines ---- */
+
+.ProseMirror [data-block-id] {
+  transition: background-color 0.1s;
+}
+
+/* Indented block guide lines */
+.ProseMirror blockquote {
+  border-left: 2px solid hsl(var(--kb-accent) / 0.3);
+  padding-left: 1rem;
+  margin-left: 0;
+}
+
+.ProseMirror li {
+  position: relative;
+}
+
+.ProseMirror li::before {
+  content: '';
+  position: absolute;
+  left: -1rem;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: hsl(var(--kb-outline) / 0.3);
+}
+
+/* ---- Drag-and-Drop Drop Indicator ---- */
+
+.ProseMirror .drop-cursor {
+  position: relative;
+}
+
+.ProseMirror .drop-cursor::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: hsl(var(--kb-accent));
+  border-radius: 1px;
+  animation: dropPulse 1s ease-in-out infinite;
+}
+
+@keyframes dropPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ---- Collapsible blocks ---- */
+
+.ProseMirror [data-collapsed="true"] > *:not(:first-child) {
+  display: none;
+}
+
+.ProseMirror [data-collapsed="true"]::after {
+  content: '···';
+  color: hsl(var(--kb-text-muted));
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.ProseMirror [data-collapsed="false"]::after {
+  content: '';
+}
+
+/* ---- Block Tooltip ---- */
+
+.block-tooltip {
+  position: absolute;
+  right: 8px;
+  top: 2px;
+  font-size: 10px;
+  color: hsl(var(--kb-text-muted));
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.ProseMirror > *:hover .block-tooltip {
+  opacity: 0.6;
+}

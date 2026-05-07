@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Filter, GitBranch, Clock, ArrowUpDown, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -481,50 +482,120 @@ export function SearchPage() {
 function SearchResultCard({ hit, rank, selected, onClick, onToggleSelect }: {
   hit: SearchHit; rank: number; selected: boolean; onClick: () => void; onToggleSelect: () => void;
 }) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-clawkb-doc', hit.id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      if (cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect();
+        setPreviewPos({ x: rect.right + 8, y: rect.top });
+        setShowPreview(true);
+      }
+    }, 400); // 400ms delay before showing preview
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setShowPreview(false);
+  };
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
-    <div
-      draggable
-      onDragStart={handleDragStart}
-      className={`w-full rounded-xl border p-4 transition-colors group cursor-grab active:cursor-grabbing ${
-        selected
-          ? 'bg-primary/5 border-primary/30'
-          : 'bg-card border-border/50 hover:bg-muted/20 hover:border-border'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
-          className="mt-0.5 shrink-0 cursor-pointer"
+    <>
+      <div
+        ref={cardRef}
+        draggable
+        onDragStart={handleDragStart}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={`w-full rounded-xl border p-4 transition-colors group cursor-grab active:cursor-grabbing ${
+          selected
+            ? 'bg-primary/5 border-primary/30'
+            : 'bg-card border-border/50 hover:bg-muted/20 hover:border-border'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+            className="mt-0.5 shrink-0 cursor-pointer"
+          >
+            {selected
+              ? <CheckSquare className="h-4 w-4 text-primary" />
+              : <Square className="h-4 w-4 text-muted-foreground/40 hover:text-muted-foreground" />
+            }
+          </button>
+          <button onClick={onClick} className="flex-1 text-left cursor-pointer">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">{hit.title || '(untitled)'}</h3>
+              <span className="text-[11px] text-muted-foreground/60 whitespace-nowrap tabular-nums">
+                #{rank} · {hit.score.toFixed(2)}
+              </span>
+            </div>
+            <p className="text-[13px] text-muted-foreground leading-relaxed mb-3 line-clamp-2">{hit.content}</p>
+            {hit.tags.length > 0 && (
+              <div className="flex gap-1.5 flex-wrap">
+                {hit.tags.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">
+                    <Hash className="h-2.5 w-2.5" />{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Hover Preview Popup */}
+      {showPreview && (
+        <div
+          className="fixed z-50 bg-card border border-border/70 rounded-xl shadow-xl p-4 max-w-md max-h-80 overflow-hidden"
+          style={{
+            left: `${previewPos.x}px`,
+            top: `${previewPos.y}px`,
+          }}
         >
-          {selected
-            ? <CheckSquare className="h-4 w-4 text-primary" />
-            : <Square className="h-4 w-4 text-muted-foreground/40 hover:text-muted-foreground" />
-          }
-        </button>
-        <button onClick={onClick} className="flex-1 text-left cursor-pointer">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <h3 className="text-sm font-medium leading-tight group-hover:text-primary transition-colors">{hit.title || '(untitled)'}</h3>
-            <span className="text-[11px] text-muted-foreground/60 whitespace-nowrap tabular-nums">
-              #{rank} · {hit.score.toFixed(2)}
-            </span>
+          <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
+            <span>预览</span>
+            <span className="text-[10px] opacity-50">· 悬停查看</span>
           </div>
-          <p className="text-[13px] text-muted-foreground leading-relaxed mb-3 line-clamp-2">{hit.content}</p>
+          <h4 className="text-sm font-semibold mb-2 line-clamp-1">{hit.title || '(untitled)'}</h4>
+          <div className="text-[13px] text-muted-foreground leading-relaxed max-h-48 overflow-y-auto">
+            {hit.content || '无内容'}
+          </div>
           {hit.tags.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap mt-3 pt-3 border-t border-border/30">
               {hit.tags.map(tag => (
-                <span key={tag} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">
-                  <Hash className="h-2.5 w-2.5" />{tag}
+                <span key={tag} className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">
+                  <Hash className="h-2 w-2" />{tag}
                 </span>
               ))}
             </div>
           )}
-        </button>
-      </div>
-    </div>
+          <div className="text-[10px] text-muted-foreground/50 mt-3 pt-2 border-t border-border/30 flex items-center justify-between">
+            <span>{hit.score.toFixed(2)} 相关度</span>
+            <span>{hit.created_at ? new Date(hit.created_at).toLocaleDateString() : '未知日期'}</span>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
