@@ -1146,7 +1146,7 @@ Week 13+: 白板 + 优化
   - [x] DailyTasks 组件 (TODO/DOING/DONE/CANCELLED)
   - [x] 优先级 (P0/P1/P2)
   - [x] 本地存储持久化
-  - [ ] 看板视图
+  - [x] 看板视图 (KanbanView with drag-and-drop between TODO/DOING/DONE)
   - [ ] 时间块 (Scheduled/Deadline)
 
 ### Phase 4：高级功能（Week 9-12）
