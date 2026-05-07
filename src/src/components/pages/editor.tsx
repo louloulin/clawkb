@@ -5,11 +5,19 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TaskList } from '@tiptap/extension-task-list';
+import { TaskItem } from '@tiptap/extension-task-item';
 import {
   Bold, Italic, List, ListOrdered, Strikethrough, Code, Quote,
   Undo, Redo, Sparkles, Wand2, ChevronDown, Loader2, X, FileText, Save,
   Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Minus,
-  ListChecks, ToggleRight, BookOpen, Image, LayoutGrid
+  ListChecks, ToggleRight, BookOpen, Image as ImageIcon, LayoutGrid,
+  CheckSquare, Table as TableIcon, Columns, ColumnsIcon
 } from 'lucide-react';
 import { OutlinePanel } from '@/components/ui/outline-panel';
 import { TemplateManager } from '@/components/ui/template-manager';
@@ -38,14 +46,19 @@ const SLASH_COMMANDS = [
   { id: 'heading3', label: '标题 3', description: '小标题', icon: Heading3, action: () => editor?.chain().focus().toggleHeading({ level: 3 }).run(), category: 'basic' },
   { id: 'bullet', label: '无序列表', description: '创建一个项目符号列表', icon: List, action: () => editor?.chain().focus().toggleBulletList().run(), category: 'list' },
   { id: 'numbered', label: '有序列表', description: '创建一个编号列表', icon: ListOrdered, action: () => editor?.chain().focus().toggleOrderedList().run(), category: 'list' },
-  { id: 'todo', label: '待办事项', description: '创建任务清单', icon: ListChecks, action: () => { /* TODO: implement todo list */ editor?.chain().focus().toggleBulletList().run(); }, category: 'list' },
+  { id: 'todo', label: '待办事项', description: '创建任务清单', icon: ListChecks, action: () => editor?.chain().focus().toggleTaskList().run(), category: 'list' },
   { id: 'quote', label: '引用块', description: '引用文本', icon: Quote, action: () => editor?.chain().focus().toggleBlockquote().run(), category: 'basic' },
-  { id: 'callout', label: '标注框', description: '高亮显示重要内容', icon: ToggleRight, action: () => { /* TODO: implement callout */ }, category: 'basic' },
+  { id: 'callout', label: '标注框', description: '高亮显示重要内容', icon: ToggleRight, action: () => editor?.chain().focus().toggleBlockquote().run(), category: 'basic' },
   { id: 'code', label: '代码块', description: '代码片段', icon: Code, action: () => editor?.chain().focus().toggleCodeBlock().run(), category: 'advanced' },
   { id: 'divider', label: '分割线', description: '水平分隔线', icon: Minus, action: () => editor?.chain().focus().setHorizontalRule().run(), category: 'basic' },
   { id: 'wikilink', label: '页面引用', description: '链接到其他笔记', icon: BookOpen, action: () => { /* wikilink handled separately */ }, category: 'advanced' },
-  { id: 'image', label: '图片', description: '插入图片', icon: Image, action: () => { /* TODO: implement image insert */ }, category: 'media' },
-  { id: 'table', label: '表格', description: '插入表格', icon: LayoutGrid, action: () => { /* TODO: implement table */ }, category: 'advanced' },
+  { id: 'image', label: '图片', description: '插入图片', icon: ImageIcon, action: () => {
+    const url = window.prompt('输入图片 URL:');
+    if (url) editor?.chain().focus().setImage({ src: url }).run();
+  }, category: 'media' },
+  { id: 'table', label: '表格 (3x3)', description: '插入表格', icon: LayoutGrid, action: () => {
+    editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  }, category: 'advanced' },
 ];
 
 // Writing templates (loaded dynamically via TemplateManager)
@@ -94,7 +107,7 @@ export function EditorPage({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: '开始写作，或输入 / 触发 AI 命令...',
+        placeholder: '开始写作，或输入 / 触发斜杠命令...',
       }),
       Typography,
       Underline,
@@ -102,6 +115,16 @@ export function EditorPage({
         openOnClick: false,
         HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
       }),
+      Image.configure({
+        inline: true,
+        HTMLAttributes: { class: 'max-w-full rounded-lg' },
+      }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({ nested: true }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -499,6 +522,21 @@ export function EditorPage({
             active={editor?.isActive('orderedList')}
           >
             <ListOrdered className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            title="Task list"
+            onClick={() => editor?.chain().focus().toggleTaskList().run()}
+            active={editor?.isActive('taskList')}
+          >
+            <CheckSquare className="h-4 w-4" />
+          </ToolbarButton>
+          <div className="w-px h-5 bg-border mx-2" />
+          <ToolbarButton
+            title="Insert table"
+            onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            active={editor?.isActive('table')}
+          >
+            <LayoutGrid className="h-4 w-4" />
           </ToolbarButton>
           <div className="w-px h-5 bg-border mx-2" />
           <ToolbarButton

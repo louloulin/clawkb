@@ -58,3 +58,123 @@
   background: hsl(var(--kb-surface-elevated));
   border: 1px solid hsl(var(--kb-outline) / 0.7);
 }
+
+/* TipTap Editor Styles — Task list, Table, Image */
+
+/* Task list */
+ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Task item checkbox styling */
+ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Table styling */
+table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  overflow: hidden;
+  width: 100%;
+}
+table td,
+table th {
+  border: 1px solid hsl(var(--kb-outline) / 0.6);
+  box-sizing: border-box;
+  min-width: 80px;
+  padding: 6px 10px;
+  position: relative;
+  vertical-align: top;
+}
+table th {
+  background: hsl(var(--kb-panel-strong) / 0.5);
+  font-weight: 600;
+  text-align: left;
+}
+table .selectedCell:after {
+  background: hsl(var(--kb-accent) / 0.15);
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+table .column-resize-handle {
+  background-color: hsl(var(--kb-accent) / 0.4);
+  bottom: -2px;
+  position: absolute;
+  right: -2px;
+  pointer-events: none;
+  top: 0;
+  width: 4px;
+}
+
+/* Image styling */
+img.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--kb-accent));
+  border-radius: 8px;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+/* Drag handle styling */
+.drag-handle {
+  position: absolute;
+  left: -28px;
+  top: 2px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 0.15s;
+  color: hsl(var(--kb-text-muted));
+  background: hsl(var(--kb-panel));
+  border: 1px solid hsl(var(--kb-outline) / 0.5);
+}
+.drag-handle:hover {
+  opacity: 1;
+  color: hsl(var(--kb-text-primary));
+  background: hsl(var(--kb-panel-strong));
+}
+.ProseMirror > *:hover .drag-handle {
+  opacity: 0.6;
+}
+
+/* Block hover effect */
+.ProseMirror > * {
+  position: relative;
+  padding-left: 4px;
+  border-radius: 4px;
+  transition: background-color 0.1s;
+}
+.ProseMirror > *:hover {
+  background-color: hsl(var(--kb-outline) / 0.08);
+}

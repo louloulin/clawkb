@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Filter, GitBranch } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Filter, GitBranch, Clock, ArrowUpDown, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,6 +20,34 @@ import { api } from '@/api';
 import { classifyAppError, userInputError } from '@/lib/app-error';
 import type { SearchHit, SearchMode } from '@/api';
 
+// Search history management
+const SEARCH_HISTORY_KEY = 'clawkb-search-history';
+const MAX_HISTORY = 10;
+
+function getSearchHistory(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function addToSearchHistory(query: string) {
+  if (!query.trim()) return;
+  const history = getSearchHistory().filter(q => q !== query);
+  history.unshift(query);
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+}
+
+function clearSearchHistory() {
+  localStorage.removeItem(SEARCH_HISTORY_KEY);
+}
+
+// Time filter options
+type TimeFilter = 'all' | 'today' | 'week' | 'month' | 'year';
+// Sort options
+type SortOption = 'relevance' | 'time';
+
 export function SearchPage() {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('hybrid');
@@ -29,6 +57,10 @@ export function SearchPage() {
   const [batchTag, setBatchTag] = useState('');
   const [batchLoading, setBatchLoading] = useState(false);
   const [graphResults, setGraphResults] = useState<SearchHit[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const { results, loading, search } = useSearch();
   const { tags } = useTags();
   const setPage = useKbStore(s => s.setPage);
@@ -39,12 +71,24 @@ export function SearchPage() {
   const setActiveTab = useDocumentWorkspaceStore(s => s.setActiveTab);
   const { toast } = useToast();
 
+  // Load search history on mount
+  useEffect(() => {
+    setSearchHistory(getSearchHistory());
+  }, []);
+
   const handleSearch = useCallback(async () => {
     setSelectedIds(new Set());
+    setShowHistory(false);
     try {
       if (!query.trim() && !selectedFolder) {
         toast(userInputError('Enter a search query, or switch to a folder-scoped search before running this action.'));
         return;
+      }
+
+      // Save to history
+      if (query.trim()) {
+        addToSearchHistory(query.trim());
+        setSearchHistory(getSearchHistory());
       }
 
       if (selectedFolder) {
@@ -71,9 +115,36 @@ export function SearchPage() {
   }, [query, mode, search, graphPattern]);
 
   const displayResults = graphResults.length > 0 ? graphResults : results;
-  const filteredResults = tagFilter
+
+  // Filter by tag
+  let filteredResults = tagFilter
     ? displayResults.filter(h => h.tags.includes(tagFilter))
     : displayResults;
+
+  // Filter by time
+  if (timeFilter !== 'all') {
+    const now = Date.now();
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const thresholds: Record<TimeFilter, number> = {
+      all: Infinity,
+      today: msPerDay,
+      week: 7 * msPerDay,
+      month: 30 * msPerDay,
+      year: 365 * msPerDay,
+    };
+    const threshold = thresholds[timeFilter];
+    filteredResults = filteredResults.filter(h => {
+      const docTime = new Date(h.created_at).getTime();
+      return now - docTime <= threshold;
+    });
+  }
+
+  // Sort results
+  if (sortBy === 'time') {
+    filteredResults = [...filteredResults].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -163,46 +234,119 @@ export function SearchPage() {
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
-          <Input
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Search your knowledge base..."
-            autoFocus
-            className="pl-10 h-10 rounded-xl bg-muted/30 border-border/50 focus:dark:bg-background focus:bg-white"
-          />
+      {/* Search Bar with History */}
+      <div className="relative mb-4">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+            <Input
+              type="text"
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                setShowHistory(e.target.value.length > 0 ? false : true);
+              }}
+              onFocus={() => setShowHistory(true)}
+              onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSearch();
+                if (e.key === 'Escape') setShowHistory(false);
+              }}
+              placeholder="Search your knowledge base... (⌘K)"
+              autoFocus
+              className="pl-10 h-10 rounded-xl bg-muted/30 border-border/50 focus:dark:bg-background focus:bg-white"
+            />
+          </div>
+          <Select value={mode} onValueChange={(v) => setMode(v as SearchMode)}>
+            <SelectTrigger className="w-28 h-10 rounded-xl border-border/50">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
+              <SelectItem value="lex">Lexical</SelectItem>
+              <SelectItem value="sem">Semantic</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleSearch} disabled={loading} className="h-10 px-5 rounded-xl">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          </Button>
         </div>
-        <Select value={mode} onValueChange={(v) => setMode(v as SearchMode)}>
-          <SelectTrigger className="w-28 h-10 rounded-xl border-border/50">
+
+        {/* Search History Dropdown */}
+        {showHistory && searchHistory.length > 0 && !query && (
+          <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card border border-border/50 rounded-xl shadow-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                Recent searches
+              </div>
+              <button
+                onClick={() => { clearSearchHistory(); setSearchHistory([]); }}
+                className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="py-1 max-h-48 overflow-y-auto">
+              {searchHistory.map((q, i) => (
+                <button
+                  key={i}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setQuery(q);
+                    setShowHistory(false);
+                    handleSearch();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/40 transition-colors"
+                >
+                  <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="truncate">{q}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Filters Row */}
+      <div className="flex flex-wrap gap-3 mb-4">
+        {/* Time Filter */}
+        <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+          <SelectTrigger className="w-28 h-9 rounded-lg border-border/50 text-xs">
+            <Calendar className="h-3 w-3 mr-1.5" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="hybrid">Hybrid</SelectItem>
-            <SelectItem value="lex">Lexical</SelectItem>
-            <SelectItem value="sem">Semantic</SelectItem>
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">This week</SelectItem>
+            <SelectItem value="month">This month</SelectItem>
+            <SelectItem value="year">This year</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={handleSearch} disabled={loading} className="h-10 px-5 rounded-xl">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-        </Button>
-      </div>
 
-      {/* Graph Pattern Filter */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
-          <GitBranch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        {/* Sort */}
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+          <SelectTrigger className="w-32 h-9 rounded-lg border-border/50 text-xs">
+            <ArrowUpDown className="h-3 w-3 mr-1.5" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="relevance">Relevance</SelectItem>
+            <SelectItem value="time">Most recent</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Graph Pattern Filter */}
+        <div className="relative flex-1 min-w-[200px]">
+          <GitBranch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
           <Input
             type="text"
             value={graphPattern}
             onChange={e => setGraphPattern(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Filter by entity (e.g., Person:Alice, Project:memvid)..."
-            className="pl-10 h-9 rounded-lg bg-muted/20 border-border/30 text-[13px]"
+            placeholder="Entity filter (e.g., Person:Alice)..."
+            className="pl-10 h-9 rounded-lg bg-muted/20 border-border/30 text-xs"
           />
         </div>
         {graphPattern && (
@@ -216,10 +360,17 @@ export function SearchPage() {
           </Button>
         )}
       </div>
-      {graphPattern && (
-        <div className="text-[11px] text-muted-foreground mb-4 flex items-center gap-1">
+
+      {/* Results count */}
+      {(filteredResults.length > 0 || query) && !loading && (
+        <div className="text-[11px] text-muted-foreground mb-3 flex items-center gap-2">
           <Filter className="h-3 w-3" />
-          <span>Graph-filtered search: results related to entities matching "{graphPattern}"</span>
+          <span>
+            {filteredResults.length} {filteredResults.length === 1 ? 'result' : 'results'}
+            {query && ` for "${query}"`}
+            {tagFilter && ` tagged #${tagFilter}`}
+            {timeFilter !== 'all' && ` in ${timeFilter}`}
+          </span>
         </div>
       )}
 
