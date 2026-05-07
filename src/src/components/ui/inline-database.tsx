@@ -2,21 +2,23 @@
  * Inline Database — Notion-style inline database
  *
  * Features:
- * 1. Property types: text, number, select, date, checkbox
+ * 1. Property types: text, number, select, date, checkbox, relation
  * 2. Table view with sortable columns
  * 3. Row add/edit/delete
  * 4. View switching (Table/Kanban/Gallery)
+ * 5. Relation field for linking databases
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
   Database, Plus, Trash2, ChevronDown, ChevronRight,
-  CheckSquare, Square, Calendar, Hash, Type,
-  MoreHorizontal, GripVertical, ArrowUpDown, X, Edit3, Check
+  CheckSquare, Square, Calendar, Hash, Type, Link,
+  MoreHorizontal, GripVertical, ArrowUpDown, X, Edit3, Check,
+  ExternalLink, Unlink
 } from 'lucide-react';
 
 // Property types
-type PropertyType = 'text' | 'number' | 'select' | 'date' | 'checkbox' | 'url';
+type PropertyType = 'text' | 'number' | 'select' | 'date' | 'checkbox' | 'url' | 'relation';
 
 interface SelectOption {
   id: string;
@@ -29,11 +31,12 @@ interface Property {
   name: string;
   type: PropertyType;
   options?: SelectOption[]; // for select type
+  relationDbId?: string; // for relation type
 }
 
 interface DatabaseRow {
   id: string;
-  cells: Record<string, string | number | boolean | null>;
+  cells: Record<string, string | number | boolean | null | string[]>;
   createdAt: number;
 }
 
@@ -41,6 +44,7 @@ interface InlineDatabaseProps {
   initialName?: string;
   onSave?: (data: { name: string; properties: Property[]; rows: DatabaseRow[] }) => void;
   storageKey?: string;
+  linkedDatabases?: Array<{ id: string; name: string; rows: DatabaseRow[] }>;
 }
 
 // Default properties
@@ -61,7 +65,7 @@ const DEFAULT_PROPERTIES: Property[] = [
 
 const STORAGE_KEY = 'clawkb-inline-databases';
 
-export function InlineDatabase({ initialName = '新数据库', onSave, storageKey }: InlineDatabaseProps) {
+export function InlineDatabase({ initialName = '新数据库', onSave, storageKey, linkedDatabases = [] }: InlineDatabaseProps) {
   const [name, setName] = useState(initialName);
   const [editingName, setEditingName] = useState(false);
   const [properties, setProperties] = useState<Property[]>(DEFAULT_PROPERTIES);
@@ -74,6 +78,8 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
   const [editingCell, setEditingCell] = useState<{ rowId: string; propertyId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [showRelationPicker, setShowRelationPicker] = useState<{ rowId: string; propertyId: string } | null>(null);
+  const [relationSearch, setRelationSearch] = useState('');
 
   // Load from storage
   useEffect(() => {
@@ -108,6 +114,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
       case 'date': return <Calendar className="h-3 w-3" />;
       case 'checkbox': return <CheckSquare className="h-3 w-3" />;
       case 'url': return <Database className="h-3 w-3" />;
+      case 'relation': return <Link className="h-3 w-3" />;
       default: return <Type className="h-3 w-3" />;
     }
   };
@@ -142,11 +149,42 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
   }, [properties]);
 
   // Update cell
-  const updateCell = useCallback((rowId: string, propertyId: string, value: string | boolean) => {
+  const updateCell = useCallback((rowId: string, propertyId: string, value: string | boolean | string[]) => {
     setRows(prev => prev.map(row =>
       row.id === rowId ? { ...row, cells: { ...row.cells, [propertyId]: value } } : row
     ));
   }, []);
+
+  // Toggle relation
+  const toggleRelation = useCallback((rowId: string, propertyId: string, targetRowId: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.id !== rowId) return row;
+      const currentRelations = (row.cells[propertyId] as string[]) || [];
+      const hasRelation = currentRelations.includes(targetRowId);
+      return {
+        ...row,
+        cells: {
+          ...row.cells,
+          [propertyId]: hasRelation
+            ? currentRelations.filter(id => id !== targetRowId)
+            : [...currentRelations, targetRowId],
+        },
+      };
+    }));
+  }, []);
+
+  // Get linked database rows
+  const getLinkedRows = useCallback((dbId: string) => {
+    const db = linkedDatabases.find(d => d.id === dbId);
+    return db?.rows || [];
+  }, [linkedDatabases]);
+
+  // Get row title from linked database
+  const getRowTitle = useCallback((dbId: string, rowId: string) => {
+    const db = linkedDatabases.find(d => d.id === dbId);
+    const row = db?.rows.find(r => r.id === rowId);
+    return String(row?.cells['title'] || row?.cells[Object.keys(row?.cells || {})[0]] || 'Untitled');
+  }, [linkedDatabases]);
 
   // Delete row
   const deleteRow = useCallback((rowId: string) => {
@@ -272,6 +310,42 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         <span className="text-[12px] text-slate-400">
           {date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
         </span>
+      );
+    }
+    if (property.type === 'relation') {
+      const relations = (value as string[]) || [];
+      if (relations.length === 0) {
+        return (
+          <button
+            onClick={() => setShowRelationPicker({ rowId: row.id, propertyId: property.id })}
+            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-400 transition"
+          >
+            <Link className="h-3 w-3" />
+            <span>添加关联</span>
+          </button>
+        );
+      }
+      return (
+        <div className="flex flex-wrap gap-1">
+          {relations.slice(0, 3).map(relId => (
+            <span
+              key={relId}
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 text-[10px]"
+            >
+              <ExternalLink className="h-2.5 w-2.5" />
+              {getRowTitle(property.relationDbId || '', relId).slice(0, 10)}
+            </span>
+          ))}
+          {relations.length > 3 && (
+            <span className="text-[10px] text-slate-500">+{relations.length - 3}</span>
+          )}
+          <button
+            onClick={() => setShowRelationPicker({ rowId: row.id, propertyId: property.id })}
+            className="text-slate-500 hover:text-blue-400"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        </div>
       );
     }
     if (!value && value !== 0) return <span className="text-slate-600">—</span>;
@@ -526,6 +600,81 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
           )}
         </>
       )}
+
+      {/* Relation Picker Modal */}
+      {showRelationPicker && (() => {
+        const prop = properties.find(p => p.id === showRelationPicker.propertyId);
+        const linkedRows = prop?.relationDbId ? getLinkedRows(prop.relationDbId) : [];
+        const currentRelations = (rows.find(r => r.id === showRelationPicker.rowId)?.cells[showRelationPicker.propertyId] as string[]) || [];
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="w-80 max-h-[60vh] rounded-xl bg-[#1a1e2a] border border-white/10 shadow-2xl overflow-hidden">
+              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
+                <span className="text-[12px] text-white font-medium">选择关联项</span>
+                <button
+                  onClick={() => { setShowRelationPicker(null); setRelationSearch(''); }}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="p-2">
+                <input
+                  type="text"
+                  value={relationSearch}
+                  onChange={(e) => setRelationSearch(e.target.value)}
+                  placeholder="搜索..."
+                  className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[12px] text-white placeholder:text-slate-500 outline-none focus:border-blue-400/50"
+                />
+              </div>
+              <div className="max-h-[200px] overflow-y-auto px-2 pb-2">
+                {linkedRows.length === 0 ? (
+                  <div className="text-center py-4 text-[11px] text-slate-500">
+                    没有可关联的项
+                  </div>
+                ) : (
+                  linkedRows
+                    .filter(r => {
+                      if (!relationSearch) return true;
+                      const title = getRowTitle(prop?.relationDbId || '', r.id).toLowerCase();
+                      return title.includes(relationSearch.toLowerCase());
+                    })
+                    .map(row => {
+                      const isLinked = currentRelations.includes(row.id);
+                      return (
+                        <button
+                          key={row.id}
+                          onClick={() => toggleRelation(showRelationPicker.rowId, showRelationPicker.propertyId, row.id)}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition ${
+                            isLinked ? 'bg-blue-500/20 text-blue-300' : 'hover:bg-white/5 text-slate-300'
+                          }`}
+                        >
+                          {isLinked ? (
+                            <CheckSquare className="h-4 w-4 text-blue-400 shrink-0" />
+                          ) : (
+                            <Square className="h-4 w-4 text-slate-500 shrink-0" />
+                          )}
+                          <span className="text-[12px] truncate">
+                            {getRowTitle(prop?.relationDbId || '', row.id)}
+                          </span>
+                        </button>
+                      );
+                    })
+                )}
+              </div>
+              <div className="px-3 py-2 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={() => { setShowRelationPicker(null); setRelationSearch(''); }}
+                  className="px-3 py-1 rounded-lg bg-amber-200/20 text-amber-200 text-[11px] hover:bg-amber-200/30 transition"
+                >
+                  完成
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

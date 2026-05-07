@@ -1155,7 +1155,7 @@ Week 13+: 白板 + 优化
   - [x] Table View (sortable columns, inline editing)
   - [x] 属性类型 (text, number, select, date, checkbox)
   - [x] 视图切换 (Table/Kanban)
-  - [ ] 关联字段 (Relation)
+  - [x] 关联字段 (Relation) — 支持 linkedDatabases prop 关联其他数据库
 
 - [x] **Whiteboard** ✅
   - [x] 无限画布 (pan/zoom with grid)
