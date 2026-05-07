@@ -18,13 +18,15 @@ import {
   Heading1, Heading2, Heading3, LinkIcon, Type, PanelRight, Minus,
   ListChecks, ToggleRight, BookOpen, Image as ImageIcon, LayoutGrid,
   CheckSquare, Table as TableIcon, Columns, ColumnsIcon, GripVertical,
-  Link2, Copy, Trash2, MessageSquare
+  Link2, Copy, Trash2, MessageSquare, ChevronRight
 } from 'lucide-react';
 import {
   BlockIdExtension,
   BlockReferenceExtension,
   BlockFoldExtension,
   BlockReferenceSearch,
+  BlockBubbleMenu,
+  BlockFloatingMenu,
 } from '@/components/ui/block-extensions';
 import { OutlinePanel } from '@/components/ui/outline-panel';
 import { TemplateManager } from '@/components/ui/template-manager';
@@ -60,6 +62,8 @@ const SLASH_COMMANDS = [
   { id: 'divider', label: '分割线', description: '水平分隔线', icon: Minus, action: () => editor?.chain().focus().setHorizontalRule().run(), category: 'basic' },
   { id: 'wikilink', label: '页面引用', description: '链接到其他笔记', icon: BookOpen, action: () => { /* wikilink handled separately */ }, category: 'advanced' },
   { id: 'blockref', label: '块引用', description: '引用当前笔记的块', icon: MessageSquare, action: () => { setShowBlockRefSearch(true); }, category: 'advanced' },
+  { id: 'indent', label: '增加缩进', description: '向右增加缩进层级', icon: ChevronRight, action: () => { editor?.chain().focus().sinkListItem('listItem').run(); }, category: 'block' },
+  { id: 'outdent', label: '减少缩进', description: '向左减少缩进层级', icon: ChevronRight, action: () => { editor?.chain().focus().liftListItem('listItem').run(); }, category: 'block', transform: 'rotate-180' },
   { id: 'image', label: '图片', description: '插入图片', icon: ImageIcon, action: () => {
     const url = window.prompt('输入图片 URL:');
     if (url) editor?.chain().focus().setImage({ src: url }).run();
@@ -595,6 +599,12 @@ export function EditorPage({
               <Button size="sm" variant="ghost" onClick={() => { setShowLinkInput(false); setLinkUrl(''); }} className="text-xs">取消</Button>
             </div>
           )}
+
+          {/* Bubble menu for text formatting */}
+          <BlockBubbleMenu editor={editor} />
+
+          {/* Floating menu for block conversion */}
+          <BlockFloatingMenu editor={editor} />
 
           {/* Slash commands popup - Notion style */}
           {showCommands && (

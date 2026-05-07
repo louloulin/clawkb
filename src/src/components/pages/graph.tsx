@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useGraphStore } from '@/store/graph-store';
 import type { RelationEdge, MemoryCardInfo, EntityInfo } from '@/api';
 import {
-  forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide
+  forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide, forceRadial
 } from 'd3-force';
 import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3-force';
 import { safeStorageGet, safeStorageSet } from '@/store/persistence';
@@ -47,12 +47,13 @@ interface GraphLink extends SimulationLinkDatum<GraphNode> {
   link: string;
 }
 
-function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlightedNodeId }: {
+function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlightedNodeId, layout = 'force' }: {
   entities: EntityInfo[];
   edges: RelationEdge[];
   onSelect: (entity: EntityInfo) => void;
   svgRef?: React.RefObject<SVGSVGElement>;
   highlightedNodeId?: number | null;
+  layout?: 'force' | 'radial';
 }) {
   const internalSvgRef = useRef<SVGSVGElement>(null);
   const svgRef = externalSvgRef || internalSvgRef;
@@ -119,23 +120,57 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
         link: e.link,
       }));
 
-    const simulation = forceSimulation<GraphNode>(graphNodes)
-      .force('charge', forceManyBody().strength(-120))
-      .force('center', forceCenter(dimensions.width / 2, dimensions.height / 2))
-      .force('collision', forceCollide<GraphNode>().radius(30))
-      .force('link', forceLink<GraphNode, GraphLink>(graphLinks)
-        .id(d => d.id)
-        .distance(80)
-      )
-      .alpha(1)
-      .alphaDecay(0.02)
-      .on('tick', () => {
-        setNodes([...graphNodes]);
-        setLinks([...graphLinks]);
+    // Configure simulation based on layout type
+    let simulation;
+    if (layout === 'radial') {
+      // Radial layout - nodes arranged in concentric circles
+      const centerX = dimensions.width / 2;
+      const centerY = dimensions.height / 2;
+      const maxRadius = Math.min(dimensions.width, dimensions.height) / 2 - 50;
+      
+      // Position nodes in a radial pattern
+      graphNodes.forEach((node, i) => {
+        const angle = (2 * Math.PI * i) / graphNodes.length;
+        const radius = maxRadius * (0.3 + 0.7 * Math.random());
+        node.x = centerX + radius * Math.cos(angle);
+        node.y = centerY + radius * Math.sin(angle);
       });
 
+      simulation = forceSimulation<GraphNode>(graphNodes)
+        .force('charge', forceManyBody().strength(-80))
+        .force('collision', forceCollide<GraphNode>().radius(30))
+        .force('radial', forceRadial<GraphNode>()
+          .radius(maxRadius)
+          .strength(0.3)
+          .x(centerX)
+          .y(centerY)
+        )
+        .alpha(1)
+        .alphaDecay(0.02)
+        .on('tick', () => {
+          setNodes([...graphNodes]);
+          setLinks([...graphLinks]);
+        });
+    } else {
+      // Force-directed layout (default)
+      simulation = forceSimulation<GraphNode>(graphNodes)
+        .force('charge', forceManyBody().strength(-120))
+        .force('center', forceCenter(dimensions.width / 2, dimensions.height / 2))
+        .force('collision', forceCollide<GraphNode>().radius(30))
+        .force('link', forceLink<GraphNode, GraphLink>(graphLinks)
+          .id(d => d.id)
+          .distance(80)
+        )
+        .alpha(1)
+        .alphaDecay(0.02)
+        .on('tick', () => {
+          setNodes([...graphNodes]);
+          setLinks([...graphLinks]);
+        });
+    }
+
     return () => { simulation.stop(); };
-  }, [entities, edges, dimensions.width, dimensions.height]);
+  }, [entities, edges, dimensions.width, dimensions.height, layout]);
 
   const getLinkedNodeIds = useCallback((nodeId: number) => {
     const ids = new Set<number>();
@@ -299,7 +334,8 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
 export function GraphPage() {
   const { entities, edges, stats, memories, selectedEntity, selectedEdges, isLoading, error, kindFilter, loadGraph, selectEntity, setKindFilter } = useGraphStore();
   const [showMemories, setShowMemories] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'graph'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'radial'>('grid');
+  const [graphLayout, setGraphLayout] = useState<'force' | 'radial'>('force');
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedNodeId, setHighlightedNodeId] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -417,13 +453,22 @@ export function GraphPage() {
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  onClick={() => setViewMode('graph')}
+                  onClick={() => { setViewMode('graph'); setGraphLayout('force'); }}
                   className={`p-1.5 transition-colors cursor-pointer ${
-                    viewMode === 'graph' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    viewMode === 'graph' && graphLayout === 'force' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
                   }`}
-                  title="图谱视图"
+                  title="力导向图"
                 >
                   <Network className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => { setViewMode('graph'); setGraphLayout('radial'); }}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    viewMode === 'graph' && graphLayout === 'radial' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="放射状图"
+                >
+                  <span className="text-[10px] font-bold">◎</span>
                 </button>
               </div>
               <Button
@@ -476,6 +521,7 @@ export function GraphPage() {
               onSelect={selectEntity}
               svgRef={svgRef}
               highlightedNodeId={highlightedNodeId}
+              layout={graphLayout}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">

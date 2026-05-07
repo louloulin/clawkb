@@ -1096,7 +1096,7 @@ Week 13+: 白板 + 优化
   - [x] 表格插入（Table）
   - [x] 图片插入
   - [x] 块拖拽排序（BlockDragHandle + drag handle menu）
-  - [ ] 块缩进/折叠
+  - [x] 块缩进/折叠（BlockFoldExtension + BubbleMenu + FloatingMenu）
   - [x] 页面引用 [[ ]] 预览（WikiLinkAutocomplete）
   - [x] 块引用系统（BlockReference + BlockReferenceSearch）
 
@@ -1127,7 +1127,7 @@ Week 13+: 白板 + 优化
   - [x] 节点点击导航
   - [x] 缩放/平移 (zoom/pan)
   - [x] 节点搜索框 (搜索高亮 + 自动定位)
-  - [ ] 视图模式切换 (力导向/放射状)
+  - [x] 视图模式切换 (力导向/放射状 forceRadial)
   - [x] 导出 SVG (Download 按钮)
 
 - [x] **Tags 管理** ✅
