@@ -108,6 +108,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  historyKey?: string;
   mode?: ChatMode;
   modelLabel?: string;
   scopeLabel?: string;

@@ -45,5 +45,5 @@ ClawKB ships as a personal desktop knowledge base. Browser access now exists onl
 
 - Run `cd src && npm run build`
 - Run `bash scripts/verify-runtime-modes.sh`
-- In browser preview confirm the page shows `Desktop runtime required` and `Preview Only`
+- Browser preview verification now uses headless Chrome to read the rendered DOM and assert `data-runtime-mode="browser-unsupported"`, `Desktop runtime required`, and `Preview Only`
 - In desktop mode confirm native actions go through the Tauri bridge

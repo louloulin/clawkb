@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('@/components/pages/reader', () => ({
   ReaderPage: () => <div data-testid="reader-page">Reader page</div>,
@@ -107,6 +107,32 @@ describe('document workspace smoke', () => {
     await waitFor(() =>
       expect(screen.getByTestId('editor-page')).toHaveTextContent('Editor title: Persistent Draft'),
     );
-    expect(screen.getByText('Document Workspace')).toBeInTheDocument();
+    expect(screen.getByText('笔记工作区')).toBeInTheDocument();
+    expect(screen.getByText('当前资料')).toBeInTheDocument();
+    expect(screen.queryByText('Document Flow')).not.toBeInTheDocument();
+  });
+
+  it('shows KB setup guidance when the document workspace has no real local KB open', () => {
+    useKbStore.setState({
+      stats: null,
+      kbPath: '',
+      isKbOpen: false,
+      isLoading: false,
+      error: null,
+      currentPage: 'documents',
+      sidebarCollapsed: false,
+      selectedDocument: null,
+      detailLoading: false,
+      darkMode: true,
+    });
+
+    render(<DocumentWorkspaceShell />);
+
+    expect(screen.getByText('先打开一个本地知识库，再进入笔记工作区')).toBeInTheDocument();
+    expect(screen.queryByText('No local KB mounted')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '打开或创建知识库' }));
+
+    expect(useKbStore.getState().currentPage).toBe('settings');
   });
 });

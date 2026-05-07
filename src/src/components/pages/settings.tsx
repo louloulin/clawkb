@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, Trash2, Server, Monitor } from 'lucide-react';
+import { FolderOpen, Plus, Database, FileJson, FileText, Code, Sparkles, Cpu, Globe, Key, SlidersHorizontal, Save, FolderSearch, AlertCircle, CheckCircle2, Loader2, RefreshCw, Upload, Cloud, Trash2, Server, Monitor, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,7 @@ import { downloadFile } from '@/lib/format';
 import { api } from '@/api';
 import { useToast } from '@/hooks/use-toast';
 import { classifyAppError, runtimeLimitError, userInputError } from '@/lib/app-error';
+import { pickExistingKbPath, pickImportDirectoryPath, pickNewKbPath } from '@/lib/native-dialog';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ export function SettingsPage() {
   const runtimeInfo = getRuntimeModeInfo();
   const aiStore = useAiStore();
   const syncStore = useSyncStore();
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [path, setPath] = useState('');
   const [obsidianPath, setObsidianPath] = useState(syncStore.obsidianConfig.vaultPath);
   const [syncTags, setSyncTags] = useState(syncStore.obsidianConfig.syncTags.join(', '));
@@ -110,90 +112,70 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-3xl p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-1">Settings</h2>
-        <p className="text-sm text-muted-foreground">Manage your knowledge base and preferences</p>
+      <div className="mb-5">
+        <h2 className="mb-1 text-xl font-semibold">知识库设置</h2>
+        <p className="text-sm text-muted-foreground">默认只处理开库和创建库，其它能力收在高级设置里。</p>
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList className="mb-6 bg-muted/40 rounded-xl">
-          <TabsTrigger value="general" className="rounded-lg text-[13px]">General</TabsTrigger>
-          <TabsTrigger value="ai" className="rounded-lg text-[13px]">AI Models</TabsTrigger>
-          <TabsTrigger value="sync" className="rounded-lg text-[13px]">WebDAV Sync</TabsTrigger>
-          <TabsTrigger value="obsidian" className="rounded-lg text-[13px]">Obsidian</TabsTrigger>
-          <TabsTrigger value="export" className="rounded-lg text-[13px]">Export</TabsTrigger>
-          <TabsTrigger value="about" className="rounded-lg text-[13px]">About</TabsTrigger>
-        </TabsList>
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <TabsList className="bg-muted/40 rounded-xl">
+            <TabsTrigger value="general" className="rounded-lg text-[13px]">通用</TabsTrigger>
+            {showAdvanced && <TabsTrigger value="ai" className="rounded-lg text-[13px]">AI 模型</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="sync" className="rounded-lg text-[13px]">WebDAV</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="obsidian" className="rounded-lg text-[13px]">Obsidian</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="export" className="rounded-lg text-[13px]">导出</TabsTrigger>}
+            {showAdvanced && <TabsTrigger value="about" className="rounded-lg text-[13px]">关于</TabsTrigger>}
+          </TabsList>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowAdvanced((current) => !current)}
+            className="h-9 rounded-xl text-[13px]"
+          >
+            <ChevronDown className={`mr-1.5 h-3.5 w-3.5 transition ${showAdvanced ? 'rotate-180' : ''}`} />
+            {showAdvanced ? '收起高级设置' : '显示高级设置'}
+          </Button>
+        </div>
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
-          <div data-runtime-mode-card className="rounded-xl bg-card border border-border/50 p-5">
-            <div className="flex items-center gap-2 mb-3">
+          <div data-runtime-mode-card className="rounded-xl bg-card border border-border/50 p-4">
+            <div className="flex items-center gap-2 mb-2">
               <Monitor className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium">{runtimeInfo.title}</h3>
+              <h3 className="text-sm font-medium">当前运行模式</h3>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">{runtimeInfo.summary}</p>
-            <div className="rounded-lg bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-              <span className="font-medium text-foreground">Data source:</span> {runtimeInfo.dataSource}
-            </div>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-2">Real In This Mode</div>
-                <div className="space-y-2">
-                  {runtimeInfo.realInteractions.map((item) => (
-                    <div key={item} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-2">
-                  {isBrowserPreview() ? 'Unavailable In Preview' : 'Desktop Runtime Capabilities'}
-                </div>
-                <div className="space-y-2">
-                  {(runtimeInfo.placeholderInteractions.length > 0
-                    ? runtimeInfo.placeholderInteractions
-                    : ['This runtime uses the real local product path.']).map((item) => (
-                    <div key={item} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">{runtimeInfo.title}：{runtimeInfo.summary}</p>
           </div>
 
           {/* KB Info */}
           <div className="rounded-xl bg-card border border-border/50 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Database className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-medium">Knowledge Base</h3>
+              <h3 className="text-sm font-medium">当前知识库</h3>
             </div>
             {isKbOpen && stats ? (
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
-                <InfoRow label="Path" value={<code className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md break-all">{kbPath}</code>} />
-                <InfoRow label="Documents" value={stats.frame_count.toString()} />
-                <InfoRow label="Size" value={formatBytes(stats.size_bytes)} />
-                <InfoRow label="Payload" value={formatBytes(stats.payload_bytes)} />
-                <InfoRow label="Compression" value={`${stats.compression_ratio_percent.toFixed(1)}%`} />
-                <InfoRow label="Lex Index" value={stats.has_lex_index ? 'Active' : 'Inactive'} />
-                <InfoRow label="Vec Index" value={stats.has_vec_index ? 'Active' : 'Inactive'} />
+                <InfoRow label="路径" value={<code className="text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md break-all">{kbPath}</code>} />
+                <InfoRow label="资料数" value={stats.frame_count.toString()} />
+                <InfoRow label="大小" value={formatBytes(stats.size_bytes)} />
+                <InfoRow label="内容体积" value={formatBytes(stats.payload_bytes)} />
+                <InfoRow label="压缩率" value={`${stats.compression_ratio_percent.toFixed(1)}%`} />
+                <InfoRow label="关键词索引" value={stats.has_lex_index ? '已启用' : '未启用'} />
+                <InfoRow label="向量索引" value={stats.has_vec_index ? '已启用' : '未启用'} />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No knowledge base open</p>
+              <p className="text-sm text-muted-foreground">当前还没有打开知识库</p>
             )}
           </div>
 
           {/* Open/Create */}
           <div className="rounded-xl bg-card border border-border/50 p-5">
-            <h3 className="text-sm font-medium mb-1">Open / Create</h3>
-            <p className="text-xs text-muted-foreground mb-3">Open an existing or create a new knowledge base</p>
-            <div className="flex gap-2">
+            <h3 className="text-sm font-medium mb-1">打开或创建</h3>
+            <p className="text-xs text-muted-foreground mb-3">先完成建库或开库，其他能力再按需进入。</p>
+            <div className="flex flex-col gap-3">
               <Input
                 type="text"
                 value={path}
@@ -201,12 +183,42 @@ export function SettingsPage() {
                 placeholder="/path/to/knowledge.mv2"
                 className="flex-1 rounded-xl border-border/50 h-9 text-[13px]"
               />
-              <Button onClick={() => void handleOpenKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
-                <FolderOpen className="h-3.5 w-3.5" /> Open
-              </Button>
-              <Button variant="secondary" onClick={() => void handleCreateKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
-                <Plus className="h-3.5 w-3.5" /> Create
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (isBrowserPreview()) {
+                      toast(runtimeLimitError('Preview mode cannot browse local knowledge-base files. Use the desktop app.'));
+                      return;
+                    }
+                    const selected = await pickExistingKbPath();
+                    if (selected) setPath(selected);
+                  }}
+                  className="gap-1.5 rounded-xl h-9 text-[13px]"
+                >
+                  <FolderSearch className="h-3.5 w-3.5" /> 选择已有知识库
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (isBrowserPreview()) {
+                      toast(runtimeLimitError('Preview mode cannot choose a local save location. Use the desktop app.'));
+                      return;
+                    }
+                    const selected = await pickNewKbPath();
+                    if (selected) setPath(selected);
+                  }}
+                  className="gap-1.5 rounded-xl h-9 text-[13px]"
+                >
+                  <Plus className="h-3.5 w-3.5" /> 选择新库位置
+                </Button>
+                <Button onClick={() => void handleOpenKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
+                  <FolderOpen className="h-3.5 w-3.5" /> 打开
+                </Button>
+                <Button variant="secondary" onClick={() => void handleCreateKb()} className="gap-1.5 rounded-xl h-9 text-[13px]">
+                  <Plus className="h-3.5 w-3.5" /> 创建
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>
@@ -662,13 +674,29 @@ export function SettingsPage() {
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Vault Path</label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Input
                     value={obsidianPath}
                     onChange={e => setObsidianPath(e.target.value)}
                     placeholder="/path/to/your-vault"
                     className="flex-1 rounded-xl border-border/50 h-9 text-[13px]"
                   />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (isBrowserPreview()) {
+                        toast(runtimeLimitError('Preview mode cannot browse local vault folders. Use the desktop app.'));
+                        return;
+                      }
+                      const selected = await pickImportDirectoryPath();
+                      if (selected) setObsidianPath(selected);
+                    }}
+                    className="rounded-xl h-9 text-[13px] gap-1.5"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    Choose Vault Folder
+                  </Button>
                   <Button
                     variant="secondary"
                     size="sm"

@@ -23,9 +23,9 @@ export function useKbRegistry() {
     if (!isKbOpen || !kbPath) return null;
     return {
       id: '__current__',
-      name: kbPath.split('/').pop() || 'Current Knowledge Base',
+      name: kbPath.split('/').pop() || '当前知识库',
       path: kbPath,
-      description: 'The knowledge base currently mounted in ClawKB.',
+      description: '当前正在使用的本地知识库。',
       collection: 'personal',
       kind: 'current',
       addedAt: 0,

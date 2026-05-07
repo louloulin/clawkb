@@ -15,7 +15,7 @@ export type ExploreView =
   | 'podcast';
 
 export type SpaceCollection = 'personal' | 'created' | 'joined' | 'shared';
-export type DocumentsView = 'reader' | 'draft';
+export type DocumentsView = 'reader' | 'draft' | 'notes';
 export type ImportView = 'file' | 'url' | 'media' | 'screenshot';
 
 interface WorkspaceState {

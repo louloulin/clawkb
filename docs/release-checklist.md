@@ -22,6 +22,13 @@ This release gate currently includes:
 - `bash scripts/verify-error-handling.sh`
 - `bash scripts/verify-desktop-ui.sh`
 
+The automated gate now also:
+
+- Reuses a locally installed `onnxruntime` dynamic library when available, so desktop verification does not stall on first-run ORT downloads
+- Captures a window-scoped desktop screenshot with bounds and Retina scale metadata, instead of a whole-screen screenshot
+- Rejects black or blank desktop captures by checking screenshot brightness and variance before treating the UI as verified
+- Uses headless Chrome for preview-guard verification, so runtime-mode checks no longer depend on transient Playwright package injection
+
 ## Manual Checks Before Shipping
 
 ### Desktop local runtime
@@ -39,6 +46,7 @@ This release gate currently includes:
 ### Product sanity
 
 - Check `Workbench`, `Spaces`, `Documents`, `Explore`, and `Settings` all load without layout breakage
+- Confirm `Workbench` and `Documents` show real onboarding guidance instead of pseudo-usable empty states when no KB is open
 - Confirm mention scope, space metadata editing, and document workspace draft flow still behave as expected
 - Confirm local-first copy still describes the product as a personal desktop knowledge base
 

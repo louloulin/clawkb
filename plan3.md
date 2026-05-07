@@ -1,582 +1,1161 @@
-# KB 全面差距分析与重构计划 Implementation Plan
+# ClawKB 3.0 — UI 全面重构计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
-**Goal:** 基于真实代码现状，把当前 KB 从“多页面工具型本地知识库”重构为“知识库空间 + 对话入口 + 文档工作台”一体化产品，并逐步向参考图中的 IMA/OpenClaw 风格靠拢。
-
-**Architecture:** 保留现有 Rust `clawkb-core` / `memvid-core` / Tauri 能力，前端不再继续横向加页面，而是先统一事实层、修复工程基线，再重做产品壳层、知识库空间模型、首页对话工作流和文档工作台。现阶段最重要的不是继续堆功能，而是把“真实可用能力”和“目标产品结构”重新对齐。
-
-**Tech Stack:** Rust workspace (`clawkb-core` / `clawkb-cli` / `src-tauri`) + React 19 + TypeScript + Zustand + TipTap + shadcn/ui + Tauri 2 + memvid-core
+> **目标**：对标 Notion / Obsidian / Logseq 的顶级体验，重构 ClawKB 的全部 UI 页面
 
 ---
 
-## 一、这次分析的依据
-
-### 1. 代码与运行事实
-
-- 已检查整个 workspace：`crates/clawkb-core`、`crates/clawkb-cli`、`src-tauri`、`src/src`
-- 已执行 `cargo check`：通过，Rust/Tauri 后端整体可编译，但有一批 warning 和少量 stub
-- 已执行 `cd src && npm run build`：失败，说明前端当前不具备稳定交付能力
-- 已执行 `cd src && npm run dev -- --host 127.0.0.1`：dev 可运行，当前 UI 可巡检
-- 已实际巡检当前页面：Dashboard / Search / Chat / Import / Reader / Settings
-
-### 2. 参考目标的真实含义
-
-结合你提供的 4 张图，目标并不是简单“换皮”，而是产品模型升级：
-
-- 参考图 1：深色、chat-first 首页，中心是统一输入框和快捷动作，不是统计型 Dashboard
-- 参考图 2：知识库空间页，核心是“个人知识库 / 共享知识库 / 我创建的 / 我加入的”与右侧问答工作区
-- 参考图 3：文档工作台，核心是左侧文档流 + 中间编辑器 / 标签页，而不是独立散落的 Reader / Editor / Notes / Report 页面
-- 参考图 4：当前实现是一个 light admin 风格的 ClawKB，本质上还是“工具页面集合”
-
-### 3. 一个必须先说清楚的结论
-
-当前仓库和目标截图之间的差距，**不是 UI 细节差距，而是产品结构差距**：
-
-- 当前代码主模型：`单个本地 KB + 多个工具页`
-- 目标模型：`多个知识库空间 + 对话主入口 + 文档工作台 + 写作工作流`
-
-因此，`plan3.md` 的核心建议不是继续在当前导航上小修小补，而是：
-
-1. 先把工程恢复到可构建、可验证
-2. 然后重构产品壳层和信息架构
-3. 最后把现有能力迁移进新的工作流
-
-## 二、当前代码的真实现状
-
-### 1. 可以保留的部分
-
-这些部分是真能力，不应该推倒重来：
-
-- `clawkb-core` 能力面完整，`cargo check` 通过
-- 已有真实后端能力：搜索、问答、导入、图谱、时间线、标签、导出、OCR、WebDAV、Obsidian、multi-KB 命令
-- `src-tauri/src/commands/mod.rs` 已经暴露大量命令，说明桌面桥接层基础不弱
-- 前端已有较丰富页面资产：Search / Chat / Reader / Import / Settings / Graph / Tags / Timeline / Report / Podcast
-- `ReaderPage`、`ImportPage`、`SettingsPage`、`GraphPage` 这些页面里有不少可复用模块
-
-### 2. 不能直接相信的部分
-
-这些部分“看起来很多”，但并不等于可交付：
-
-- `src/README.md` 还是 Vite 默认模板，文档事实和代码事实脱节
-- `plan1.md` / `plan2.md` 明显高估完成度，不能作为当前状态依据
-- 仓库顶层保留了多套方向截图：`notebooklm-*`、`*shadcn*`、`refactored-*`、当前 ClawKB，说明设计方向频繁漂移
-- 前端 dev 可跑，但 build 失败，意味着当前页面集合并未收敛到稳定工程
-
-### 3. 前端工程真实问题
-
-`cd src && npm run build` 失败，暴露的是“接口事实源已经断裂”：
-
-- `src/src/api/index.ts` 未导出 `AsOfResult`、`CompareResult`、`FolderInfo`、`VaultSummary`、`ObsidianImportResult`、`OcrResult` 等类型
-- `src/src/api/commands.ts` 错误地从 `types.ts` 导入 `KbRegistration`
-- `ImportResult`、`SyncStatus` 的 mock 结构与类型定义已不一致
-- 多个页面存在未用变量、错误类型、字段缺失，说明页面和 API 在持续漂移
-
-这说明当前最大技术问题不是“缺页面”，而是“前端没有统一事实层”。
-
-## 三、页面与功能的真实分层
-
-### 1. 真实可用
-
-这些模块接近“真功能”：
-
-| 模块 | 真实状态 | 说明 |
-|---|---|---|
-| Rust Core | 可用 | `cargo check` 通过，后端能力是现阶段最大资产 |
-| Search | 基本可用 | 能查、能打开结果，但批量操作设计错误 |
-| Chat | 基本可用 | 能问答、能显示 sources，但仍是单页聊天 |
-| Import | 能用 | 文件 / URL / Media / Screenshot 入口都有 |
-| Reader | 有工作台雏形 | 文档列表 + 阅读区 + Summarize / Chat / Bookmarks |
-| Graph | 可用基础较好 | 已接真实 entity / memory API |
-| Tags | 基本可用 | 标签管理比很多页面成熟 |
-| Settings | 功能重 | AI / WebDAV / Obsidian / Export 都在，但入口层级不对 |
-
-### 2. 半接通
-
-这些模块有代码，但没有形成可靠产品能力：
-
-| 模块 | 问题 |
-|---|---|
-| Timeline | 页面复杂，但因为类型导出缺失导致 build 失败 |
-| Multi-KB | 后端命令和 store 已有，但没有真正变成核心 UI 工作流 |
-| OCR / Audio / Image | 导入入口已在，但没有进入首页工作流和知识库空间流 |
-| Report / Podcast | 页面很大，但和主工作流割裂，价值没有收束到产品主线 |
-
-### 3. 伪实现 / 假连接
-
-这些模块是当前最危险的“表面完成”：
-
-| 模块 | 真实问题 |
-|---|---|
-| `EditorPage` | AI Assist 明确写了 mock，只是在展示“会如何调用”，且没有文档持久化主链路 |
-| `EntitiesPage` | 不是用真实实体 API，而是从 `timeline` 标题用正则抽大写词 |
-| `FolderTree` | 前端 store 落本地缓存；后端 `list_folders` 返回 demo folders；重命名/删除也是空实现 |
-| Search 批量加标签 | 不是更新原文档，而是 `api.addNote(title + ' [updated]')` 生成重复文档 |
-| Tauri 自动打开 KB | `App.tsx` 里写死 `/.clawkb/knowledge.mv2`，和 CLI 默认 `~/.clawkb/knowledge.mv2` 不一致，存在路径错误风险 |
-
-## 四、与目标参考图的核心差距
-
-### 1. 信息架构差距
-
-| 目标参考 | 当前实现 | 差距结论 |
-|---|---|---|
-| 首页就是 AI 工作台 | 首页是 Dashboard 统计卡片 | 完全不匹配 |
-| 知识库空间页是一级入口 | 只有单 KB 路径和 folder tree | 产品模型不匹配 |
-| 文档编辑 / 阅读 / 生成在同一工作台 | 现在拆成 Reader / Editor / Notes / Report / Podcast 多页 | 任务流断裂 |
-| 左侧是轻量导航 + 工作区 | 现在是 14 个页面并列导航 | 导航噪音过大 |
-
-### 2. 视觉语言差距
-
-目标参考图的视觉语言：
-
-- 深色、沉浸、对话主导
-- 左侧窄 icon rail + 中间 workspace pane
-- 大面积留白/留黑，突出输入框和知识库内容
-- 强品牌感和“AI 助手”气质
-
-当前 ClawKB：
-
-- 更像 shadcn admin/dashboard
-- light mode 默认观感太轻
-- 首页中心不是 prompt，而是 stats
-- 页面密度偏“工具箱”，不是“工作台”
-
-### 3. 功能工作流差距
-
-目标参考图的主链路是：
-
-1. 进入首页
-2. 选知识库 / 进入空间
-3. 围绕当前知识库提问、附加文件、切换模式/模型
-4. 打开文档或生成输出
-5. 在同一工作台内继续编辑
-
-当前代码的主链路是：
-
-1. 进 Dashboard
-2. 去 Search / Chat / Import / Reader / Editor 中某一页
-3. 每个页面做自己的事
-4. 页面间缺少统一上下文
-
-这意味着当前不是“少几个功能”，而是“缺一个真正的主流程”。
-
-### 4. 数据模型差距
-
-目标图 2 里已经隐含了这些数据模型：
-
-- KB registry
-- 个人 / 共享 / 我创建的 / 我加入的分类
-- KB 封面 / 描述 / 成员 / 权限
-- 选中知识库后的专属会话上下文
-
-当前代码真实模型只有：
-
-- 一个当前 `kbPath`
-- 若干 `extra_kbs` 命令
-- `multi-kb-store.ts` 里本地持久化的简易注册表
-
-结论：**目标产品需要新的前端状态模型，甚至在“共享/加入”场景下需要新的后端协作模型。**
-
-## 五、重构判断
-
-### 1. 不建议的做法
-
-- 不建议继续在当前 14 个页面上叠加更多入口
-- 不建议先做视觉换皮，再回头修产品结构
-- 不建议把参考图中的“共享知识库 / 我加入的”直接前端假做成静态列表
-- 不建议继续让 demo 数据和真实能力混在同一层 API 中长期共存
-
-### 2. 建议的做法
-
-- 保留 Rust Core，前端壳层重构
-- 先统一前端类型/API 事实源
-- 把主工作流收束为 3 个一级场景：
-  - 首页 Workbench
-  - Knowledge Space
-  - Document Workspace
-- 把 Search / Tags / Graph / Timeline / Settings 变成二级能力，而不是首页级并列导航
-
-## 六、后续实施计划
-
-### Phase 0：恢复工程可信度
-
-**目标：** 先把“前端 build 失败、类型漂移、文档失真”收回来，建立可信基线。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- 前端类型出口、API 导出、demo/mock 结构已修到可构建状态
-- `App.tsx` 已改为优先打开最近使用的 KB，其次回落到 `$HOME/.clawkb/knowledge.mv2`
-- `Editor` / `Entities` 已从主导航暂时隐藏，`Folders` 已改为隐藏并给出说明文案
-- `src/README.md` 已更新为当前真实前端说明
-- 已执行真实验证：`cargo check`、`cd src && npm run build`、dev server 页面巡检
-
-**Files:**
-- Modify: `src/src/api/types.ts`
-- Modify: `src/src/api/index.ts`
-- Modify: `src/src/api/commands.ts`
-- Modify: `src/src/App.tsx`
-- Modify: `src/src/components/pages/timeline.tsx`
-- Modify: `src/src/components/pages/settings.tsx`
-- Modify: `src/src/components/pages/import.tsx`
-- Modify: `src/src/components/pages/report.tsx`
-- Modify: `src/src/components/pages/podcast.tsx`
-- Modify: `src/src/components/folder-tree.tsx`
-- Modify: `src/README.md`
-
-- [x] 修正所有前端导出类型、mock 类型、API 类型不一致问题
-- [x] 修正 `App.tsx` 默认 KB 路径策略，至少与 CLI 默认路径保持一致
-- [x] 标记或临时隐藏 folder/entity/editor 这类伪实现入口，避免继续误导
-- [x] 更新 `src/README.md`，写清当前真实模块、启动方式、限制项
-- [x] 运行 `cargo check`
-- [x] 运行 `cd src && npm run build`
-
-**验收标准**
-
-- `cargo check` 通过
-- `cd src && npm run build` 通过
-- README 与代码现状一致
-
-### Phase 1：重建产品壳层与信息架构
-
-**目标：** 从“多页面工具箱”切换成“工作台 + 空间 + 文档”的骨架。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- 已新增 `Workbench / Spaces / Documents / Explore / Settings` 五个一级入口
-- 首页已替换为 chat-first 的 `WorkbenchShell`，不再以统计卡片作为主入口
-- 已新增 `KnowledgeSpaceShell`、`DocumentWorkspaceShell`、`ExploreShell`，把旧页面能力重新挂到新壳层下
-- 顶层侧边栏已收束为 icon rail 风格，并默认以窄轨形态启动
-- `Search / Chat / Reader / Editor` 已迁移到新壳结构：
-  - `Chat` 融入 `Workbench`
-  - `Search` 融入 `Explore`
-  - `Reader` 融入 `Documents`
-  - `Editor` 以 `Draft Lab` 次级标签并入 `Documents`
-- 已完成第一轮视觉校准：整体转为 dark-first、工作台导向的视觉语气
-
-**Files:**
-- Modify: `src/src/App.tsx`
-- Modify: `src/src/components/layout.tsx`
-- Create: `src/src/components/shell/workbench-shell.tsx`
-- Create: `src/src/components/shell/knowledge-space-shell.tsx`
-- Create: `src/src/components/shell/document-workspace-shell.tsx`
-- Create: `src/src/store/workspace-store.ts`
-
-- [x] 将一级导航压缩为 `home` / `spaces` / `documents` / `explore` / `settings`
-- [x] 首页改为对话主入口，不再以 dashboard stats 为中心
-- [x] 引入双层壳结构：窄 icon rail + workspace pane + main canvas
-- [x] 重新定义页面跳转逻辑，减少独立页面直达
-- [x] 将现有 Search / Chat / Reader / Editor 迁移到新的壳结构下
-- [x] 用 dev server 对照参考图做第一轮视觉校准
-
-**验收标准**
-
-- 首页结构接近参考图 1
-- 不再以 Dashboard 作为产品主入口
-- 导航层级明显收敛
-
-### Phase 2：建立知识库空间模型
-
-**目标：** 让“知识库”从一个路径，升级成一个可浏览、可切换、可进入的空间对象。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- 已把 `multi-kb-store.ts` 升级为正式 registry 数据源，支持 collection、lastOpenedAt、缓存 stats 等元数据
-- 已新增 [src/src/store/kb-registry-store.ts](/Users/louloulin/Documents/linchong/claw/kb/src/src/store/kb-registry-store.ts) 统一 current KB 与 registered KB 的读取模型
-- 已新增空间页拆分组件：
-  - [src/src/components/spaces/kb-list-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-list-pane.tsx)
-  - [src/src/components/spaces/kb-detail-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-detail-pane.tsx)
-  - [src/src/components/spaces/kb-chat-pane.tsx](/Users/louloulin/Documents/linchong/claw/kb/src/src/components/spaces/kb-chat-pane.tsx)
-- `KnowledgeSpaceShell` 现已支持：
-  - `personal / created / joined / shared` 分类浏览
-  - 注册当前 KB 与自定义本地 KB 路径
-  - 选中某个 KB 后展示详情、缓存 stats
-  - 选中某个 KB 后在右侧 console 中提问
-  - 选中某个 KB 后浏览该空间的文档结果
-- 已补做知识空间 registry metadata 编辑 continuation：
-  - 可编辑已注册空间的名称
-  - 可编辑描述
-  - 可在 `created / joined / shared` 之间真实切换分类
-  - `joined/shared` lane 不再只是纯展示占位
-- 已补做 active knowledge space continuation：
-  - `Spaces` 中选中的注册空间会同步为全局 active KB 上下文
-  - 回到 `Workbench` 时，mention scope 会自动切到当前 active KB
-- 已补做产品定位收口 continuation：
-  - `Spaces` 与 `Workbench` 的文案已统一为个人、本地、单用户知识库语义
-  - `joined/shared` lane 的表述已从协作占位改成更符合本地版本的归档/参考资料语义
-  - `README` 已同步当前成品定位，不再保留过期的“未实现”描述
-- 已明确将 Phase 2 限定为“本地 registry + 多 KB 切换”，`joined/shared` 仅作为真实协作能力的占位，不伪造多人数据
-
-**Files:**
-- Modify: `src/src/store/multi-kb-store.ts`
-- Create: `src/src/store/kb-registry-store.ts`
-- Create: `src/src/components/spaces/kb-list-pane.tsx`
-- Create: `src/src/components/spaces/kb-detail-pane.tsx`
-- Create: `src/src/components/spaces/kb-chat-pane.tsx`
-- Modify: `src/src/api/commands.ts`
-- Optional Modify: `src-tauri/src/commands/mod.rs`
-
-- [x] 把 `multi-kb-store.ts` 从“隐藏辅助 store”升级为正式 KB registry
-- [x] 增加 `personal / shared / created / joined` 分类视图
-- [x] 在 UI 上实现知识库列表、详情卡、内容列表、右侧提问区
-- [x] 明确第一阶段只做“本地 registry + 多 KB 切换”，不伪造真实多人协作
-- [x] 如果需要真实共享/加入语义，单独开协作后端计划，不与本阶段混写
-
-**验收标准**
-
-- 能在 UI 上管理多个 KB 入口
-- 能进入“某个 KB 空间”后提问和浏览文档
-- 空间页结构接近参考图 2
-
-### Phase 3：重建首页对话工作流
-
-**目标：** 让首页成为真正的 AI 入口，而不是配置页跳板。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- 已新增首页组件拆分：
-  - `src/src/components/home/home-hero.tsx`
-  - `src/src/components/home/home-composer.tsx`
-  - `src/src/components/home/home-quick-actions.tsx`
-- `WorkbenchShell` 已改成真正的首页工作台，而不是单块大组件
-- 首页中心输入区已支持真实状态：
-  - `mode`：`Conversation / Research / Context Only`
-  - `model`：直接读取并切换 `ai-store` 的 Ask model
-  - `mention`：当前 KB / 已注册空间 / 全部已注册空间
-  - `attachment`：File / URL / Media / Screenshot，能真实跳转到 `ImportPage` 对应标签
-- `ChatPage` 已降级为迁移提示页，明确主聊天能力进入 `Workbench`
-- 快捷动作已收束为首页能力：
-  - `录音纪要` → `Import` 的 `Media` 标签
-  - `文档解读` → `Documents` 的 `Reader Workspace`
-  - `智能写作` → `Documents` 的 `Draft Lab`
-  - `快速访问` → `Spaces`
-- 首页已实现来源预览区，会对最近 assistant 返回的 context 片段做预览
-- 已补强 demo/workbench 的 context-only 来源预览回退，首页来源预览在当前 KB 下可稳定出现
-- Recent Stream 已展示 `mode / model / mention scope`，模型切换不再只存在于 Settings
-
-**Files:**
-- Create: `src/src/components/home/home-hero.tsx`
-- Create: `src/src/components/home/home-composer.tsx`
-- Create: `src/src/components/home/home-quick-actions.tsx`
-- Modify: `src/src/components/pages/chat.tsx`
-- Modify: `src/src/store/chat-store.ts`
-- Modify: `src/src/store/ai-store.ts`
-
-- [x] 把首页中心改成统一输入框，支持 mode / model / attachment / mention 的 UI 占位与真实状态
-- [x] 将 `ChatPage` 的能力下沉为首页能力或空间页能力，而不是独立孤岛
-- [x] 把录音纪要 / 文档解读 / 智能写作 / 快速访问做成 quick action，而非多个并列一级页面
-- [x] 把模型切换从 Settings-only 搬到对话上下文中
-- [x] 为引用来源、上下文预览设计统一交互
-
-**验收标准**
-
-- 首页是可直接发问的工作台
-- 输入框和快捷动作接近参考图 1
-- Chat 不再是独立孤岛页面
-
-### Phase 4：重建文档工作台
-
-**目标：** 对齐参考图 3，把阅读、编辑、写作、生成整合为一个文档 workspace。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- 已新增文档工作台核心结构：
-  - `src/src/store/document-workspace-store.ts`
-  - `src/src/components/documents/document-list-pane.tsx`
-  - `src/src/components/documents/document-tabs.tsx`
-  - `src/src/components/documents/document-toolbar.tsx`
-- `DocumentWorkspaceShell` 已重写为统一三段式工作台：
-  - 左侧文档流
-  - 顶部标签页与工具栏
-  - 中央统一内容区
-- `Reader / Draft / Notes / Report / Podcast` 已收束到同一工作台内，不再依赖页面之间来回跳转
-- `EditorPage` 已支持工作台嵌入模式，并完成：
-  - 基于当前选中文档加载标题与内容
-  - `Save Draft to KB` 真实持久化到知识库
-  - `AI Assist` 改为真实调用 `api.aiAsk(...)`，不再返回 mock 文案
-- `NotesPage` 已支持嵌入模式并用当前文档内容预填
-- `ReportPage` 已支持嵌入模式和预选文档
-- `PodcastPage` 已支持嵌入模式，并用当前文档标题/内容作为播客脚本起点
-- 工作台工具栏已把“继续草稿 / 记录笔记 / 生成报告 / 播客脚本 / 保存草稿”统一成文档动作
-
-**Files:**
-- Modify: `src/src/components/pages/reader.tsx`
-- Modify: `src/src/components/pages/editor.tsx`
-- Modify: `src/src/components/pages/notes.tsx`
-- Modify: `src/src/components/pages/report.tsx`
-- Modify: `src/src/components/pages/podcast.tsx`
-- Create: `src/src/components/documents/document-list-pane.tsx`
-- Create: `src/src/components/documents/document-tabs.tsx`
-- Create: `src/src/components/documents/document-toolbar.tsx`
-- Create: `src/src/store/document-workspace-store.ts`
-
-- [x] 把 Reader / Editor / Notes / Report / Podcast 收束到同一工作台
-- [x] Editor 需要接真实文档加载、保存、版本/来源，不允许继续停留在本地临时 state
-- [x] 把 AI Assist 从 mock 改为真实调用链
-- [x] 把“摘要 / 续写 / 改写 / 报告生成 / 播客脚本”统一为文档动作
-- [x] 引入文档标签页和左侧文档流，不再让用户在页面之间来回跳
-
-**验收标准**
-
-- 文档工作台结构接近参考图 3
-- 编辑器具备真实持久化
-- AI assist 不再是 mock
-
-### Phase 5：清理伪实现并接通真实能力
-
-**目标：** 把当前最危险的“假实现”清掉。
-
-**状态：** 已完成（2026-04-05）
-
-**本轮实际完成：**
-
-- `EntitiesPage` 已改为真实图谱页：
-  - 基于 `api.listEntities()` 拉实体
-  - 基于 `api.getEntityEdges()` 拉关系
-  - 基于 `api.searchWithGraph()` 拉图谱上下文文档
-- `SearchPage` 的批量标签行为已改为真实更新文档标签，不再通过 `addNote(...[updated])` 复制新文档
-- 已新增 `set_document_tags` 命令并在前端 `api.setDocumentTags()` 中接通
-- `FolderTree` 已重新启用，不再显示“Folders hidden for now”占位
-- `folder-store` 已改为真实 API 驱动，不再以自身 localStorage 作为主数据源
-- `Folder` 后端能力已接通：
-  - `list_folders`
-  - `create_folder`
-  - `rename_folder`
-  - `delete_folder`
-  - `move_document`
-  - `search_in_folder`
-- KB 内的 folder metadata 已改为真实持久化标签/元数据帧，不再是 Tauri command 里的静态 demo 列表
-- 浏览器模式下的 folder 行为也已改为本地持久化，不再使用写死 demo folders
-- `ExploreShell` 已重新加入 `Entities` 标签页入口
-
-**Files:**
-- Modify: `src/src/components/pages/entities.tsx`
-- Modify: `src/src/components/pages/search.tsx`
-- Modify: `src/src/components/folder-tree.tsx`
-- Modify: `src/src/store/folder-store.ts`
-- Modify: `src-tauri/src/commands/mod.rs`
-
-- [x] `EntitiesPage` 改用真实 `listEntities/getEntityEdges`，不再用 timeline 正则抽词
-- [x] Search 的批量标签行为改为“更新现有文档标签”，不能再复制新 note
-- [x] Folder tree 需要真实 folder metadata 存储与搜索过滤，去掉 demo folders
-- [x] 对未准备好的功能明确降级或隐藏，不再“看起来像能用”
-
-**验收标准**
-
-- entities / folders / batch tag 都基于真实数据行为
-- 页面不再依赖明显的 demo stub
-
-### Phase 6：视觉统一、验证与收口
-
-**目标：** 让产品从“能跑”变成“像一个产品”。
-
-**状态：** 已完成（2026-04-06）
-
-**本轮实际完成：**
-
-- 已新增 `src/src/styles/tokens.css` 与 `src/src/styles/workbench.css`，为工作台壳层提供统一视觉 token 与 surface class
-- `index.css` 已引入新 styles，核心 UI 控件已统一圆角、表面层级与 dark-first 语气：
-  - `src/src/components/ui/button.tsx`
-  - `src/src/components/ui/tabs.tsx`
-  - `src/src/components/ui/select.tsx`
-- 已补做 Phase 6 延续收口：
-  - `App.tsx`、`ExploreShell`、`DocumentWorkspaceShell` 改为页面级懒加载
-  - 前端构建产物已拆分为多 chunk，最大的 JS chunk 已降到 500KB 告警阈值以内
-  - Rust/Tauri 侧编译 warning 已进一步清理为 0
-- 顶层壳层与主要 workspace 已切到统一视觉语言：
-  - `layout.tsx`
-  - `workbench-shell.tsx`
-  - `knowledge-space-shell.tsx`
-  - `document-workspace-shell.tsx`
-  - `explore-shell.tsx`
-- 浏览器 demo 模式下的导入链路已补强，导入文件/目录/网页后可进入 demo KB 继续搜索或提问
-- 已产出当前产品基线截图：
-  - `docs/ui-baseline/workbench-home.png`
-  - `docs/ui-baseline/spaces-registry.png`
-  - `docs/ui-baseline/document-workspace.png`
-- 已新增基线文档：
-  - `docs/ui-baseline/README.md`
-  - `docs/ui-baseline/verification.md`
-- 历史顶层探索截图已统一归档到 `docs/ui-baseline/archive/`，避免仓库继续混放多套命名和阶段产物
-- 已完成并记录关键流程验证：
-  - 打开 KB
-  - 搜索并打开文档
-  - 在 KB 空间提问
-  - 导入文件并继续提问
-  - 打开文档并编辑保存
-
-**Files:**
-- Modify: `src/src/index.css`
-- Modify: `src/src/components/layout.tsx`
-- Modify: `src/src/components/ui/*`
-- Create: `src/src/styles/tokens.css`
-- Create: `src/src/styles/workbench.css`
-
-- [x] 统一 dark-first 视觉主题、层级、间距、圆角、输入框规范
-- [x] 为首页、空间页、文档页各出一版稳定截图
-- [x] 增加最少量的关键流程验证：
-  - 打开 KB
-  - 搜索并打开文档
-  - 在 KB 空间提问
-  - 导入文件并继续提问
-  - 打开文档并编辑保存
-- [x] 清理历史命名漂移和无效截图资产，保留最新设计基线
-
-**验收标准**
-
-- UI 视觉方向统一
-- 三条主工作流全通
-- 仓库中只有一套当前产品叙事
-
-## 七、优先级建议
-
-### P0
-
-- Phase 0 工程恢复
-- Phase 1 产品壳层重构
-
-### P1
-
-- Phase 2 知识库空间模型
-- Phase 3 首页对话工作流
-
-### P2
-
-- Phase 4 文档工作台
-- Phase 5 伪实现清理
-
-### P3
-
-- Phase 6 视觉统一与验证
-- 真正的多人协作 / 共享知识库服务端方案
-
-## 八、最终判断
-
-这套仓库**不是没东西**，而是“后端能力不少，前端产品形态跑偏，工程事实源失真”。真正应该做的是：
-
-- **保后端，重前端壳层**
-- **先修事实层，再做产品层**
-- **先收敛主工作流，再决定哪些高级能力保留为二级能力**
-
-如果按这个方向推进，当前仓库最有价值的资产是：
-
-- Rust `clawkb-core`
-- Tauri 命令层
-- Reader / Import / Graph / Tags 等已有组件资产
-
-当前最需要立刻停止扩散的，是：
-
-- 页面继续横向增长
-- demo/stub 长期冒充真实能力
-- 文档和代码状态继续脱节
-
-这个项目接下来最正确的路线不是“补几个页面”，而是**做一次产品结构和工程结构同步重构**。
+## 0. 现状问题全景
+
+### 0.1 问题分类矩阵
+
+| 维度 | 问题数量 | 严重程度 | 代表问题 |
+|------|----------|----------|----------|
+| **布局/导航** | 8 | 高 | 侧边栏层级混乱、导航路径不清晰 |
+| **视觉一致性** | 12 | 中 | 暗色/亮色混用、间距不统一 |
+| **交互体验** | 15 | 高 | 无过渡动画、hover 反馈缺失 |
+| **功能完整性** | 10 | 高 | 缺失块引用、嵌入预览、块操作 |
+| **数据展示** | 7 | 中 | 信息密度低、空状态不友好 |
+| **可访问性** | 6 | 中 | WCAG 部分违规 |
+
+### 0.2 核心问题总结
+
+1. **Shell 层级混乱**：4 个 Shell 职责重叠，ExploreShell 和 DocumentWorkspaceShell 边界模糊
+2. **缺失 Block 模型**：当前是帧级存储，前端无块级编辑体验
+3. **写作体验落后**：相比 Notion/Logseq 的块编辑器，NotesPage/EditorPage 功能单薄
+4. **信息密度低**：大量页面使用大字号+宽松间距，屏幕利用率不足
+5. **空状态缺失**：大部分列表/面板无友好空状态引导
+6. **暗色主题断裂**：Shell 层暗色，Page 层部分亮色
+
+---
+
+## 1. 对标产品 UX 分析
+
+### 1.1 Notion — 块编辑器的行业标杆
+
+```
+优势：
+✅ 块级编辑（Block-based editing）
+✅ 斜杠命令（/）快速插入任意内容块
+✅ 块拖拽排序、缩进、折叠
+✅ 内联数据库（Inline Database）
+✅ 双向链接 [[ ]] 自动补全 + 页面预览 Popover
+✅ 块引用（Block reference）— 参考另一块的完整内容
+✅ 模板按钮（Template Button）— 批量生成内容
+✅ 块标注（Callout, Toggle, Quote）丰富内容类型
+✅ 属性面板（Properties）— 元数据管理
+✅ 全局搜索 Cmd+P 支持页面内搜索
+
+ClawKB 差距：
+❌ 无块级编辑（纯文本编辑）
+❌ 无斜杠命令
+❌ 无块拖拽排序
+❌ 无内联数据库
+⚠️ [[ ]] 补全已实现但无预览 Popover
+❌ 无块引用
+❌ 无模板按钮
+```
+
+### 1.2 Obsidian — 本地优先的笔记标杆
+
+```
+优势：
+✅ 本地存储（.md 文件）
+✅ 双向链接 + 反链面板
+✅ 关系图谱（Graph View）
+✅ 插件生态（Community Plugins）
+✅ Daily Notes（日记）
+✅ 多个主题（Themes）
+✅ 预览/编辑双模式
+✅ PDF 标注（Annotator 插件）
+✅ 命令面板 Cmd+P
+
+ClawKB 差距：
+❌ 关系图谱功能简单（仅 D3 力导向图）
+✅ Daily Notes 已实现
+✅ 命令面板已实现
+❌ 预览/编辑模式未区分
+❌ PDF 标注功能简单
+```
+
+### 1.3 Logseq — 大纲优先的创新体验
+
+```
+优势：
+✅ 大纲优先（Outline-first）
+✅ 块引用（Block Reference）
+✅ 页面引用（Page Reference）
+✅ 任务管理（TODO/DOING/DONE）
+✅ 时间块（Scheduled, Deadline）
+✅ 手绘图床（Whiteboard）
+✅ 本地优先 + Git 同步
+
+ClawKB 差距：
+❌ 无大纲优先视图
+❌ 无块引用
+❌ 无任务状态管理
+❌ 无时间管理
+```
+
+### 1.4 竞品 UX 对比矩阵
+
+| 功能 | Notion | Obsidian | Logseq | ClawKB 当前 | ClawKB 目标 |
+|------|--------|----------|--------|-------------|-------------|
+| 块编辑 | ✅ | ❌ | ⚠️ | ❌ | ✅ Phase 2 |
+| 斜杠命令 | ✅ | ⚠️插件 | ⚠️插件 | ❌ | ✅ Phase 2 |
+| 双向链接 | ✅ | ✅ | ✅ | ⚠️基础 | ✅ Phase 1 |
+| 反链面板 | ✅ | ✅ | ✅ | ⚠️基础 | ✅ Phase 1 |
+| 关系图谱 | ❌ | ✅ | ✅ | ⚠️简单 | ✅ Phase 1 |
+| Daily Notes | ✅ | ✅插件 | ✅ | ✅ | ✅ 增强 |
+| 块引用 | ✅ | ❌ | ✅ | ❌ | ✅ Phase 2 |
+| 任务管理 | ⚠️ | ⚠️插件 | ✅ | ❌ | ✅ Phase 3 |
+| 模板系统 | ✅ | ⚠️插件 | ⚠️ | ⚠️基础 | ✅ Phase 2 |
+| 命令面板 | ❌ | ✅ | ✅ | ✅ | ✅ 增强 |
+| 全局搜索 | ✅ | ✅ | ✅ | ✅ | ✅ 增强 |
+| PDF 标注 | ⚠️ | ✅插件 | ❌ | ⚠️基础 | ✅ Phase 1 |
+
+---
+
+## 2. 分页面改造计划
+
+### Phase 1: 核心体验（1-2 周）
+
+#### 2.1 HomePage / WorkbenchShell ⭐⭐⭐
+
+**当前问题**：
+- 入口不清晰：Home/Workbench/Chat 三入口重叠
+- AI 对话与知识库结合度低
+- Recent entries 展示信息密度低
+
+**改造目标**（对标 Notion Home + Linear 仪表盘）：
+
+```
+布局重构：
+┌─────────────────────────────────────────────────────────────┐
+│  🔍 搜索 / Cmd+K                    [模型选择] [新建笔记]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐               │
+│  │ 📊 今日统计       │  │ 📅 日记快捷入口   │               │
+│  │ - 笔记数：XX     │  │ 2026-05-07       │               │
+│  │ - 新增：X        │  │ [打开日记]        │               │
+│  │ - 本周趋势 ↑     │  │                  │               │
+│  └──────────────────┘  └──────────────────┘               │
+│                                                             │
+│  最近笔记                              [时间线视图]          │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │ 📄 笔记标题 A            2h ago      #tag1 #tag2    │    │
+│  │ 📄 笔记标题 B            yesterday   #tag3          │    │
+│  │ 📄 笔记标题 C            3 days ago  #tag1          │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │  AI 对话（可折叠）                                  │    │
+│  │  ┌──────────────────────────────────────────────┐  │    │
+│  │  │ 对话历史...                                  │  │    │
+│  │  └──────────────────────────────────────────────┘  │    │
+│  │  [输入框...]                              [发送]   │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 重构布局：左侧快捷入口 + 右侧主内容区
+- [ ] 添加「今日统计」卡片：笔记数、新增趋势、活跃标签
+- [ ] 优化「最近笔记」列表：显示标签、时间、预览
+- [ ] AI 对话区域可折叠
+- [ ] 全局搜索 Cmd+K 集成（已有，需优化交互）
+- [ ] Daily Note 快捷入口
+
+---
+
+#### 2.2 Sidebar / Navigation ⭐⭐⭐
+
+**当前问题**：
+- 侧边栏层级不清晰
+- ExploreShell 内的 Tab 导航与外层 Shell 混淆
+- 移动端无折叠菜单
+
+**改造目标**（对标 Linear + Notion）：
+
+```
+布局：
+┌────────────────────────────────────────────────────────────┐
+│ ☰  ClawKB    [⌘K搜索]                    [⚙️] [👤]        │
+├──────────┬─────────────────────────────────────────────────┤
+│          │                                                 │
+│ 空间     │  主内容区                                        │
+│ ├─ 💼工作 │                                                 │
+│ ├─ 📚学习 │                                                 │
+│ └─ 🏠个人 │                                                 │
+│          │                                                 │
+│ 快捷入口 │                                                 │
+│ ├─ 📝 新建笔记│                                             │
+│ ├─ 🔍 搜索  │                                              │
+│ ├─ 📅 日记  │                                              │
+│ └─ 🏷️ 标签  │                                              │
+│          │                                                 │
+│ 最近      │                                                 │
+│ ├─ 笔记 A │                                                 │
+│ └─ 笔记 B │                                                 │
+│          │                                                 │
+│ [展开▼]  │                                                 │
+│          │                                                 │
+└──────────┴─────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 重构 Sidebar 组件，支持折叠/展开
+- [ ] 添加「空间」层级（Folder 2.0）
+- [ ] 快捷入口图标化
+- [ ] 「最近」列表跟随当前笔记动态更新
+- [ ] 移动端响应式适配
+
+---
+
+#### 2.3 EditorPage / RichEditor ⭐⭐⭐⭐⭐
+
+**当前问题**：
+- TipTap 编辑器功能不完整
+- 缺失斜杠命令
+- 无块级操作
+- AI 辅助功能割裂
+
+**改造目标**（对标 Notion + Logseq）：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ ← 返回    笔记标题 [自动保存✓]              [👁预览] [⋮更多]   │
+├────────────────────────────────────────────────────────────────┤
+│ ┌─ 工具栏 ─────────────────────────────────────────────────┐   │
+│ │ B  I  U  S  | H1 H2 H3 | 🔗 [[]] | " 引用 | / 块命令  │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─ 编辑区 ──────────────────────────────────────────────┐    │
+│  │                                                          │   │
+│  │ # 主标题                                                 │   │
+│  │                                                          │   │
+│  │ 正文内容...按下 / 显示斜杠命令菜单：                        │   │
+│  │                                                          │   │
+│  │ ┌─ / 斜杠命令 ────────────────────────────────────┐    │   │
+│  │ │ 🔢 待办清单    [ ] 待办事项                       │    │   │
+│  │ │ 📝 页面引用    嵌入其他笔记内容                    │    │   │
+│  │ │ 💬 标注        高亮 + 标注                        │    │   │
+│  │ │ 📊 表格        插入内联表格                        │    │   │
+│  │ │ 📁 文件        嵌入附件                           │    │   │
+│  │ │ 🎨 分割线    视觉分隔                            │    │   │
+│  │ └─────────────────────────────────────────────────┘    │   │
+│  │                                                          │   │
+│  └──────────────────────────────────────────────────────┘    │
+│                                                                │
+│ ┌─ 侧边属性 ───────────────┐                                 │
+│ │ 📌 标签    [添加标签...] │                                 │
+│ │ 📅 创建    2026-05-07   │                                 │
+│ │ 🔗 链接    3 个         │                                 │
+│ │ 📎 嵌入    2 个         │                                 │
+│ └─────────────────────────┘                                 │
+│                                                                │
+│ ┌─ 大纲 ──────────────────┐                                 │
+│ │ ▼ 第一章               │                                 │
+│ │   - 1.1 小节          │                                 │
+│ │   - 1.2 小节          │                                 │
+│ │ ▶ 第二章               │                                 │
+│ └─────────────────────────┘                                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 斜杠命令菜单（`/` 触发，键盘导航）
+- [ ] 块级操作：拖拽排序、缩进、折叠
+- [ ] 内联标注（Callout, Toggle, Quote）
+- [ ] 页面引用 [[ ]]
+- [ ] 块引用（Block Reference）
+- [ ] 嵌入（Embed）：图片、文件、其他笔记
+- [ ] 侧边属性面板（标签、创建时间、链接统计）
+- [ ] 大纲视图与正文同步滚动
+- [ ] 打字机模式（当前行居中）
+- [ ] Focus Mode（隐藏工具栏，专注写作）
+
+---
+
+#### 2.4 ReaderPage ⭐⭐⭐
+
+**当前问题**：
+- PDF 阅读器功能简单
+- 标注系统分散
+- 反链面板位置不合理
+
+**改造目标**（对标 Readwise Reader + Obsidian）：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ ← 返回    文档标题                    [📚库] [❤️收藏] [⋮更多]   │
+├────────────────────────────────────────────────────────────────┤
+│ ┌─ 工具栏 ─────────────────────────────────────────────────┐   │
+│ │ 🔍 搜索 | 1/10 ◀ ▶ | 🔤Aa | 📝标注 | 📤导出             │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│ ┌─ 阅读区 ──────────────────────┐ ┌─ 侧边 ────────────────┐    │
+│ │                               │ │ [大纲] [反链] [标注]  │    │
+│ │ PDF 内容渲染                   │ │                      │    │
+│ │                               │ │ ┌─ 大纲 ───────────┐ │    │
+│ │ [选中文字后可高亮+标注]         │ │ │ 第一章           │ │    │
+│ │                               │ │ │ 第二章           │ │    │
+│ │                               │ │ └──────────────────┘ │    │
+│ │                               │ │                      │    │
+│ │                               │ │ ┌─ 反向链接 ───────┐ │    │
+│ │                               │ │ │ 📄 [[笔记 A]]    │ │    │
+│ │                               │ │ │   "引用内容..."  │ │    │
+│ │                               │ │ └──────────────────┘ │    │
+│ └───────────────────────────────┘ └──────────────────────┘    │
+│                                                                │
+│ ┌─ 标注抽屉（底部） ────────────────────────────────────────┐   │
+│ │ 高亮文字：「这是被选中的内容」                            │   │
+│ │ [💬 标注] [📝 笔记] [📤 分享] [🗑️ 删除]               │   │
+│ └─────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] PDF 渲染优化：文字选择、复制
+- [ ] 标注抽屉（底部）：选中文本 → 弹出标注工具
+- [ ] 高亮颜色选择（5 种颜色）
+- [ ] 反链面板：显示引用当前文档的笔记
+- [ ] 大纲面板：PDF 标题层级提取
+- [ ] 收藏功能
+- [ ] 导出标注为 Markdown
+
+---
+
+#### 2.5 SearchPage ⭐⭐⭐
+
+**当前问题**：
+- 搜索结果展示单一
+- 筛选功能分散
+- 无搜索历史
+
+**改造目标**（对标 Spotlight + Notion）：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 🔍 [[搜索笔记和文档...]]                              [模式▼]   │
+│    ┌─ 搜索历史 ─────────────────────────────────────────────┐   │
+│    │ ⏱️ 上次搜索                                          │   │
+│    │ ⏱️ Memvid 原理                                       │   │
+│    └──────────────────────────────────────────────────────┘   │
+│                                                                │
+│ 标签筛选：[工作] [×] [学习] [+]   时间：[不限▼]   排序：[相关▼] │
+│                                                                │
+│ ┌─ 结果 ─────────────────────────────────────────────────────┐  │
+│ │ 📄 笔记标题 A                                    ⭐ 0.95   │  │
+│ │    ...匹配内容片段，高亮关键词...                        │  │
+│ │    标签: #工作 #重要   2小时前                            │  │
+│ │                                                        │  │
+│ │ 📄 笔记标题 B                                    ⭐ 0.87   │  │
+│ │    ...另一条匹配内容...                                  │  │
+│ │    标签: #学习              昨天                           │  │
+│ └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│ [←] 1 2 3 4 5 [→]                           显示 20/156 条结果 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 搜索历史记录（localStorage）
+- [ ] 标签快速筛选（可多选）
+- [ ] 时间范围筛选
+- [ ] 排序选项（相关/时间/标题）
+- [ ] 结果预览（hover 显示完整内容）
+- [ ] 搜索统计（找到 X 条，耗时 X ms）
+- [ ] 全局搜索 Cmd+K 集成
+
+---
+
+#### 2.6 TagsPage ⭐⭐⭐
+
+**当前问题**：
+- 标签云展示不直观
+- 批量操作入口深
+
+**改造目标**：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 标签管理                                      [批量操作] [新建]  │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  搜索：[输入标签名...]                                         │
+│                                                                │
+│  ┌─ 标签云 ────────────────────────────────────────────────┐   │
+│  │                                                              │   │
+│  │   #工作 (42)           #重要 (28)        #项目A (15)       │   │
+│  │                                                              │   │
+│  │   #学习 (38)           #待办 (23)        #会议 (12)         │   │
+│  │                                                              │   │
+│  │   #读书 (19)           #灵感 (11)        #待整理 (8)        │   │
+│  │                                                              │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  或 [列表视图] [树状视图]                                       │
+│                                                                │
+│ ┌─ 标签详情：#工作 ─────────────────────────────────────────┐   │
+│ │ [✏️重命名] [🔀合并] [📤导出] [🗑️删除]                    │   │
+│ │                                                              │   │
+│ │ 相关笔记（42）：                                              │   │
+│ │ 📄 笔记 A   📄 笔记 B   📄 笔记 C   [+ 查看全部]            │   │
+│ └──────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 标签云视图（字号 = 频率）
+- [ ] 标签详情面板（点击查看相关笔记）
+- [ ] 右键菜单（重命名、合并、删除）
+- [ ] 批量选择 + 批量操作
+- [ ] 标签合并向导
+- [ ] 标签树状视图（层级标签支持）
+
+---
+
+#### 2.7 GraphPage ⭐⭐⭐⭐
+
+**当前问题**：
+- 力导向图性能差（万级节点）
+- 节点信息密度低
+- 交互功能简单
+
+**改造目标**（对标 Obsidian Graph + Mermaid）：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 关系图谱                    [🔍搜索节点] [📊统计] [🎨主题]       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│ ┌─ 视图模式 ────────────────────────────────────────────────┐   │
+│ │ [力导向] [局部] [时间线]                                  │   │
+│ └──────────────────────────────────────────────────────────┘   │
+│                                                                │
+│        ┌──────────────────────────────────┐                    │
+│        │                                  │                    │
+│        │   ●───●                          │                    │
+│        │   │╲  │    ●                    │                    │
+│        │   │ ╲ │╱╲                        │                    │
+│        │   ●  ●╱ ●                        │                    │
+│        │  ╱╲ │╱                          │                    │
+│        │ ●  ●╱                           │                    │
+│        │                                  │                    │
+│        └──────────────────────────────────┘                    │
+│                                                                │
+│ ┌─ 节点详情 ─────────────┐                                    │
+│ │ 📄 笔记标题            │                                    │
+│ │ 标签: #工作 #项目A     │                                    │
+│ │                        │                                    │
+│ │ 链接到：               │                                    │
+│ │ • [[笔记 B]]           │                                    │
+│ │ • [[笔记 C]]           │                                    │
+│ │                        │                                    │
+│ │ 被引用：               │                                    │
+│ │ • [[笔记 D]]           │                                    │
+│ │                        │                                    │
+│ │ [在编辑器打开]         │                                    │
+│ └────────────────────────┘                                    │
+│                                                                │
+│ [📍局部放大] [🔎自适应] [📤导出SVG]                           │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 三种视图模式（力导向/局部/时间线）
+- [ ] 节点搜索 + 聚焦
+- [ ] 节点分组着色
+- [ ] 导出为 SVG
+- [ ] 批量选择 + 高亮路径
+- [ ] 性能优化（Canvas 渲染 + LOD）
+
+---
+
+#### 2.8 DailyNotes / Calendar ⭐⭐⭐
+
+**当前问题**：
+- 日历视图功能单一
+- 日记模板体验不佳
+
+**改造目标**（对标 Obsidian Daily Notes + Logseq）：
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 日记                                                         │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│ ┌─ 月历 ─────────────────┐ ┌─ 今日日记 ─────────────────────┐  │
+│ │ ◀ 2026年5月          │ │ 📅 2026-05-07 星期三           │  │
+│ │ ┌──────────────────┐   │ │ [📝 打开日记]                  │  │
+│ │ │ 一 二 三 四 五 六 │   │ │                                │  │
+│ │ │    1  2  3  4  5 │   │ │ ┌─ 今日笔记摘要 ───────────┐ │  │
+│ │ │  6  7  8  9 10 11 │   │ │ │ • 会议记录              │ │  │
+│ │ │ 12 13 14 15 16 17 │   │ │ │ • 项目进度更新          │ │  │
+│ │ │ 18 19 20 21 22 23 │   │ │ │ • 读书笔记第3章         │ │  │
+│ │ │ 24 25 26 27 28 29 │   │ │ └─────────────────────────┘ │  │
+│ │ │ 30 31              │   │ │                                │  │
+│ │ └──────────────────┘   │ │ ┌─ 任务 ─────────────────────┐ │  │
+│ │                         │ │ │ ☐ 任务 A                  │ │  │
+│ │ 热力：○ ○ ● ● ○ ●     │ │ │ ☑ 任务 B                  │ │  │
+│ │ (浅→深 = 少→多)       │ │ │ ☐ 任务 C                  │ │  │
+│ └─────────────────────────┘ │ └─────────────────────────────┘ │  │
+│                             └────────────────────────────────┘  │
+│                                                                │
+│ ┌─ 日记模板 ────────────────────────────────────────────────┐  │
+│ │ 选择模板：[📋 日程] [📓 会议] [📖 读书] [✨ 自由书写]     │  │
+│ └──────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**改造清单**：
+- [ ] 热力图月历（活动密度可视化）
+- [ ] 今日面板（笔记摘要 + 任务）
+- [ ] 日记模板快捷选择
+- [ ] 快捷键 Cmd+Shift+D 优化
+- [ ] 日记内任务管理（TODO/DOING/DONE）
+- [ ] 时间块（Scheduled / Deadline）
+
+---
+
+### Phase 2: 进阶功能（2-3 周）
+
+#### 2.9 Block Reference 系统
+
+**Notion/Logseq 的块引用**：
+```
+引用方式：
+/reference
+→ 弹出搜索 → 选择块 → 插入引用
+
+渲染效果：
+> [[笔记 A]]
+> 这是一段被引用的内容
+> — 引用自《项目笔记》
+
+点击引用 → 跳转源块
+```
+
+**改造清单**：
+- [ ] 块 ID 分配（每块唯一标识）
+- [ ] 块引用语法 `((block-id))`
+- [ ] 引用搜索弹窗
+- [ ] 引用渲染样式
+- [ ] 引用跳转功能
+
+---
+
+#### 2.10 Inline Database（内联数据库）
+
+**Notion 的数据库**：
+```
+类型：表格 / 看板 / 画廊 / 日历 / 时间线
+
+属性：
+- 文本、Number、Select、Multi-select
+- Date、Checkbox、URL、Email
+- Relation（关联其他数据库）
+
+视图切换：同一数据库，多种视图
+```
+
+**改造清单**：
+- [ ] 数据库基础类型（Table View）
+- [ ] 属性类型定义
+- [ ] 行内编辑
+- [ ] 视图切换（Table/Kanban/Gallery）
+- [ ] 关联字段（Relation）
+
+---
+
+#### 2.11 Template System（模板系统）
+
+**当前问题**：
+- 模板管理分散
+- 模板插入不便
+
+**改造目标**：
+- [ ] 模板库管理界面
+- [ ] 模板变量（`{{title}}`, `{{date}}`, `{{time}}`）
+- [ ] 模板分组
+- [ ] 斜杠命令直接插入模板
+- [ ] 模板快捷键
+
+---
+
+### Phase 3: 高阶功能（3-4 周）
+
+#### 2.12 Task Management（任务管理）
+
+```
+任务状态：
+- ☐ TODO
+- ◐ DOING
+- ✓ DONE
+- ✗ CANCELLED
+
+时间管理：
+- 📅 Scheduled: 2026-05-10
+- ⏰ Deadline: 2026-05-15
+- 🔄 Repeating: 每天/每周
+
+优先级：
+- 🔴 P0
+- 🟡 P1
+- 🟢 P2
+```
+
+**改造清单**：
+- [ ] 任务状态切换
+- [ ] 任务优先级
+- [ ] 时间块（Scheduled/Deadline）
+- [ ] 重复任务
+- [ ] 任务看板视图
+- [ ] 任务过滤器
+
+---
+
+#### 2.13 Whiteboard（白板）
+
+**Logseq Whiteboard 体验**：
+- 无限画布
+- 拖拽卡片
+- 自由绘图
+- 嵌入笔记块
+- 连接线
+
+**改造清单**：
+- [ ] 画布基础（无限滚动、缩放）
+- [ ] 卡片拖拽
+- [ ] 笔记嵌入
+- [ ] 连接线
+- [ ] 导出为图片
+
+---
+
+## 3. 视觉一致性改造
+
+### 3.1 Design Token 规范
+
+```css
+/* Color System */
+:root {
+  /* 暗色主题 */
+  --bg-primary: #0a0c12;
+  --bg-secondary: #12151e;
+  --bg-tertiary: #1a1e2a;
+  --bg-elevated: #222838;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  
+  --accent-primary: #f59e0b;    /* amber-500 */
+  --accent-hover: #fbbf24;      /* amber-400 */
+  --accent-subtle: rgba(245, 158, 11, 0.15);
+  
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  
+  /* 交互状态 */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+}
+
+/* Spacing Scale */
+--space-1: 4px;
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-6: 24px;
+--space-8: 32px;
+--space-12: 48px;
+
+/* Typography */
+--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+--font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+--text-xs: 11px;
+--text-sm: 13px;
+--text-base: 14px;
+--text-lg: 16px;
+--text-xl: 18px;
+--text-2xl: 24px;
+
+/* Radius */
+--radius-sm: 4px;
+--radius-md: 6px;
+--radius-lg: 8px;
+--radius-xl: 12px;
+
+/* Shadows */
+--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+--shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+```
+
+### 3.2 组件规范化
+
+| 组件 | 规范 |
+|------|------|
+| Button | 3 种尺寸（sm/md/lg）、4 种变体（primary/secondary/ghost/danger） |
+| Input | 统一 focus ring、error state、disabled state |
+| Dropdown | 键盘导航支持、虚拟滚动（>20 项） |
+| Modal | 统一动画、点击外部关闭、Escape 关闭 |
+| Toast | 位置统一（右下）、自动消失、手动关闭 |
+| Tooltip | 延迟显示（300ms）、暗色背景 |
+| Skeleton | 加载骨架屏、统一动画 |
+
+---
+
+## 4. 执行计划
+
+### 4.1 优先级排序
+
+```
+P0 - 核心体验（阻塞使用）
+├── Home 重构
+├── Sidebar 重构
+├── Editor 斜杠命令 + 块操作
+└── 视觉一致性基础
+
+P1 - 高频功能（日常使用）
+├── Editor 页面引用 + 块引用
+├── Reader 反链面板 + 标注抽屉
+├── Search 搜索历史 + 筛选增强
+└── Daily Notes 任务管理
+
+P2 - 进阶功能（提升效率）
+├── Graph 图谱增强
+├── Tags 标签管理
+├── Template 模板系统
+└── Block Reference
+
+P3 - 高阶功能（差异化竞争）
+├── Inline Database
+├── Whiteboard
+└── 更多视图模式
+```
+
+### 4.2 里程碑
+
+| 里程碑 | 内容 | 目标时间 |
+|--------|------|----------|
+| M1 | Phase 1 核心体验完成 | +2 周 |
+| M2 | Phase 2 进阶功能完成 | +4 周 |
+| M3 | Phase 3 高阶功能完成 | +7 周 |
+| M4 | 性能优化 + Bug 修复 | +8 周 |
+
+### 4.3 技术债务清理
+
+| 债务项 | 影响 | 解决方案 |
+|--------|------|----------|
+| 4 个 Shell 职责重叠 | 维护困难 | 合并为 2 个 Shell |
+| 13 个 Store 碎片化 | 状态不一致 | 合并为 5 个核心 Store |
+| 组件库不统一 | 视觉不一致 | 建立 Design System |
+| API 类型不一致 | 类型错误 | 统一 types.ts |
+
+---
+
+## 5. 推荐实施路径
+
+```
+Week 1-2: Home + Sidebar
+  → 统一导航结构
+  → 清晰入口
+
+Week 3-4: Editor 核心
+  → 斜杠命令
+  → 块级操作
+  → [[ ]] 引用
+
+Week 5-6: Editor 增强
+  → 块引用
+  → 侧边属性
+  → 大纲同步
+
+Week 7-8: Reader + Search
+  → 标注抽屉
+  → 搜索增强
+  → 反链面板
+
+Week 9-10: Graph + Daily Notes
+  → 图谱增强
+  → 任务管理
+  → 日历热力图
+
+Week 11-12: 模板 + 高级功能
+  → 模板系统
+  → Block Reference
+  → 数据库
+
+Week 13+: 白板 + 优化
+  → Whiteboard
+  → 性能优化
+  → Bug 修复
+```
+
+---
+
+## 6. 成功指标
+
+| 指标 | 当前 | 目标 | 测量方式 |
+|------|------|------|----------|
+| 首次使用完成率 | ? | >80% | 用户调研 |
+| 核心操作效率 | ? | 提升 50% | 操作计时 |
+| 视觉一致性评分 | 3/10 | 8/10 | 专家评审 |
+| 用户满意度 | ? | >4.5/5 | NPS 调研 |
+
+---
+
+## 7. 页面详细分析
+
+### 7.1 WorkbenchShell（首页工作台）
+
+**当前状态**：Chat-first 入口，AI 对话 + Quick Actions + Recent Entries
+
+**问题**：
+- AI 对话与 KB 上下文绑定不够直观
+- Recent Entries 信息密度低
+- 缺少今日统计卡片
+- Quick Actions 入口层级过深
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│  ClawKB    [⌘K 搜索...]              [模型▼] [👤]              │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌─ 今日概览 ──────────────────────────────────────────────┐   │
+│  │ 📝 笔记总数: 156    ↑ 新增: 3    🔥 活跃标签: #工作    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─ 对话输入 ──────────────────────────────────────────────┐   │
+│  │                                                            │   │
+│  │ [[ 输入问题，或选择快捷操作... ]]                          │   │
+│  │                                                            │   │
+│  │ [📎附件] [🔗链接] [🎤录音] [📸截图]                       │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─ 最近笔记 ───────────────────────────────────────────────┐   │
+│  │ 📄 项目进度记录         2h ago   #工作 #项目A            │   │
+│  │ 📄 会议纪要 2026-05     yesterday  #会议                 │   │
+│  │ 📄 读书笔记第三章       3 days   #读书                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─ 快捷操作 ───────────────────────────────────────────────┐   │
+│  │ [📝 新建笔记] [📅 日记] [🔍 搜索] [📊 图谱]             │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 7.2 KnowledgeSpaceShell（知识库空间）
+
+**当前状态**：KB 列表 + 详情 + 问答面板
+
+**问题**：
+- KB 详情面板信息密度低
+- 缺少文档预览
+- 切换 KB 操作繁琐
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│  知识库空间                                    [注册新KB]       │
+├────────────────────────────┬───────────────────────────────────┤
+│                            │                                    │
+│  个人知识库                 │  📂 项目知识库                    │
+│  ├─ 📊 当前统计             │                                    │
+│  │   笔记: 156             │  ┌─ 快速搜索 ─────────────────┐ │
+│  │   文档: 42              │  │ [[搜索...]]                  │ │
+│  │   标签: 28              │  └─────────────────────────────┘ │
+│  │                         │                                    │
+│  │ 🏷️ 标签云               │  ┌─ 最近文档 ──────────────────┐ │
+│  │ #工作 #项目 #读书        │  │ 📄 文档 A    📄 文档 B      │ │
+│  │                         │  │ 📄 文档 C    📄 文档 D      │ │
+│  │                         │  └─────────────────────────────┘ │
+│  │                         │                                    │
+│  │ 📁 文件夹               │  ┌─ 知识问答 ──────────────────┐ │
+│  │ ├─ 工作                 │  │ AI: 有什么关于项目的提问？   │ │
+│  │ ├─ 学习                 │  │                              │ │
+│  │ └─ 生活                 │  │ [[输入问题...]]    [发送]    │ │
+│  │                         │  └─────────────────────────────┘ │
+│  │                         │                                    │
+└────────────────────────────┴───────────────────────────────────┘
+```
+
+### 7.3 ExploreShell（探索工作区）
+
+**当前状态**：Tab 导航 + 各类工具页面
+
+**问题**：
+- Tab 过多（9 个标签）
+- 搜索/标签/图谱等核心功能入口过深
+- 高级工具（Report/Podcast）使用率低
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│  探索                            [🔍搜索] [📊图谱] [📅日记]     │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  [搜索] [标签] [时间线] [实体] [图谱] | [高级工具▼]              │
+│                                                                │
+│  ┌─ 当前视图 ───────────────────────────────────────────────┐   │
+│  │                                                            │   │
+│  │  搜索结果 / 标签列表 / 时间线 / 图谱 等内容              │   │
+│  │                                                            │   │
+│  └────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  [高级工具展开]                                                │
+│  ┌─ 高级工具 ──────────────────────────────────────────────┐   │
+│  │ [📝 报告生成] [🎙️ 播客脚本] [🧠 脑图] [📋 模板]          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 7.4 DocumentWorkspaceShell（文档工作台）
+
+**当前状态**：文档列表 + 标签页 + 内容区
+
+**问题**：
+- 标签页过多（Reader/Draft/Notes/Report/Podcast）
+- 内容区功能混乱
+- 缺少块级操作
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│  文档工作台                                [📄 新建] [💾 保存]   │
+├────────────────────────────────────────────────────────────────┤
+│ ┌─ 文档列表 ──────┐ ┌─ 标签 ─────────────────────────────┐   │
+│ │ 📄 文档 A       │ │ [阅读] [编辑] [笔记] [大纲]           │   │
+│ │ 📄 文档 B       │ └─────────────────────────────────────┘   │
+│ │ 📄 文档 C       │                                           │
+│ │ 📄 文档 D       │ ┌─ 内容区 ──────────────────────────────┐   │
+│ └────────────────┘ │                                        │   │
+│                     │ # 文档标题                              │   │
+│ ┌─ 工具栏 ─────────┐ │                                        │   │
+│ │ B I U S | H1-3  │ │ 内容正文...                            │   │
+│ │ 🔗 📊 📝 🎨    │ │                                        │   │
+│ └─────────────────┘ │ ┌─ 侧边栏 ────────────────────────┐   │   │
+│                     │ │ [大纲] [属性] [反链]           │   │   │
+│                     │ │                                │   │   │
+│                     │ │ 大纲内容 / 标签 / 反链列表     │   │   │
+│                     │ └────────────────────────────────┘   │   │
+│                     └────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 7.5 EditorPage（编辑器）
+
+**当前状态**：TipTap 编辑器 + 工具栏 + AI 辅助
+
+**问题**：
+- 无斜杠命令
+- 无块级拖拽
+- AI 辅助功能割裂
+- 无块引用
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│ ← 返回    笔记标题                    [预览] [⋮] [💾 保存]     │
+├────────────────────────────────────────────────────────────────┤
+│ ┌─ 工具栏 ─────────────────────────────────────────────────┐   │
+│ │ B  I  U  S  | H1 H2 H3 | H━ | " │ 🔗 │ /  │ ☰ │  │   │
+│ └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  # 主标题                                                      │
+│                                                                │
+│  正文内容...输入 / 触发斜杠命令：                               │
+│                                                                │
+│  ┌─ / 斜杠命令 ────────────────────────────────────────────┐   │
+│  │ 🔢 待办      💬 标注      📝 引用      📊 表格         │   │
+│  │ 🎨 分隔线    📁 文件      📋 模板      🔗 链接         │   │
+│  └────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─ AI 辅助 ──────────────────────────────────────────────┐   │
+│  │ [✨ 续写] [📝 改写] [📋 摘要] [🔍 解释] [🌐 翻译]      │   │
+│  │ AI: 建议内容...                                        │   │
+│  └────────────────────────────────────────────────────────┘   │
+│                                                                │
+│ ┌─ 属性 ──────────┐ ┌─ 大纲 ──────────────────────────┐        │
+│ │ 🏷️ #工作 #重要  │ │ ▼ 第一章                       │        │
+│ │ 📅 2026-05-07   │ │   - 1.1 小节                   │        │
+│ │ 🔗 3 个链接     │ │   - 1.2 小节                   │        │
+│ └─────────────────┘ └─────────────────────────────────┘        │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 7.6 ReaderPage（阅读器）
+
+**当前状态**：文档列表 + 阅读/聊天/书签/标注面板
+
+**问题**：
+- PDF 渲染功能简单
+- 标注系统分散
+- 反链面板位置不合理
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│ ← 返回    文档标题              [📚库] [❤️] [📝标注] [📤导出]  │
+├────────────────────────────────────────────────────────────────┤
+│ ┌─ 阅读区 ───────────────────────────────────────────┐ ┌─侧边┐│
+│ │                                                    │ │[大][反]││
+│ │  PDF 内容渲染                                       │ │      ││
+│ │                                                    │ │ 大纲 ││
+│ │  [选择文字后弹出标注工具]                           │ │ ...  ││
+│ │                                                    │ │      ││
+│ │                                                    │ │ 反链 ││
+│ │                                                    │ │ ...  ││
+│ └────────────────────────────────────────────────────┘ └──────┘│
+│                                                                │
+│ ┌─ 标注抽屉（底部）──────────────────────────────┐               │
+│ │ 高亮: 「选中的文字」                            │               │
+│ │ [💬 标注] [📝 笔记] [🗑️ 删除]                  │               │
+│ └─────────────────────────────────────────────────┘               │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 7.7 SettingsPage（设置）
+
+**当前状态**：多 Tab 设置页面
+
+**问题**：
+- Tab 过多
+- 高级设置隐藏
+- WebDAV/Obsidian 入口深
+
+**改造方向**：
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 设置                                               [完成]       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│ ┌─ 设置分类 ────────────────────────────────────────────────┐  │
+│ │ [通用] [AI模型] [WebDAV] [Obsidian] [导出] [关于]          │  │
+│ └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│ ┌─ 当前设置 ────────────────────────────────────────────────┐  │
+│ │                                                            │  │
+│ │  AI 模型配置                                               │  │
+│ │  ├─ 嵌入模型                                               │  │
+│ │  │   Provider: [OpenAI▼]   Model: [text-embedding-3▼]     │  │
+│ │  │   API Key: [••••••••••••••]  [测试连接]                │  │
+│ │  │                                                        │  │
+│ │  ├─ 问答模型                                               │  │
+│ │  │   Provider: [OpenAI▼]   Model: [gpt-4o▼]               │  │
+│ │  │   Temperature: [0.7]                                   │  │
+│ │                                                            │  │
+│ └────────────────────────────────────────────────────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. 实现检查清单
+
+### Phase 1：核心体验（Week 1-2）
+
+- [ ] **Home 重构**
+  - [ ] 添加今日统计卡片
+  - [ ] 优化最近笔记列表
+  - [ ] AI 对话区域可折叠
+  - [ ] Quick Actions 优化
+
+- [ ] **Sidebar 重构**
+  - [ ] 窄轨 Icon Rail 样式
+  - [ ] 空间层级显示
+  - [ ] 折叠/展开功能
+  - [ ] 移动端适配
+
+- [ ] **Editor 斜杠命令**
+  - [ ] 斜杠菜单组件
+  - [ ] 键盘导航支持
+  - [ ] 块类型插入
+  - [ ] 模板插入
+
+- [ ] **视觉一致性**
+  - [ ] Design Token 完善
+  - [ ] 组件库规范化
+  - [ ] 暗色主题统一
+
+### Phase 2：进阶功能（Week 3-4）
+
+- [ ] **Editor 增强**
+  - [ ] 块拖拽排序
+  - [ ] 块缩进/折叠
+  - [ ] 页面引用 [[ ]]
+  - [ ] 块引用系统
+
+- [ ] **Reader 增强**
+  - [ ] PDF 文字选择
+  - [ ] 标注抽屉
+  - [ ] 高亮颜色
+  - [ ] 反链面板
+
+- [ ] **Search 增强**
+  - [ ] 搜索历史
+  - [ ] 标签筛选
+  - [ ] 时间筛选
+  - [ ] 结果预览
+
+- [ ] **Daily Notes**
+  - [ ] 热力图日历
+  - [ ] 今日面板
+  - [ ] 任务管理
+  - [ ] 日记模板
+
+### Phase 3：高阶功能（Week 5-8）
+
+- [ ] **Graph 增强**
+  - [ ] 视图模式切换
+  - [ ] 节点搜索
+  - [ ] 导出 SVG
+  - [ ] 性能优化
+
+- [ ] **Tags 管理**
+  - [ ] 标签云视图
+  - [ ] 标签详情
+  - [ ] 批量操作
+  - [ ] 树状视图
+
+- [ ] **模板系统**
+  - [ ] 模板库
+  - [ ] 变量支持
+  - [ ] 斜杠插入
+  - [ ] 快捷键
+
+- [ ] **任务管理**
+  - [ ] 状态切换
+  - [ ] 优先级
+  - [ ] 时间块
+  - [ ] 看板视图
+
+### Phase 4：高级功能（Week 9-12）
+
+- [ ] **Inline Database**
+  - [ ] Table View
+  - [ ] 属性类型
+  - [ ] 视图切换
+  - [ ] 关联字段
+
+- [ ] **Whiteboard**
+  - [ ] 无限画布
+  - [ ] 卡片拖拽
+  - [ ] 连接线
+  - [ ] 导出
+
+---
+
+*本计划基于对 Notion、Obsidian、Logseq 的 UX 分析，结合 ClawKB 当前架构制定。*
+*生成时间：2026-05-07*

@@ -157,13 +157,13 @@ export const useAiStore = create<AiConfigState>((set, get) => ({
       llmProvider = 'local';
     }
 
-    try {
-      await api.setEmbeddingModel(embedding.provider, embedding.model, embedding.apiKey || undefined, embedding.apiBase || undefined);
-      await api.setAskModel(llmProvider, llmModel, llmApiKey, llmApiBase, ask.temperature);
-      set({ isConfigured: true });
-    } catch {
-      // In browser mode, just mark as configured
-      set({ isConfigured: true });
-    }
+    await api.setEmbeddingModel(
+      embedding.provider,
+      embedding.model,
+      embedding.apiKey || undefined,
+      embedding.apiBase || undefined,
+    );
+    await api.setAskModel(llmProvider, llmModel, llmApiKey, llmApiBase, ask.temperature);
+    set({ isConfigured: true });
   },
 }));

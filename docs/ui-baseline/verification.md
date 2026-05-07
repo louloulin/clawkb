@@ -1,6 +1,6 @@
 # UI Verification
 
-Verification date: 2026-04-07
+Verification date: 2026-04-10
 
 ## Baseline screenshots
 
@@ -13,13 +13,15 @@ Verification date: 2026-04-07
 These checks were executed against the current app baseline:
 
 1. Browser preview guard:
-   The browser build stopped at `Desktop runtime required` and clearly indicated that real KB work requires the Tauri desktop app.
+   `scripts/verify-runtime-modes.sh` rendered the preview shell in headless Chrome and confirmed `data-runtime-mode="browser-unsupported"`, `Desktop runtime required`, and `Preview Only`.
 2. Desktop window launch:
-   `scripts/verify-desktop-ui.sh` observed one `ClawKB — Personal Knowledge Base` window and captured a desktop screenshot artifact.
-3. Persistence regression:
+   `scripts/verify-desktop-ui.sh` observed one `ClawKB — Personal Knowledge Base` window, captured a window-scoped screenshot artifact at logical bounds `1200x800`, recorded the Retina capture scale as `2`, and rejected black-screen captures until the real UI rendered.
+3. No-KB onboarding UI:
+   The live desktop screenshot showed the new `Workbench` setup panel and the product no longer pretended chat or document workflows were ready before a real local KB was mounted.
+4. Persistence regression:
    `scripts/verify-local-state.sh` passed, confirming workspace and draft state are written to the expected local storage keys.
-4. Release gate:
-   `scripts/verify-release.sh` passed end-to-end with Rust tests, frontend smoke, preview verification, persistence verification, and desktop UI launch.
+5. Release gate:
+   `scripts/verify-release.sh` passed end-to-end with Rust tests, frontend smoke, preview verification, persistence verification, error-handling verification, and desktop UI launch.
 
 ## Asset cleanup
 

@@ -28,21 +28,27 @@ describe('space metadata edit smoke', () => {
         selectedSpace={registeredSpace}
         isCurrent={false}
         switching={false}
-        onOpen={vi.fn()}
+        previewQuery="*"
+        previewHits={[]}
+        previewLoading={false}
+        onPreviewQueryChange={vi.fn()}
+        onPreviewSearch={vi.fn()}
+        onOpenAsk={vi.fn()}
+        onOpenNotes={vi.fn()}
         onRegisterCurrent={vi.fn()}
         showRegisterCurrent={false}
-        onOpenDocuments={vi.fn()}
         onSaveMetadata={onSaveMetadata}
       />,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Knowledge space name'), {
+    fireEvent.click(screen.getByRole('button', { name: '编辑知识库设置' }));
+    fireEvent.change(screen.getByPlaceholderText('知识库名称'), {
       target: { value: 'Archived Research' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Short description'), {
+    fireEvent.change(screen.getByPlaceholderText('一句话说明这个知识库存放什么'), {
       target: { value: 'Updated local archive' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /save space metadata/i }));
+    fireEvent.click(screen.getByRole('button', { name: /保存知识库设置/i }));
 
     await waitFor(() =>
       expect(onSaveMetadata).toHaveBeenCalledWith({

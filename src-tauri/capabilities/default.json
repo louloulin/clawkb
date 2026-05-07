@@ -20,6 +20,8 @@
     "core:menu:default",
     "core:menu:allow-new",
     "core:menu:allow-popup",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "shell:allow-open",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
