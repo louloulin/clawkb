@@ -643,14 +643,11 @@
 - Body: 14px
 - Caption: 12px
 
-#### 问题 V-2: 暗色侧边栏 + 亮色内容区冲突 (CRITICAL)
+#### 问题 V-2: 暗色侧边栏 + 亮色内容区冲突 (CRITICAL) — ✅ 已修复
 
 侧边栏使用深渐变背景 (`rgb(15,18,31)` → `rgb(23,27,43)`) + 白色文字, 但主内容区使用浅色背景 (`rgb(249,250,251)`) + 深色文字。搜索栏和芯片组件又使用暗色背景。三种视觉风格在同一个视窗中冲突。
 
-**修复方案**:
-- A) 统一为全暗色主题 (推荐, 符合 KB 工具定位)
-- B) 侧边栏也用浅色 (不符合品牌调性)
-- C) 为侧边栏和内容区之间添加视觉过渡
+**已修复**: 实现了 shadcn/ui 双主题 CSS 变量模式 (`:root` 亮色 / `.dark` 暗色), 所有硬编码 amber 颜色替换为 `bg-primary/text-primary` 语义 token, 侧边栏与工作台不再重叠。
 
 #### 问题 V-3: 中英文混杂 (CRITICAL)
 
@@ -897,6 +894,7 @@
 | S-e | **模板变量替换** | `editor.tsx` `handleTemplateSelect`: 替换 `{{date}}`/`{{time}}`/`{{title}}`/`{{tags}}` 为实际值 | ✅ |
 | UI-1 | 主题一致性修复 (之前会话) | 全局替换硬编码颜色为 CSS 变量 token, 对齐 `.dark` 变量 | ✅ |
 | UI-2 | **亮色主题完整修复** | `tokens.css`: :root 定义亮色值, .dark 定义暗色值; `index.css`: @theme 引用动态 CSS 变量; `workbench.css`: 移除硬编码颜色; `kb-store.ts`: darkMode 默认跟随系统 | ✅ |
+| UI-3 | **侧边栏/工作台重叠修复 + 全局主题色替换** | `App.tsx`: 添加 `md:ml-[220px]`/`md:!ml-[86px]` 响应式 margin 防止 fixed sidebar 重叠; 10 个组件: `bg-amber-200/text-amber-200` → `bg-primary/text-primary` 跨主题兼容; `workbench-shell.tsx`: 移除 `kb-shell` 渐变背景 | ✅ |
 
 ### ⬜ 待执行 (按优先级排序)
 
