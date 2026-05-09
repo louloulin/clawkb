@@ -52,9 +52,11 @@ export const useKbStore = create<KbState>((set, get) => ({
   darkMode: (() => {
     try {
       const stored = safeStorageGetString(STORAGE_KEYS.kb.darkMode, '');
-      return stored === null ? true : stored === 'true';
+      if (stored !== '' && stored !== null) return stored === 'true';
+      // Follow system preference
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch {
-      return true;
+      return false;
     }
   })(),
 

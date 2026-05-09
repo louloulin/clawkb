@@ -1,44 +1,45 @@
-/* ClawKB Design Tokens — Based on plan3.md specifications */
+/* ClawKB Design Tokens — Dual-theme (light/dark) */
 
 :root {
-  /* Core Shell Colors */
-  --kb-shell: 228 36% 9%;
-  --kb-shell-elevated: 228 30% 13%;
-  --kb-panel: 220 24% 12%;
-  --kb-panel-strong: 220 22% 16%;
-  --kb-panel-soft: 220 18% 20%;
-  --kb-outline: 220 18% 24%;
-  --kb-chip: 220 20% 18%;
+  /* Core Shell Colors — Light Mode */
+  --kb-shell: 210 20% 97%;
+  --kb-shell-elevated: 210 20% 95%;
+  --kb-panel: 0 0% 100%;
+  --kb-panel-strong: 210 20% 96%;
+  --kb-panel-soft: 210 16% 93%;
+  --kb-outline: 220 14% 91%;
+  --kb-chip: 220 14% 93%;
 
-  /* Accent Colors */
-  --kb-glow: 39 84% 73%;
-  --kb-accent: 43 96% 59%; /* amber-300 #fbbf24 */
-  --kb-accent-hover: 42 95% 70%;
-  --kb-accent-subtle: 43 96% 59% / 15%;
+  /* Accent Colors — works for both modes */
+  --kb-glow: 39 84% 60%;
+  --kb-accent: 43 96% 56%;
+  --kb-accent-hover: 43 96% 48%;
+  --kb-accent-subtle: 43 96% 56% / 12%;
 
-  /* Surface Colors */
-  --kb-surface: 224 28% 12%;
-  --kb-surface-elevated: 228 24% 16%;
+  /* Surface Colors — Light */
+  --kb-surface: 210 20% 96%;
+  --kb-surface-elevated: 0 0% 100%;
 
-  /* Semantic Colors */
-  --kb-success: 158 64% 52%;
-  --kb-warning: 38 92% 50%;
-  --kb-error: 0 84% 60%;
-  --kb-info: 217 91% 60%;
+  /* Semantic Colors — Light (darker for contrast on white bg) */
+  --kb-success: 158 64% 42%;
+  --kb-warning: 38 92% 42%;
+  --kb-error: 0 72% 51%;
+  --kb-info: 217 91% 50%;
 
-  /* Text Colors */
-  --kb-text-primary: 210 30% 95%;
-  --kb-text-secondary: 215 18% 65%;
-  --kb-text-muted: 215 14% 50%;
+  /* Text Colors — Light (dark text on light bg) */
+  --kb-text-primary: 224 64% 12%;
+  --kb-text-secondary: 220 12% 46%;
+  --kb-text-muted: 220 10% 58%;
 
-  /* Border Colors */
-  --kb-border-default: 220 18% 16% / 80%;
-  --kb-border-hover: 220 18% 24% / 100%;
+  /* Border Colors — Light */
+  --kb-border-default: 220 14% 91% / 80%;
+  --kb-border-hover: 220 14% 85% / 100%;
 
-  /* Shadows */
-  --kb-shadow-sm: 0 1px 2px hsl(0 0% 0% / 30%);
-  --kb-shadow-md: 0 4px 12px hsl(0 0% 0% / 40%);
-  --kb-shadow-lg: 0 8px 24px hsl(0 0% 0% / 50%);
+  /* Shadows — Light (softer) */
+  --kb-shadow: 0 0% 0%;
+  --kb-shadow-sm: 0 1px 2px hsl(0 0% 0% / 8%);
+  --kb-shadow-md: 0 4px 12px hsl(0 0% 0% / 10%);
+  --kb-shadow-lg: 0 8px 24px hsl(0 0% 0% / 12%);
 
   /* Spacing Scale (4px base) */
   --kb-space-1: 4px;
@@ -76,6 +77,7 @@
 }
 
 .dark {
+  /* Core Shell Colors — Dark Mode */
   --kb-shell: 228 36% 9%;
   --kb-shell-elevated: 228 30% 13%;
   --kb-panel: 220 24% 12%;
@@ -83,10 +85,35 @@
   --kb-panel-soft: 220 18% 20%;
   --kb-outline: 220 18% 24%;
   --kb-chip: 220 20% 18%;
+
+  /* Accent Colors */
   --kb-glow: 39 84% 73%;
   --kb-accent: 43 96% 59%;
   --kb-accent-hover: 42 95% 70%;
   --kb-accent-subtle: 43 96% 59% / 15%;
+
+  /* Surface Colors — Dark */
   --kb-surface: 224 28% 12%;
   --kb-surface-elevated: 228 24% 16%;
+
+  /* Semantic Colors — Dark (lighter for contrast on dark bg) */
+  --kb-success: 158 64% 52%;
+  --kb-warning: 38 92% 50%;
+  --kb-error: 0 84% 60%;
+  --kb-info: 217 91% 60%;
+
+  /* Text Colors — Dark (light text on dark bg) */
+  --kb-text-primary: 210 30% 95%;
+  --kb-text-secondary: 215 18% 65%;
+  --kb-text-muted: 215 14% 50%;
+
+  /* Border Colors — Dark */
+  --kb-border-default: 220 18% 16% / 80%;
+  --kb-border-hover: 220 18% 24% / 100%;
+
+  /* Shadows — Dark (stronger) */
+  --kb-shadow: 0 0% 0%;
+  --kb-shadow-sm: 0 1px 2px hsl(0 0% 0% / 30%);
+  --kb-shadow-md: 0 4px 12px hsl(0 0% 0% / 40%);
+  --kb-shadow-lg: 0 8px 24px hsl(0 0% 0% / 50%);
 }
