@@ -1,0 +1,49 @@
+{
+  "name": "claw-kb",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ClawKB - 本地知识工作台 (Local Knowledge Desktop)",
+  "type": "module",
+  "scripts": {
+    "dev": "cd src && npm run dev",
+    "build": "cd src && npm run build",
+    "preview": "cd src && npm run preview",
+    "lint": "cd src && npm run lint",
+    "test": "cd src && npm run test",
+    "tauri": "cargo tauri",
+    "tauri:dev": "cargo tauri dev",
+    "tauri:build": "cargo tauri build",
+    "tauri:info": "cargo tauri info",
+    "rust:check": "cargo check",
+    "rust:build": "cargo build",
+    "rust:test": "cargo test",
+    "rust:clippy": "cargo clippy -- -D warnings",
+    "start": "npm run tauri:dev",
+    "clean": "rm -rf src/dist && cargo clean",
+    "rebuild": "npm run clean && npm run build",
+    "full:dev": "npm run rust:check && npm run dev",
+    "full:build": "npm run rust:build && npm run build && npm run tauri:build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "rust": ">=1.70.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/linchong/claw"
+  },
+  "keywords": [
+    "knowledge-base",
+    "local",
+    "desktop",
+    "tauri",
+    "react",
+    "vite"
+  ],
+  "dependencies": {
+    "mermaid": "^11.14.0"
+  }
+}
