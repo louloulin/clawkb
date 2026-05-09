@@ -114,13 +114,13 @@ export const BlockReferenceExtension = Node.create({
       span.setAttribute('data-block-id', node.attrs.blockId);
       span.textContent = `↳ ${node.attrs.blockTitle || '引用'}`;
       span.style.cssText = `
-        background: rgba(245, 158, 11, 0.15);
-        border: 1px solid rgba(245, 158, 11, 0.3);
+        background: hsl(43 96% 59% / 0.15);
+        border: 1px solid hsl(43 96% 59% / 0.3);
         border-radius: 4px;
         padding: 2px 6px;
         cursor: pointer;
         font-size: 0.875em;
-        color: #fbbf24;
+        color: hsl(43 96% 59%);
       `;
       return { dom: span };
     };
@@ -359,43 +359,73 @@ export const BlockFoldExtension = Extension.create({
 });
 
 // ============================================================================
-// Bubble Menu Component for Block Actions
+// Custom BubbleMenu — TipTap v3 doesn't ship React components for this.
+// We detect text selection and show a floating toolbar using tippy.js.
 // ============================================================================
 
-import { BubbleMenu as TiptapBubbleMenu } from '@tiptap/react';
+import Tippy from '@tippyjs/react';
+import 'tippy.js/dist/tippy.css';
+import type { Editor } from '@tiptap/react';
 
 interface BlockBubbleMenuProps {
-  editor: any;
+  editor: Editor;
 }
 
 export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
+  const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateVisibility = () => {
+      const { from, to, empty } = editor.state.selection;
+      if (empty || from === to) {
+        setVisible(false);
+        return;
+      }
+
+      // Get selection coordinates
+      const { view } = editor;
+      const start = view.coordsAtPos(from);
+      const end = view.coordsAtPos(to);
+      const editorBox = view.dom.getBoundingClientRect();
+
+      setVisible(true);
+      setCoords({
+        top: start.top - editorBox.top - 48,
+        left: (start.left + end.left) / 2 - editorBox.left,
+      });
+    };
+
+    editor.on('selectionUpdate', updateVisibility);
+    editor.on('blur', () => setVisible(false));
+    return () => {
+      editor.off('selectionUpdate', updateVisibility);
+    };
+  }, [editor]);
+
   const handleToggleBold = () => editor.chain().focus().toggleBold().run();
   const handleToggleItalic = () => editor.chain().focus().toggleItalic().run();
   const handleToggleStrike = () => editor.chain().focus().toggleStrike().run();
   const handleToggleCode = () => editor.chain().focus().toggleCode().run();
-  const handleToggleHighlight = () => {
-    // Toggle highlight if extension available
-    if (editor.chain().focus().toggleHighlight) {
-      editor.chain().focus().toggleHighlight().run();
-    }
-  };
-  const handleCopyLink = () => {
-    const { state } = editor;
-    const { from, to } = state.selection;
-    const text = state.doc.textBetween(from, to);
+  const handleCopy = () => {
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to);
     navigator.clipboard.writeText(text);
   };
-  
+
+  if (!visible || !editor) return null;
+
   return (
-    <TiptapBubbleMenu
-      editor={editor}
-      tippyOptions={{ duration: 100, placement: 'top' }}
-      className="flex items-center gap-0.5 p-1 bg-card border border-border/70 rounded-lg shadow-lg"
+    <div
+      className="absolute z-50 flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-lg"
+      style={{ top: coords.top, left: coords.left, transform: 'translateX(-50%)' }}
     >
       <button
         onClick={handleToggleBold}
-        className={`p-1.5 rounded-md text-xs font-bold transition-colors ${
-          editor.isActive('bold') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        className={`rounded-md p-1.5 text-xs font-bold transition-colors ${
+          editor.isActive('bold') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="粗体 (⌘B)"
       >
@@ -403,8 +433,8 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       </button>
       <button
         onClick={handleToggleItalic}
-        className={`p-1.5 rounded-md text-xs italic transition-colors ${
-          editor.isActive('italic') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        className={`rounded-md p-1.5 text-xs italic transition-colors ${
+          editor.isActive('italic') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="斜体 (⌘I)"
       >
@@ -412,8 +442,8 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       </button>
       <button
         onClick={handleToggleStrike}
-        className={`p-1.5 rounded-md text-xs line-through transition-colors ${
-          editor.isActive('strike') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        className={`rounded-md p-1.5 text-xs line-through transition-colors ${
+          editor.isActive('strike') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="删除线"
       >
@@ -421,114 +451,121 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       </button>
       <button
         onClick={handleToggleCode}
-        className={`p-1.5 rounded-md text-xs font-mono transition-colors ${
-          editor.isActive('code') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        className={`rounded-md p-1.5 text-xs font-mono transition-colors ${
+          editor.isActive('code') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="行内代码"
       >
         {'</>'}
       </button>
-      <div className="w-px h-4 bg-border/30 mx-1" />
+      <div className="mx-1 h-4 w-px bg-muted" />
       <button
-        onClick={handleCopyLink}
-        className="p-1.5 rounded-md text-xs hover:bg-muted transition-colors"
+        onClick={handleCopy}
+        className="rounded-md p-1.5 text-xs text-foreground/80 transition-colors hover:bg-muted/50"
         title="复制"
       >
         📋
       </button>
-    </TiptapBubbleMenu>
+    </div>
   );
 }
 
 // ============================================================================
-// Floating Toolbar for Block Selection
+// Custom FloatingMenu — shown on empty paragraph at start of line
 // ============================================================================
 
-import { FloatingMenu } from '@tiptap/react';
-
 interface BlockFloatingMenuProps {
-  editor: any;
+  editor: Editor;
 }
 
 export function BlockFloatingMenu({ editor }: BlockFloatingMenuProps) {
-  const handleConvertToHeading = (level: 1 | 2 | 3) => {
-    editor.chain().focus().toggleHeading({ level }).run();
-  };
-  
-  const handleConvertToBulletList = () => {
-    editor.chain().focus().toggleBulletList().run();
-  };
-  
-  const handleConvertToTaskList = () => {
-    editor.chain().focus().toggleTaskList().run();
-  };
-  
-  const handleConvertToQuote = () => {
-    editor.chain().focus().toggleBlockquote().run();
-  };
-  
+  const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updatePosition = () => {
+      const { $from } = editor.state.selection;
+      const node = $from.parent;
+      const isEmpty = node.content.size === 0 && node.type.name === 'paragraph';
+
+      if (!isEmpty) {
+        setVisible(false);
+        return;
+      }
+
+      const coordsAtPos = editor.view.coordsAtPos($from.pos);
+      const editorBox = editor.view.dom.getBoundingClientRect();
+
+      setVisible(true);
+      setCoords({
+        top: coordsAtPos.top - editorBox.top - 4,
+        left: coordsAtPos.left - editorBox.left - 40,
+      });
+    };
+
+    editor.on('selectionUpdate', updatePosition);
+    editor.on('update', updatePosition);
+    return () => {
+      editor.off('selectionUpdate', updatePosition);
+      editor.off('update', updatePosition);
+    };
+  }, [editor]);
+
+  const handleHeading = (level: 1 | 2 | 3) => () => editor.chain().focus().toggleHeading({ level }).run();
+  const handleBullet = () => editor.chain().focus().toggleBulletList().run();
+  const handleTask = () => editor.chain().focus().toggleTaskList().run();
+  const handleQuote = () => editor.chain().focus().toggleBlockquote().run();
+
+  if (!visible || !editor) return null;
+
   return (
-    <FloatingMenu
-      editor={editor}
-      tippyOptions={{ duration: 100, placement: 'left-start' }}
-      className="flex flex-col gap-0.5 p-1 bg-card border border-border/70 rounded-lg shadow-lg"
+    <div
+      className="absolute z-50 flex flex-col gap-0.5 rounded-lg border border-border bg-card p-1 shadow-lg"
+      style={{ top: coords.top, left: coords.left }}
     >
+      {([1, 2, 3] as const).map((level) => (
+        <button
+          key={level}
+          onClick={handleHeading(level)}
+          className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
+            editor.isActive('heading', { level }) ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          }`}
+          title={`标题 ${level}`}
+        >
+          H{level}
+        </button>
+      ))}
+      <div className="my-0.5 h-px w-full bg-muted" />
       <button
-        onClick={() => handleConvertToHeading(1)}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('heading', { level: 1 }) ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
-        }`}
-        title="标题 1"
-      >
-        H1
-      </button>
-      <button
-        onClick={() => handleConvertToHeading(2)}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('heading', { level: 2 }) ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
-        }`}
-        title="标题 2"
-      >
-        H2
-      </button>
-      <button
-        onClick={() => handleConvertToHeading(3)}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('heading', { level: 3 }) ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
-        }`}
-        title="标题 3"
-      >
-        H3
-      </button>
-      <div className="w-full h-px bg-border/30 my-0.5" />
-      <button
-        onClick={handleConvertToBulletList}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('bulletList') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        onClick={handleBullet}
+        className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
+          editor.isActive('bulletList') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="无序列表"
       >
         •
       </button>
       <button
-        onClick={handleConvertToTaskList}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('taskList') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        onClick={handleTask}
+        className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
+          editor.isActive('taskList') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="任务列表"
       >
         ☑
       </button>
       <button
-        onClick={handleConvertToQuote}
-        className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
-          editor.isActive('blockquote') ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
+        onClick={handleQuote}
+        className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
+          editor.isActive('blockquote') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="引用"
       >
         "
       </button>
-    </FloatingMenu>
+    </div>
   );
 }
 

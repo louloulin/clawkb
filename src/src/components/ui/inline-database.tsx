@@ -122,7 +122,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
   // Get select option color
   const getSelectColor = (color: string) => {
     const colors: Record<string, string> = {
-      slate: 'bg-slate-500/20 text-slate-400',
+      slate: 'bg-slate-500/20 text-muted-foreground',
       amber: 'bg-amber-500/20 text-amber-400',
       emerald: 'bg-emerald-500/20 text-emerald-400',
       red: 'bg-red-500/20 text-red-400',
@@ -224,7 +224,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
             }}
             className="flex items-center justify-center"
           >
-            {value ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-slate-500" />}
+            {value ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-muted-foreground" />}
           </button>
         );
       }
@@ -291,13 +291,13 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
           onClick={() => updateCell(row.id, property.id, !value)}
           className="flex items-center justify-center"
         >
-          {value ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-slate-500" />}
+          {value ? <CheckSquare className="h-4 w-4 text-emerald-400" /> : <Square className="h-4 w-4 text-muted-foreground" />}
         </button>
       );
     }
     if (property.type === 'select' && property.options) {
       const option = property.options.find(o => o.id === value);
-      if (!option) return <span className="text-slate-600">—</span>;
+      if (!option) return <span className="text-muted-foreground/70">—</span>;
       return (
         <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] ${getSelectColor(option.color)}`}>
           {option.label}
@@ -307,7 +307,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
     if (property.type === 'date' && value) {
       const date = new Date(String(value));
       return (
-        <span className="text-[12px] text-slate-400">
+        <span className="text-[12px] text-muted-foreground">
           {date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
         </span>
       );
@@ -318,7 +318,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         return (
           <button
             onClick={() => setShowRelationPicker({ rowId: row.id, propertyId: property.id })}
-            className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-400 transition"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-blue-400 transition"
           >
             <Link className="h-3 w-3" />
             <span>添加关联</span>
@@ -337,19 +337,19 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
             </span>
           ))}
           {relations.length > 3 && (
-            <span className="text-[10px] text-slate-500">+{relations.length - 3}</span>
+            <span className="text-[10px] text-muted-foreground">+{relations.length - 3}</span>
           )}
           <button
             onClick={() => setShowRelationPicker({ rowId: row.id, propertyId: property.id })}
-            className="text-slate-500 hover:text-blue-400"
+            className="text-muted-foreground hover:text-blue-400"
           >
             <Plus className="h-3 w-3" />
           </button>
         </div>
       );
     }
-    if (!value && value !== 0) return <span className="text-slate-600">—</span>;
-    return <span className="text-[12px] text-slate-300 truncate">{String(value)}</span>;
+    if (!value && value !== 0) return <span className="text-muted-foreground/70">—</span>;
+    return <span className="text-[12px] text-foreground/80 truncate">{String(value)}</span>;
   };
 
   // Kanban view grouping
@@ -362,12 +362,12 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
   const groupBySelect = kanbanGroup('status');
 
   return (
-    <div className="rounded-[1rem] border border-white/10 bg-black/20 overflow-hidden">
+    <div className="rounded-[1rem] border border-border bg-secondary overflow-hidden">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-white/5 flex items-center gap-2">
+      <div className="px-3 py-2 border-b border-border/50 flex items-center gap-2">
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="text-slate-500 hover:text-slate-300 transition"
+          className="text-muted-foreground hover:text-foreground/80 transition"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
@@ -377,7 +377,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-transparent border-b border-amber-200/30 outline-none text-[13px] text-white"
+              className="bg-transparent border-b border-amber-200/30 outline-none text-[13px] text-foreground"
               autoFocus
               onBlur={() => setEditingName(false)}
               onKeyDown={(e) => { if (e.key === 'Enter') setEditingName(false); }}
@@ -389,7 +389,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         ) : (
           <button
             onClick={() => setEditingName(true)}
-            className="text-[13px] text-white hover:text-amber-200 transition flex items-center gap-1"
+            className="text-[13px] text-foreground hover:text-amber-200 transition flex items-center gap-1"
           >
             <Database className="h-4 w-4" />
             {name}
@@ -399,13 +399,13 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={() => setViewMode('table')}
-            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'table' ? 'bg-amber-200/20 text-amber-200' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'table' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-foreground/80'}`}
           >
             表格
           </button>
           <button
             onClick={() => setViewMode('kanban')}
-            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'kanban' ? 'bg-amber-200/20 text-amber-200' : 'text-slate-500 hover:text-slate-300'}`}
+            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'kanban' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-foreground/80'}`}
           >
             看板
           </button>
@@ -420,12 +420,12 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[400px]">
                   <thead>
-                    <tr className="border-b border-white/5">
+                    <tr className="border-b border-border/50">
                       {properties.map(prop => (
                         <th
                           key={prop.id}
                           onClick={() => prop.type !== 'checkbox' && toggleSort(prop.id)}
-                          className={`px-3 py-2 text-left text-[10px] font-medium text-slate-500 uppercase tracking-wider ${prop.type !== 'checkbox' ? 'cursor-pointer hover:text-slate-300' : ''}`}
+                          className={`px-3 py-2 text-left text-[10px] font-medium text-muted-foreground uppercase tracking-wider ${prop.type !== 'checkbox' ? 'cursor-pointer hover:text-foreground/80' : ''}`}
                         >
                           <div className="flex items-center gap-1">
                             {getPropertyIcon(prop.type)}
@@ -442,14 +442,14 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                   <tbody>
                     {/* Add row */}
                     {addingRow && (
-                      <tr className="border-b border-white/5 bg-amber-200/5">
+                      <tr className="border-b border-border/50 bg-amber-200/5">
                         {properties.map(prop => (
                           <td key={prop.id} className="px-3 py-1.5">
                             {prop.type === 'select' && prop.options ? (
                               <select
                                 value={newRowValues[prop.id] || ''}
                                 onChange={(e) => setNewRowValues(v => ({ ...v, [prop.id]: e.target.value }))}
-                                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[12px] text-slate-300 outline-none"
+                                className="w-full bg-muted/50 border border-border rounded px-2 py-1 text-[12px] text-foreground/80 outline-none"
                               >
                                 <option value="">选择...</option>
                                 {prop.options.map(opt => (
@@ -468,7 +468,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                                 type="date"
                                 value={newRowValues[prop.id] || ''}
                                 onChange={(e) => setNewRowValues(v => ({ ...v, [prop.id]: e.target.value }))}
-                                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[12px] text-slate-300 outline-none"
+                                className="w-full bg-muted/50 border border-border rounded px-2 py-1 text-[12px] text-foreground/80 outline-none"
                               />
                             ) : (
                               <input
@@ -476,7 +476,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                                 value={newRowValues[prop.id] || ''}
                                 onChange={(e) => setNewRowValues(v => ({ ...v, [prop.id]: e.target.value }))}
                                 placeholder="..."
-                                className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-[12px] text-slate-300 outline-none placeholder:text-slate-600"
+                                className="w-full bg-muted/50 border border-border rounded px-2 py-1 text-[12px] text-foreground/80 outline-none placeholder:text-muted-foreground/70"
                                 autoFocus
                               />
                             )}
@@ -487,7 +487,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                             <button onClick={addRow} className="text-emerald-400 hover:text-emerald-300">
                               <Check className="h-4 w-4" />
                             </button>
-                            <button onClick={() => { setAddingRow(false); setNewRowValues({}); }} className="text-slate-500 hover:text-slate-300">
+                            <button onClick={() => { setAddingRow(false); setNewRowValues({}); }} className="text-muted-foreground hover:text-foreground/80">
                               <X className="h-4 w-4" />
                             </button>
                           </div>
@@ -497,7 +497,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
 
                     {/* Data rows */}
                     {sortedRows.map(row => (
-                      <tr key={row.id} className="border-b border-white/5 hover:bg-white/[0.02] transition">
+                      <tr key={row.id} className="border-b border-border/50 hover:bg-muted/30 transition">
                         {properties.map(prop => {
                           const isEditing = editingCell?.rowId === row.id && editingCell?.propertyId === prop.id;
                           return (
@@ -515,7 +515,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                         <td className="px-2">
                           <button
                             onClick={() => deleteRow(row.id)}
-                            className="text-slate-600 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
+                            className="text-muted-foreground/70 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -526,7 +526,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                     {/* Empty state */}
                     {rows.length === 0 && !addingRow && (
                       <tr>
-                        <td colSpan={properties.length + 1} className="px-3 py-6 text-center text-[11px] text-slate-500">
+                        <td colSpan={properties.length + 1} className="px-3 py-6 text-center text-[11px] text-muted-foreground">
                           暂无数据，点击下方添加
                         </td>
                       </tr>
@@ -539,7 +539,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
               {!addingRow && (
                 <button
                   onClick={() => setAddingRow(true)}
-                  className="w-full flex items-center justify-center gap-1 py-2 text-[11px] text-slate-500 hover:text-slate-300 border-t border-white/5 transition"
+                  className="w-full flex items-center justify-center gap-1 py-2 text-[11px] text-muted-foreground hover:text-foreground/80 border-t border-border/50 transition"
                 >
                   <Plus className="h-3 w-3" />
                   添加一行
@@ -561,17 +561,17 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                       >
                         <div className="flex items-center gap-1.5 mb-2 px-1">
                           <span className={`w-2 h-2 rounded-full ${option.color === 'emerald' ? 'bg-emerald-400' : option.color === 'amber' ? 'bg-amber-400' : 'bg-slate-500'}`} />
-                          <span className="text-[11px] font-medium text-slate-400">{option.label}</span>
-                          <span className="text-[10px] text-slate-600">({columnRows.length})</span>
+                          <span className="text-[11px] font-medium text-muted-foreground">{option.label}</span>
+                          <span className="text-[10px] text-muted-foreground/70">({columnRows.length})</span>
                         </div>
                         <div className="space-y-1.5">
                           {columnRows.map(row => (
                             <div
                               key={row.id}
-                              className="p-2 rounded-md border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer transition"
+                              className="p-2 rounded-md border border-border/50 bg-muted/30 hover:bg-muted/50 cursor-pointer transition"
                               onClick={() => setEditingCell({ rowId: row.id, propertyId: 'title' })}
                             >
-                              <div className="text-[12px] text-slate-300 line-clamp-2">
+                              <div className="text-[12px] text-foreground/80 line-clamp-2">
                                 {String(row.cells['title'] || '无标题')}
                               </div>
                               {row.cells['priority'] && (
@@ -582,7 +582,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                             </div>
                           ))}
                           {columnRows.length === 0 && (
-                            <div className="text-[10px] text-slate-600 text-center py-3">
+                            <div className="text-[10px] text-muted-foreground/70 text-center py-3">
                               拖拽任务至此
                             </div>
                           )}
@@ -592,7 +592,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                   })}
                 </div>
               ) : (
-                <div className="text-center py-4 text-[11px] text-slate-500">
+                <div className="text-center py-4 text-[11px] text-muted-foreground">
                   请先添加「状态」列以启用看板视图
                 </div>
               )}
@@ -609,12 +609,12 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-80 max-h-[60vh] rounded-xl bg-[#1a1e2a] border border-white/10 shadow-2xl overflow-hidden">
-              <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
-                <span className="text-[12px] text-white font-medium">选择关联项</span>
+            <div className="w-80 max-h-[60vh] rounded-xl bg-popover border border-border shadow-2xl overflow-hidden">
+              <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                <span className="text-[12px] text-foreground font-medium">选择关联项</span>
                 <button
                   onClick={() => { setShowRelationPicker(null); setRelationSearch(''); }}
-                  className="text-slate-500 hover:text-white"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -625,12 +625,12 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                   value={relationSearch}
                   onChange={(e) => setRelationSearch(e.target.value)}
                   placeholder="搜索..."
-                  className="w-full px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[12px] text-white placeholder:text-slate-500 outline-none focus:border-blue-400/50"
+                  className="w-full px-2 py-1.5 rounded-lg bg-muted/50 border border-border text-[12px] text-foreground placeholder:text-muted-foreground outline-none focus:border-blue-400/50"
                 />
               </div>
               <div className="max-h-[200px] overflow-y-auto px-2 pb-2">
                 {linkedRows.length === 0 ? (
-                  <div className="text-center py-4 text-[11px] text-slate-500">
+                  <div className="text-center py-4 text-[11px] text-muted-foreground">
                     没有可关联的项
                   </div>
                 ) : (
@@ -647,13 +647,13 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                           key={row.id}
                           onClick={() => toggleRelation(showRelationPicker.rowId, showRelationPicker.propertyId, row.id)}
                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition ${
-                            isLinked ? 'bg-blue-500/20 text-blue-300' : 'hover:bg-white/5 text-slate-300'
+                            isLinked ? 'bg-blue-500/20 text-blue-300' : 'hover:bg-muted/50 text-foreground/80'
                           }`}
                         >
                           {isLinked ? (
                             <CheckSquare className="h-4 w-4 text-blue-400 shrink-0" />
                           ) : (
-                            <Square className="h-4 w-4 text-slate-500 shrink-0" />
+                            <Square className="h-4 w-4 text-muted-foreground shrink-0" />
                           )}
                           <span className="text-[12px] truncate">
                             {getRowTitle(prop?.relationDbId || '', row.id)}
@@ -663,7 +663,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                     })
                 )}
               </div>
-              <div className="px-3 py-2 border-t border-white/10 flex justify-end">
+              <div className="px-3 py-2 border-t border-border flex justify-end">
                 <button
                   onClick={() => { setShowRelationPicker(null); setRelationSearch(''); }}
                   className="px-3 py-1 rounded-lg bg-amber-200/20 text-amber-200 text-[11px] hover:bg-amber-200/30 transition"

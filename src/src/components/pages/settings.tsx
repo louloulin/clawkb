@@ -391,6 +391,38 @@ export function SettingsPage() {
                 </div>
               )}
 
+              {/* Ask API Key — independent from embedding key */}
+              {aiStore.ask.model !== 'default' && (
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1.5 flex items-center gap-1">
+                    <Key className="h-3 w-3" /> LLM API Key
+                  </label>
+                  <Input
+                    type="password"
+                    value={aiStore.ask.apiKey}
+                    onChange={e => aiStore.setAskApiKey(e.target.value)}
+                    placeholder={aiStore.embedding.apiKey ? '使用 Embedding Key (留空)' : 'sk-...'}
+                    className="h-9 rounded-xl border-border/50 text-[13px]"
+                  />
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">留空则复用 Embedding API Key</p>
+                </div>
+              )}
+
+              {/* Ask API Base — for non-default models */}
+              {aiStore.ask.model === 'custom' && (
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1.5">
+                    <Globe className="h-3 w-3 inline mr-1" /> LLM API Base URL
+                  </label>
+                  <Input
+                    value={aiStore.ask.apiBase}
+                    onChange={e => aiStore.setAskApiBase(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                    className="h-9 rounded-xl border-border/50 text-[13px]"
+                  />
+                </div>
+              )}
+
               {/* Temperature */}
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5 flex items-center gap-1">

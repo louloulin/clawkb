@@ -237,7 +237,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                 <span>{formatDate(task.scheduledAt)}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, null); }}
-                  className="ml-0.5 hover:text-white/80"
+                  className="ml-0.5 hover:text-foreground/80"
                 >
                   ×
                 </button>
@@ -246,7 +246,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
               <div className="relative group/sched">
                 <button
                   onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, getQuickDateStr(0)); }}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-blue-400 hover:bg-blue-200/10 transition"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-muted-foreground hover:text-blue-400 hover:bg-blue-200/10 transition"
                   title="设置计划日期"
                 >
                   <Calendar className="h-2.5 w-2.5" />
@@ -255,7 +255,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                 {/* Quick date dropdown */}
                 <div className="absolute left-0 top-full mt-1 hidden group-hover/sched:block z-10">
                   <div className="bg-popover border border-border rounded-lg shadow-lg p-1.5 min-w-[120px]">
-                    <div className="text-[9px] text-slate-500 mb-1 px-1">计划日期</div>
+                    <div className="text-[9px] text-muted-foreground mb-1 px-1">计划日期</div>
                     {[
                       { label: '今天', days: 0 },
                       { label: '明天', days: 1 },
@@ -265,7 +265,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                       <button
                         key={item.label}
                         onClick={(e) => { e.stopPropagation(); setScheduledDate(task.id, getQuickDateStr(item.days)); }}
-                        className="w-full text-left px-2 py-1 text-[11px] text-slate-300 hover:bg-blue-200/15 hover:text-blue-300 rounded transition"
+                        className="w-full text-left px-2 py-1 text-[11px] text-foreground/80 hover:bg-blue-200/15 hover:text-blue-300 rounded transition"
                       >
                         {item.label}
                       </button>
@@ -273,7 +273,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                     <div className="mt-1 pt-1 border-t border-border/50">
                       <input
                         type="date"
-                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-blue-400/50"
+                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-foreground/80 outline-none focus:border-blue-400/50"
                         onChange={(e) => { e.stopPropagation(); setScheduledDate(task.id, e.target.value || null); }}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -293,7 +293,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                 {taskOverdue && <span className="text-[8px]">逾期</span>}
                 <button
                   onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, null); }}
-                  className="ml-0.5 hover:text-white/80"
+                  className="ml-0.5 hover:text-foreground/80"
                 >
                   ×
                 </button>
@@ -302,7 +302,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
               <div className="relative group/dead">
                 <button
                   onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, getQuickDateStr(1)); }}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-slate-500 hover:text-orange-400 hover:bg-orange-200/10 transition"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] text-muted-foreground hover:text-orange-400 hover:bg-orange-200/10 transition"
                   title="设置截止日期"
                 >
                   <AlertCircle className="h-2.5 w-2.5" />
@@ -311,7 +311,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                 {/* Quick deadline dropdown */}
                 <div className="absolute left-0 top-full mt-1 hidden group-hover/dead:block z-10">
                   <div className="bg-popover border border-border rounded-lg shadow-lg p-1.5 min-w-[120px]">
-                    <div className="text-[9px] text-slate-500 mb-1 px-1">截止日期</div>
+                    <div className="text-[9px] text-muted-foreground mb-1 px-1">截止日期</div>
                     {[
                       { label: '今天', days: 0 },
                       { label: '明天', days: 1 },
@@ -321,7 +321,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                       <button
                         key={item.label}
                         onClick={(e) => { e.stopPropagation(); setDeadlineDate(task.id, getQuickDateStr(item.days)); }}
-                        className="w-full text-left px-2 py-1 text-[11px] text-slate-300 hover:bg-orange-200/15 hover:text-orange-300 rounded transition"
+                        className="w-full text-left px-2 py-1 text-[11px] text-foreground/80 hover:bg-orange-200/15 hover:text-orange-300 rounded transition"
                       >
                         {item.label}
                       </button>
@@ -329,7 +329,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
                     <div className="mt-1 pt-1 border-t border-border/50">
                       <input
                         type="date"
-                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-orange-400/50"
+                        className="w-full bg-background/50 border border-border/50 rounded px-2 py-1 text-[10px] text-foreground/80 outline-none focus:border-orange-400/50"
                         onChange={(e) => { e.stopPropagation(); setDeadlineDate(task.id, e.target.value || null); }}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -362,14 +362,14 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
   };
   
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3">
+    <div className="rounded-[1.25rem] border border-border bg-secondary p-3">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-1.5">
           <Clock className="h-3.5 w-3.5" />
           任务
         </span>
-        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <span className="text-amber-400">{counts.doing} 进行中</span>
           <span className="text-muted-foreground/50">{counts.todo} 待办</span>
         </div>
@@ -384,7 +384,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
             className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
               filter === status 
                 ? 'bg-amber-200/15 text-amber-200' 
-                : 'text-slate-500 hover:text-slate-300 hover:bg-white/6'
+                : 'text-muted-foreground hover:text-foreground/80 hover:bg-muted/50'
             }`}
           >
             {status === 'all' ? '全部' 
@@ -399,7 +399,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
       {/* Task list */}
       <div className="space-y-1.5 max-h-64 overflow-y-auto">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-6 text-[11px] text-slate-500">
+          <div className="text-center py-6 text-[11px] text-muted-foreground">
             {filter === 'all' 
               ? '暂无任务，添加一个开始吧'
               : filter === 'todo' ? '没有待办任务'
@@ -424,7 +424,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
               if (e.key === 'Escape') { setAddingTask(false); setNewTaskText(''); }
             }}
             placeholder="输入任务内容..."
-            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white placeholder:text-slate-500 outline-none focus:border-amber-200/30"
+            className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-200/30"
             autoFocus
           />
           <button
@@ -437,7 +437,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
       ) : (
         <button
           onClick={() => setAddingTask(true)}
-          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-white/10 text-[11px] text-slate-500 hover:text-slate-300 hover:border-white/20 transition"
+          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground/80 hover:border-white/20 transition"
         >
           <Plus className="h-3 w-3" />
           添加任务

@@ -58,12 +58,12 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl border border-white/10 bg-[rgba(10,12,18,0.95)] shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl border border-white/10 bg-popover/95 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
             <h2 className="text-base font-semibold text-white">模板管理</h2>
-            <p className="text-xs text-slate-400 mt-0.5">管理你的写作模板</p>
+            <p className="text-xs text-muted-foreground mt-0.5">管理你的写作模板</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg">
             <X className="h-4 w-4" />
@@ -73,7 +73,7 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
         <ScrollArea className="flex-1 px-6 py-4">
           {/* Built-in templates */}
           <div className="mb-6">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">内置模板</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">内置模板</div>
             <div className="grid grid-cols-2 gap-2">
               {templates.filter(t => t.builtin).map(t => (
                 <button
@@ -82,10 +82,10 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
                   className="text-left p-3 rounded-xl border border-white/8 bg-white/4 hover:bg-white/8 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-slate-400 shrink-0" />
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm font-medium text-white">{t.label}</span>
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-1 truncate">{t.title}</div>
+                  <div className="text-[11px] text-muted-foreground mt-1 truncate">{t.title}</div>
                 </button>
               ))}
             </div>
@@ -94,7 +94,7 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
           {/* User templates */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">自定义模板</div>
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">自定义模板</div>
               <Button
                 variant="outline"
                 size="sm"
@@ -113,26 +113,26 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
                   placeholder="模板名称（显示名）"
                   value={newTemplate.label}
                   onChange={e => setNewTemplate({ ...newTemplate, label: e.target.value })}
-                  className="h-9 text-sm bg-white/6 border-white/10 text-white placeholder:text-slate-500"
+                  className="h-9 text-sm bg-white/6 border-white/10 text-white placeholder:text-muted-foreground"
                 />
                 <Input
                   placeholder="默认标题"
                   value={newTemplate.title}
                   onChange={e => setNewTemplate({ ...newTemplate, title: e.target.value })}
-                  className="h-9 text-sm bg-white/6 border-white/10 text-white placeholder:text-slate-500"
+                  className="h-9 text-sm bg-white/6 border-white/10 text-white placeholder:text-muted-foreground"
                 />
                 <textarea
                   placeholder="HTML 内容模板（可选）"
                   value={newTemplate.content}
                   onChange={e => setNewTemplate({ ...newTemplate, content: e.target.value })}
-                  className="w-full text-sm bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-slate-500 resize-none"
+                  className="w-full text-sm bg-white/6 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-muted-foreground resize-none"
                   rows={3}
                 />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleCreate} className="text-xs h-8 gap-1">
                     <Check className="h-3 w-3" /> 保存
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setIsCreating(false)} className="text-xs h-8 text-slate-400">
+                  <Button size="sm" variant="ghost" onClick={() => setIsCreating(false)} className="text-xs h-8 text-muted-foreground">
                     取消
                   </Button>
                 </div>
@@ -140,7 +140,7 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
             )}
 
             {templates.filter(t => !t.builtin).length === 0 && !isCreating ? (
-              <div className="text-xs text-slate-500 text-center py-6 border border-dashed border-white/10 rounded-xl">
+              <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-white/10 rounded-xl">
                 还没有自定义模板，点击「新建模板」创建
               </div>
             ) : (
@@ -172,7 +172,7 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
                           <Button size="sm" onClick={handleSaveEdit} className="text-xs h-7 gap-1">
                             <Check className="h-3 w-3" /> 保存
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditingTemplate(null); }} className="text-xs h-7 text-slate-400">
+                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditingTemplate(null); }} className="text-xs h-7 text-muted-foreground">
                             取消
                           </Button>
                         </div>
@@ -181,26 +181,26 @@ export function TemplateManager({ onClose, onSelect }: TemplateManagerProps) {
                       <>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-white">{t.label}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5 truncate">{t.title}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{t.title}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <button
                             onClick={() => { onSelect?.(t); onClose(); }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-white/8 hover:text-white transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-white/8 hover:text-white transition-colors"
                             title="使用此模板"
                           >
                             <FileText className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => { setEditingId(t.id); setEditingTemplate({ ...t }); }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-white/8 hover:text-white transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-white/8 hover:text-white transition-colors"
                             title="编辑模板"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(t.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-300 transition-colors"
                             title="删除模板"
                           >
                             <Trash2 className="h-3.5 w-3.5" />

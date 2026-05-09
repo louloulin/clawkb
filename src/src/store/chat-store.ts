@@ -67,6 +67,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (content: string, options = {}) => {
+    // Concurrent guard — prevent duplicate sends
+    if (get().isLoading) return;
+
     const mode = options.mode || 'conversation';
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,

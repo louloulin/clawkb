@@ -38,7 +38,7 @@ const CARD_COLORS = [
   { id: 'emerald', bg: 'bg-emerald-200/20', border: 'border-emerald-400/40', text: 'text-emerald-200' },
   { id: 'rose', bg: 'bg-rose-200/20', border: 'border-rose-400/40', text: 'text-rose-200' },
   { id: 'violet', bg: 'bg-violet-200/20', border: 'border-violet-400/40', text: 'text-violet-200' },
-  { id: 'slate', bg: 'bg-slate-200/10', border: 'border-slate-400/40', text: 'text-slate-300' },
+  { id: 'slate', bg: 'bg-slate-200/10', border: 'border-slate-400/40', text: 'text-foreground/80' },
 ];
 
 const STORAGE_KEY = 'clawkb-whiteboards';
@@ -343,73 +343,73 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
     <div className="relative w-full h-full overflow-hidden bg-[#0f1419]">
       {/* Toolbar */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-1">
-        <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur">
+        <div className="flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-card/60 border border-white/10 backdrop-blur">
           <button
             onClick={() => setTool('select')}
-            className={`p-1.5 rounded transition ${tool === 'select' ? 'bg-amber-200/20 text-amber-200' : 'text-slate-400 hover:text-white'}`}
+            className={`p-1.5 rounded transition ${tool === 'select' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-white'}`}
             title="选择"
           >
             <MousePointer className="h-4 w-4" />
           </button>
           <button
             onClick={() => setTool('pan')}
-            className={`p-1.5 rounded transition ${tool === 'pan' ? 'bg-amber-200/20 text-amber-200' : 'text-slate-400 hover:text-white'}`}
+            className={`p-1.5 rounded transition ${tool === 'pan' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-white'}`}
             title="平移"
           >
             <Move className="h-4 w-4" />
           </button>
           <button
             onClick={() => setTool('connect')}
-            className={`p-1.5 rounded transition ${tool === 'connect' ? 'bg-amber-200/20 text-amber-200' : 'text-slate-400 hover:text-white'}`}
+            className={`p-1.5 rounded transition ${tool === 'connect' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-white'}`}
             title="连接"
           >
             <Link className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="ml-2 flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur">
+        <div className="ml-2 flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-card/60 border border-white/10 backdrop-blur">
           <button
             onClick={() => addCard('note')}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-muted-foreground hover:text-white hover:bg-white/10 transition"
             title="添加卡片"
           >
             <Plus className="h-4 w-4" />
           </button>
           <button
             onClick={fitToScreen}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-muted-foreground hover:text-white hover:bg-white/10 transition"
             title="适应屏幕"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
           <button
             onClick={() => handleZoom(-0.1)}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-muted-foreground hover:text-white hover:bg-white/10 transition"
             title="缩小"
           >
             <ZoomOut className="h-4 w-4" />
           </button>
-          <span className="px-1 text-[11px] text-slate-500 min-w-[3ch] text-center">{Math.round(zoom * 100)}%</span>
+          <span className="px-1 text-[11px] text-muted-foreground min-w-[3ch] text-center">{Math.round(zoom * 100)}%</span>
           <button
             onClick={() => handleZoom(0.1)}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-muted-foreground hover:text-white hover:bg-white/10 transition"
             title="放大"
           >
             <ZoomIn className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="ml-2 flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-black/60 border border-white/10 backdrop-blur">
+        <div className="ml-2 flex items-center gap-0.5 px-2 py-1.5 rounded-lg bg-card/60 border border-white/10 backdrop-blur">
           <button
             onClick={() => setShowGrid(!showGrid)}
-            className={`p-1.5 rounded transition ${showGrid ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`p-1.5 rounded transition ${showGrid ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white'}`}
             title="显示网格"
           >
             <Square className="h-4 w-4" />
           </button>
           <button
             onClick={exportImage}
-            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 rounded text-muted-foreground hover:text-white hover:bg-white/10 transition"
             title="导出图片"
           >
             <Download className="h-4 w-4" />
@@ -493,7 +493,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
                             e.stopPropagation();
                             setConnectingFrom(card.id);
                           }}
-                          className={`p-0.5 rounded ${connectingFrom === card.id ? 'bg-amber-200/30 text-amber-200' : 'text-slate-500 hover:text-white'}`}
+                          className={`p-0.5 rounded ${connectingFrom === card.id ? 'bg-amber-200/30 text-amber-200' : 'text-muted-foreground hover:text-white'}`}
                         >
                           <Link className="h-3 w-3" />
                         </button>
@@ -503,7 +503,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
                           e.stopPropagation();
                           deleteCard(card.id);
                         }}
-                        className="p-0.5 rounded text-slate-500 hover:text-red-400 transition"
+                        className="p-0.5 rounded text-muted-foreground hover:text-red-400 transition"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -520,13 +520,13 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
                           updateCard(card.id, { content: editContent });
                           setEditingCard(null);
                         }}
-                        className="w-full h-full bg-transparent resize-none outline-none text-[12px] text-slate-200 placeholder:text-slate-600"
+                        className="w-full h-full bg-transparent resize-none outline-none text-[12px] text-foreground/90 placeholder:text-muted-foreground/70"
                         placeholder="输入内容..."
                         autoFocus
                       />
                     ) : (
                       <div
-                        className="text-[12px] text-slate-300 whitespace-pre-wrap line-clamp-4"
+                        className="text-[12px] text-foreground/80 whitespace-pre-wrap line-clamp-4"
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           setEditingCard(card.id);
@@ -534,7 +534,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
                         }}
                       >
                         {card.content || (
-                          <span className="text-slate-600 italic">双击编辑...</span>
+                          <span className="text-muted-foreground/70 italic">双击编辑...</span>
                         )}
                       </div>
                     )}
@@ -555,12 +555,12 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
 
       {/* Selected card panel */}
       {selectedCardData && !editingCard && (
-        <div className="absolute bottom-3 right-3 w-64 p-3 rounded-lg bg-black/80 border border-white/10 backdrop-blur">
-          <div className="text-[11px] text-slate-400 mb-2">卡片设置</div>
+        <div className="absolute bottom-3 right-3 w-64 p-3 rounded-lg bg-card/80 border border-white/10 backdrop-blur">
+          <div className="text-[11px] text-muted-foreground mb-2">卡片设置</div>
 
           {/* Color picker */}
           <div className="mb-2">
-            <div className="text-[10px] text-slate-500 mb-1">颜色</div>
+            <div className="text-[10px] text-muted-foreground mb-1">颜色</div>
             <div className="flex gap-1">
               {CARD_COLORS.map(color => (
                 <button
@@ -576,7 +576,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
 
           {/* Connections */}
           <div className="mb-2">
-            <div className="text-[10px] text-slate-500 mb-1">连接 ({selectedCardData.connections.length})</div>
+            <div className="text-[10px] text-muted-foreground mb-1">连接 ({selectedCardData.connections.length})</div>
             {selectedCardData.connections.length > 0 ? (
               <div className="flex flex-wrap gap-1">
                 {selectedCardData.connections.map(connId => {
@@ -598,7 +598,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
                 })}
               </div>
             ) : (
-              <div className="text-[10px] text-slate-600">使用连接工具添加连接</div>
+              <div className="text-[10px] text-muted-foreground/70">使用连接工具添加连接</div>
             )}
           </div>
 
@@ -607,7 +607,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
               setEditingCard(selectedCardData.id);
               setEditContent(selectedCardData.content);
             }}
-            className="w-full mt-1 px-2 py-1.5 rounded bg-white/10 text-[11px] text-slate-300 hover:bg-white/20 transition"
+            className="w-full mt-1 px-2 py-1.5 rounded bg-white/10 text-[11px] text-foreground/80 hover:bg-white/20 transition"
           >
             编辑内容
           </button>
@@ -618,8 +618,8 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
       {cards.length === 0 && !addingCard && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <StickyNote className="h-12 w-12 mx-auto mb-3 text-slate-600" />
-            <p className="text-[13px] text-slate-500 mb-2">空白画布</p>
+            <StickyNote className="h-12 w-12 mx-auto mb-3 text-muted-foreground/70" />
+            <p className="text-[13px] text-muted-foreground mb-2">空白画布</p>
             <button
               onClick={() => addCard('note')}
               className="pointer-events-auto px-4 py-2 rounded-lg bg-amber-200/20 text-amber-200 hover:bg-amber-200/30 transition"
@@ -634,7 +634,7 @@ export function Whiteboard({ storageKey, onCardClick }: WhiteboardProps) {
       )}
 
       {/* Help */}
-      <div className="absolute bottom-3 left-3 text-[10px] text-slate-600">
+      <div className="absolute bottom-3 left-3 text-[10px] text-muted-foreground/70">
         拖拽平移 | 滚轮缩放 | 双击编辑
       </div>
     </div>

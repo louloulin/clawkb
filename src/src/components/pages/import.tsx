@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Upload, Loader2, File, CheckCircle2, XCircle, Folder, Globe, Link, Music, Image, Scan, Clipboard, AlertCircle, Hash, Sparkles, ChevronDown, MessagesSquare, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -242,7 +242,7 @@ function FileImportTab({
             type="text"
             value={tags}
             onChange={e => setTags(e.target.value)}
-            placeholder="Comma separated"
+            placeholder="逗号分隔"
             className="rounded-xl border-border/50 h-10"
           />
         </div>
@@ -344,7 +344,7 @@ function UrlFetchTab({
             type="text"
             value={tags}
             onChange={e => setTags(e.target.value)}
-            placeholder="Comma separated"
+            placeholder="逗号分隔"
             className="rounded-xl border-border/50 h-10"
           />
         </div>
@@ -400,12 +400,12 @@ function ScreenshotTab() {
   }, [toast]);
 
   // Register paste listener
-  useState(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.addEventListener('paste', handlePaste as any);
       return () => window.removeEventListener('paste', handlePaste as any);
     }
-  });
+  }, [handlePaste]);
 
   const hasImage = imageData.length > 0;
 
@@ -589,7 +589,7 @@ function ScreenshotTab() {
               readOnly
               value={ocrResult.text}
               className="w-full h-48 rounded-lg bg-muted/30 border border-border/30 p-3 text-[13px] text-foreground resize-none"
-              placeholder="Extracted text will appear here..."
+              placeholder="提取的文本将显示在这里..."
             />
           </div>
 
@@ -600,7 +600,7 @@ function ScreenshotTab() {
               <Input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Screenshot title"
+                placeholder="截图标题"
                 className="rounded-xl border-border/50 h-9 text-[13px]"
               />
             </div>
@@ -772,7 +772,7 @@ function MediaImportTab() {
             type="text"
             value={tags}
             onChange={e => setTags(e.target.value)}
-            placeholder="Comma separated"
+            placeholder="逗号分隔"
             className="rounded-xl border-border/50 h-10"
           />
         </div>

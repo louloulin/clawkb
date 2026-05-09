@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Loader2, FileText, Tags, CheckCircle2, CloudOff, Cloud, Pencil, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,9 @@ export function NotesPage({
       .finally(() => setLoading(false));
   }, [initialNoteId]);
 
+  // Stable serialized tags for dependency comparison
+  const serializedTags = useMemo(() => initialTags.join(','), [initialTags]);
+
   // Sync initial values (only for new notes)
   useEffect(() => {
     if (editingNoteId) return; // Skip for existing notes
@@ -67,7 +70,7 @@ export function NotesPage({
     setContent(initialContent);
     setTags(initialTags.join(', '));
     lastSaved.current = `${initialTitle}::${initialContent}`;
-  }, [initialTitle, initialContent, initialTags.join(','), editingNoteId]);
+  }, [initialTitle, initialContent, serializedTags, editingNoteId]);
 
   // Debounced auto-save
   const scheduleAutoSave = useCallback(() => {
@@ -86,8 +89,9 @@ export function NotesPage({
         if (editingNoteId) {
           await api.updateNote(editingNoteId, title, content, tagList);
         } else {
-          await api.addNote(title, content, tagList);
+          const newId = await api.addNote(title, content, tagList);
           await api.commit();
+          setEditingNoteId(newId); // Capture the new note ID to prevent duplicates
         }
         lastSaved.current = snapshot;
         setSaveStatus('saved');
@@ -168,7 +172,7 @@ export function NotesPage({
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }

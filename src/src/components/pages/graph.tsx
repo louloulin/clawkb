@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { GitBranch, X, User, Building2, MapPin, Box, Tag, Loader2, Brain, Network, LayoutGrid, ZoomIn, ZoomOut, Maximize2, Search, Download } from 'lucide-react';
+import { GitBranch, X, User, Building2, MapPin, Box, Tag, Loader2, Brain, Network, LayoutGrid, ZoomIn, ZoomOut, Maximize2, Search, Download, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import {
 } from 'd3-force';
 import type { SimulationNodeDatum, SimulationLinkDatum } from 'd3-force';
 import { safeStorageGet, safeStorageSet } from '@/store/persistence';
+import { api } from '@/api/commands';
 
 const GRAPH_POSITIONS_KEY = 'clawkb-graph-positions';
 
@@ -228,28 +229,28 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
         <button
           onClick={zoomIn}
           title="放大"
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-accent transition-colors"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
         <button
           onClick={zoomOut}
           title="缩小"
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-accent transition-colors"
         >
           <ZoomOut className="h-4 w-4" />
         </button>
         <button
           onClick={resetView}
           title="重置视图"
-          className="w-8 h-8 flex items-center justify-center rounded-lg bg-black/60 backdrop-blur-sm border border-white/10 text-white hover:bg-white/10 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-accent transition-colors"
         >
           <Maximize2 className="h-4 w-4" />
         </button>
       </div>
 
       {/* Zoom level indicator */}
-      <div className="absolute bottom-3 left-3 z-10 text-[10px] text-white/50 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-md">
+      <div className="absolute bottom-3 left-3 z-10 text-[10px] text-foreground/50 bg-card/40 backdrop-blur-sm px-2 py-1 rounded-md">
         {Math.round(transform.k * 100)}%
       </div>
 
@@ -331,10 +332,180 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
   );
 }
 
+/**
+ * NoteLinkGraph — shows the inter-note link structure using [[wikilinks]].
+ * Fetches all notes and their backlinks, renders as a force-directed graph.
+ */
+function NoteLinkGraph() {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [nodes, setNodes] = useState<Array<{ id: string; label: string; x?: number; y?: number }>>([]);
+  const [links, setLinks] = useState<Array<{ source: string | object; target: string | object }>>([]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const r = entries[0]?.contentRect;
+      if (r) setDimensions({ width: r.width, height: r.height });
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const allNotes = await api.listNotes(undefined, 200);
+        if (cancelled) return;
+
+        const noteNodes = allNotes.map(n => ({ id: n.id, label: n.title }));
+        const noteLinks: Array<{ source: string; target: string }> = [];
+        const noteIds = new Set(allNotes.map(n => n.id));
+
+        // Fetch backlinks for each note (batch, limit to first 100 notes)
+        const batchSize = 20;
+        for (let i = 0; i < Math.min(allNotes.length, 100); i += batchSize) {
+          const batch = allNotes.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(n => api.listBacklinks(n.id).catch(() => []))
+          );
+          if (cancelled) return;
+          results.forEach((bls, idx) => {
+            bls.forEach(bl => {
+              if (noteIds.has(bl.note_id) && bl.note_id !== batch[idx].id) {
+                // backlink: bl links TO current note
+                noteLinks.push({ source: bl.note_id, target: batch[idx].id });
+              }
+            });
+          });
+        }
+
+        setNodes(noteNodes);
+        setLinks(noteLinks);
+      } catch {
+        setNodes([]);
+        setLinks([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  // D3 force simulation
+  useEffect(() => {
+    if (nodes.length === 0) return;
+
+    const simNodes = nodes.map(n => ({ ...n }));
+    const simLinks = links.map(l => ({
+      source: typeof l.source === 'string' ? l.source : (l.source as { id: string }).id,
+      target: typeof l.target === 'string' ? l.target : (l.target as { id: string }).id,
+    }));
+
+    const sim = forceSimulation(simNodes as Array<SimulationNodeDatum & { id: string; label: string }>)
+      .force('charge', forceManyBody().strength(-60))
+      .force('center', forceCenter(dimensions.width / 2, dimensions.height / 2))
+      .force('collide', forceCollide().radius(20))
+      .force('link', forceLink(simLinks as Array<SimulationLinkDatum<{ id: string }>>)
+        .id((d: { id: string }) => d.id)
+        .distance(80)
+      );
+
+    sim.on('tick', () => {
+      setNodes([...simNodes]);
+    });
+
+    return () => { sim.stop(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length, links.length, dimensions]);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="text-sm">加载笔记链接图谱...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">暂无笔记数据</p>
+      </div>
+    );
+  }
+
+  const connectedIds = new Set<string>();
+  links.forEach(l => {
+    const sId = typeof l.source === 'string' ? l.source : (l.source as { id: string }).id;
+    const tId = typeof l.target === 'string' ? l.target : (l.target as { id: string }).id;
+    connectedIds.add(sId);
+    connectedIds.add(tId);
+  });
+
+  return (
+    <div ref={containerRef} className="flex-1 relative bg-card/30">
+      <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-card/60 backdrop-blur-sm px-2 py-1 rounded-md">
+        {nodes.length} 篇笔记 · {links.length} 条链接
+      </div>
+      <svg ref={svgRef} width={dimensions.width} height={dimensions.height}>
+        {links.map((link, i) => {
+          const s = typeof link.source === 'object' ? link.source : nodes.find(n => n.id === link.source);
+          const t = typeof link.target === 'object' ? link.target : nodes.find(n => n.id === link.target);
+          if (!s || !t) return null;
+          return (
+            <line
+              key={i}
+              x1={(s as { x?: number }).x ?? 0}
+              y1={(s as { y?: number }).y ?? 0}
+              x2={(t as { x?: number }).x ?? 0}
+              y2={(t as { y?: number }).y ?? 0}
+              stroke="hsl(var(--border))"
+              strokeWidth={1}
+              opacity={0.5}
+            />
+          );
+        })}
+        {nodes.map(node => {
+          const isConnected = connectedIds.has(node.id);
+          const r = isConnected ? 8 : 4;
+          return (
+            <g key={node.id} transform={`translate(${node.x ?? 0},${node.y ?? 0})`}>
+              <circle
+                r={r}
+                fill={isConnected ? '#f59e0b' : 'hsl(var(--muted-foreground))'}
+                opacity={isConnected ? 0.9 : 0.3}
+              />
+              {isConnected && (
+                <text
+                  textAnchor="middle"
+                  y={r + 11}
+                  fill="hsl(var(--foreground))"
+                  fontSize={9}
+                >
+                  {node.label.length > 14 ? node.label.slice(0, 13) + '…' : node.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export function GraphPage() {
   const { entities, edges, stats, memories, selectedEntity, selectedEdges, isLoading, error, kindFilter, loadGraph, selectEntity, setKindFilter } = useGraphStore();
   const [showMemories, setShowMemories] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'radial'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'graph' | 'radial' | 'noteLinks'>('grid');
   const [graphLayout, setGraphLayout] = useState<'force' | 'radial'>('force');
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedNodeId, setHighlightedNodeId] = useState<number | null>(null);
@@ -470,6 +641,15 @@ export function GraphPage() {
                 >
                   <span className="text-[10px] font-bold">◎</span>
                 </button>
+                <button
+                  onClick={() => setViewMode('noteLinks')}
+                  className={`p-1.5 transition-colors cursor-pointer ${
+                    viewMode === 'noteLinks' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="笔记链接图"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                </button>
               </div>
               <Button
                 variant={showMemories ? 'secondary' : 'ghost'}
@@ -512,7 +692,9 @@ export function GraphPage() {
           )}
         </div>
 
-        {viewMode === 'graph' ? (
+        {viewMode === 'noteLinks' ? (
+          <NoteLinkGraph />
+        ) : viewMode === 'graph' ? (
           /* Force-directed graph view */
           !isLoading && !error && filteredEntities.length > 0 ? (
             <ForceGraph

@@ -343,7 +343,7 @@ export function PodcastPage({ embedded = false, sourceDoc = null }: PodcastPageP
 
       // Start playing all segments
       handlePlayAll();
-    } catch (e) {
+    } catch {
       alert('无法访问麦克风，请检查权限设置');
     }
   };

@@ -49,7 +49,8 @@ export function TimelinePage() {
     setTmLoading(true);
     setTmAnswer(null);
     try {
-      const results = await api.searchAsOf(tmQuery, timeMachineTs, 5);
+      // Fallback to regular search since searchAsOf backend is not implemented
+      const results = await api.search(tmQuery, 5, 'hybrid');
       setTmResults(results);
     } catch {
       setTmResults([]);
@@ -62,8 +63,9 @@ export function TimelinePage() {
     setTmLoading(true);
     setTmResults([]);
     try {
-      const result = await api.askAsOf(tmQuery, timeMachineTs, 5);
-      setTmAnswer(result);
+      // Fallback to regular ask since askAsOf backend is not implemented
+      const result = await api.aiAsk(tmQuery, 5);
+      setTmAnswer({ answer: result.answer, citations: result.citations || [], context: result.context || [] } as any);
     } catch {
       setTmAnswer(null);
     }

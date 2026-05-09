@@ -145,22 +145,22 @@ export function WikiLinkAutocomplete({ editor, state, onSelect, onClose, onQuery
   return (
     <div
       ref={containerRef}
-      className="fixed z-[300] w-64 rounded-xl border border-white/10 bg-[rgba(10,12,18,0.95)] shadow-2xl overflow-hidden"
+      className="fixed z-[300] w-64 rounded-xl border border-border bg-popover shadow-2xl overflow-hidden"
       style={{ left: 0, top: 0 }}
       onKeyDown={handleKeyDown}
     >
-      <div className="p-2 border-b border-white/10">
+      <div className="p-2 border-b border-border">
         <input
           type="text"
           placeholder="搜索笔记..."
           autoFocus
           onChange={handleTextInput}
-          className="w-full bg-transparent border-none outline-none text-sm text-white placeholder:text-slate-500"
+          className="w-full bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
         />
       </div>
       <div className="max-h-48 overflow-y-auto py-1">
         {results.length === 0 ? (
-          <div className="text-xs text-slate-500 text-center py-4 px-2">
+          <div className="text-xs text-muted-foreground text-center py-4 px-2">
             输入关键词搜索笔记
           </div>
         ) : (
@@ -169,12 +169,12 @@ export function WikiLinkAutocomplete({ editor, state, onSelect, onClose, onQuery
               key={r.id}
               onClick={() => insertLink(r.title)}
               className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                i === selectedIndex ? 'bg-amber-200/20 text-white' : 'hover:bg-white/6 text-slate-300'
+                i === selectedIndex ? 'bg-primary/15 text-foreground' : 'hover:bg-muted text-foreground/80'
               }`}
             >
               <div className="font-medium truncate">{r.title}</div>
               {r.content && (
-                <div className="text-[11px] text-slate-500 truncate mt-0.5">{r.content.slice(0, 50)}</div>
+                <div className="text-[11px] text-muted-foreground truncate mt-0.5">{r.content.slice(0, 50)}</div>
               )}
             </button>
           ))

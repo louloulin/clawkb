@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
 @import "./styles/workbench.css";
+@import "highlight.js/styles/github-dark-dimmed.min.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -51,25 +52,37 @@
 }
 
 .dark {
-  --background: 224 50% 7%;
-  --foreground: 210 30% 95%;
-  --card: 224 44% 10%;
-  --card-foreground: 210 30% 95%;
-  --popover: 224 44% 10%;
-  --popover-foreground: 210 30% 95%;
-  --primary: 217 80% 60%;
-  --primary-foreground: 224 50% 7%;
-  --secondary: 224 30% 15%;
+  /* Aligned with ClawKB design tokens from tokens.css */
+  --background: 228 36% 9%;          /* --kb-shell */
+  --foreground: 210 30% 95%;          /* --kb-text-primary */
+  --card: 220 24% 12%;                /* --kb-panel */
+  --card-foreground: 210 30% 95%;     /* --kb-text-primary */
+  --popover: 220 24% 12%;             /* --kb-panel */
+  --popover-foreground: 210 30% 95%;  /* --kb-text-primary */
+  --primary: 43 96% 59%;              /* --kb-accent (amber) */
+  --primary-foreground: 224 64% 8%;   /* dark text on amber */
+  --secondary: 220 22% 16%;           /* --kb-panel-strong */
   --secondary-foreground: 210 30% 95%;
-  --muted: 224 28% 14%;
-  --muted-foreground: 215 18% 58%;
-  --accent: 224 35% 18%;
-  --accent-foreground: 217 80% 70%;
-  --destructive: 0 62% 40%;
+  --muted: 224 28% 12%;               /* --kb-surface */
+  --muted-foreground: 215 14% 50%;    /* --kb-text-muted */
+  --accent: 220 18% 20%;              /* --kb-panel-soft */
+  --accent-foreground: 43 96% 59%;    /* --kb-accent */
+  --destructive: 0 84% 60%;           /* --kb-error */
   --destructive-foreground: 210 30% 95%;
-  --border: 224 26% 16%;
-  --input: 224 26% 16%;
-  --ring: 217 80% 60%;
+  --border: 220 18% 16%;              /* --kb-border-default */
+  --input: 220 18% 16%;               /* --kb-border-default */
+  --ring: 43 96% 59%;                 /* --kb-accent */
+}
+
+/* Unified typography system */
+:root {
+  --font-size-h1: 1.5rem;    /* 24px */
+  --font-size-h2: 1.25rem;   /* 20px */
+  --font-size-h3: 1rem;      /* 16px */
+  --font-size-body: 0.875rem; /* 14px */
+  --font-size-small: 0.75rem; /* 12px */
+  --line-height-tight: 1.3;
+  --line-height-normal: 1.6;
 }
 
 * {
@@ -111,9 +124,25 @@ body {
   color: hsl(var(--primary));
 }
 
-/* Smooth focus rings */
+/* WCAG Focus indicators */
 :focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Remove outline on mouse click (only show for keyboard navigation) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Ensure buttons and interactive elements have clear focus */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
 }

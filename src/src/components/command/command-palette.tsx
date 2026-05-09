@@ -121,9 +121,9 @@ export function CommandPalette({ open, onClose, commands = [] }: CommandPaletteP
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       {/* Palette */}
-      <div className="relative w-full max-w-xl bg-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
         {/* Search input */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
@@ -131,7 +131,7 @@ export function CommandPalette({ open, onClose, commands = [] }: CommandPaletteP
             value={query}
             onChange={e => { setQuery(e.target.value); setSelectedIndex(0); }}
             placeholder="搜索命令、笔记..."
-            className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
           />
           {searching && <span className="text-xs text-muted-foreground animate-pulse">搜索中...</span>}
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -149,7 +149,7 @@ export function CommandPalette({ open, onClose, commands = [] }: CommandPaletteP
                 key={i}
                 onClick={() => { item.action(); onClose(); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                  i === selectedIndex ? 'bg-amber-300/20 text-amber-100' : 'hover:bg-white/8'
+                  i === selectedIndex ? 'bg-primary/15 text-foreground' : 'hover:bg-muted text-foreground'
                 }`}
               >
                 {item.icon && <span className="text-muted-foreground shrink-0">{item.icon}</span>}
@@ -168,7 +168,7 @@ export function CommandPalette({ open, onClose, commands = [] }: CommandPaletteP
         </div>
 
         {/* Footer hints */}
-        <div className="px-4 py-2 border-t border-white/10 flex items-center gap-4 text-[10px] text-muted-foreground">
+        <div className="px-4 py-2 border-t border-border flex items-center gap-4 text-[10px] text-muted-foreground">
           <span>↑↓ 导航</span>
           <span>↵ 选中</span>
           <span>Esc 关闭</span>

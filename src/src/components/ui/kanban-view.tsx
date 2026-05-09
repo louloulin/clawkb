@@ -168,13 +168,13 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
   const getCount = (status: TaskStatus) => tasksByColumn(status).length;
 
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3">
+    <div className="rounded-[1.25rem] border border-border bg-secondary p-3">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-1.5">
           <GripVertical className="h-3.5 w-3.5" />
           看板
         </span>
-        <span className="text-[10px] text-slate-500">
+        <span className="text-[10px] text-muted-foreground">
           {filteredTasks.length} 个任务
         </span>
       </div>
@@ -188,17 +188,17 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
           return (
             <div
               key={col.id}
-              className={`flex-1 min-w-0 border rounded-lg ${col.color} bg-white/[0.02] overflow-hidden`}
+              className={`flex-1 min-w-0 border rounded-lg ${col.color} bg-secondary/30 overflow-hidden`}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => handleDrop(col.id)}
             >
               {/* Column header */}
-              <div className="px-2.5 py-2 border-b border-white/5 flex items-center justify-between">
+              <div className="px-2.5 py-2 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Icon className={`h-3 w-3 ${col.id === 'doing' ? 'animate-spin text-amber-400' : col.id === 'done' ? 'text-emerald-400' : 'text-slate-500'}`} />
-                  <span className="text-[10px] font-medium text-slate-300 uppercase tracking-wider">{col.label}</span>
+                  <Icon className={`h-3 w-3 ${col.id === 'doing' ? 'animate-spin text-amber-400' : col.id === 'done' ? 'text-emerald-400' : 'text-muted-foreground'}`} />
+                  <span className="text-[10px] font-medium text-foreground/80 uppercase tracking-wider">{col.label}</span>
                 </div>
-                <span className="text-[10px] text-slate-500 tabular-nums">{getCount(col.id)}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">{getCount(col.id)}</span>
               </div>
 
               {/* Column tasks */}
@@ -214,12 +214,12 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                     onDragStart={() => handleDragStart(task)}
                     onDragEnd={handleDragEnd}
                     onClick={() => onTaskClick?.(task)}
-                    className={`p-2 rounded-md border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] cursor-grab active:cursor-grabbing transition-colors ${
+                    className={`p-2 rounded-md border border-border bg-secondary/50 hover:bg-muted cursor-grab active:cursor-grabbing transition-colors ${
                       dragTask?.id === task.id ? 'opacity-40' : ''
                     }`}
                   >
                     <div className="flex items-start gap-1.5">
-                      <span className="text-[12px] leading-snug text-slate-300 flex-1 min-w-0">
+                      <span className="text-[12px] leading-snug text-foreground/80 flex-1 min-w-0">
                         {task.text}
                       </span>
                       <div className="flex items-center gap-0.5 shrink-0">
@@ -229,7 +229,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                         />
                         <button
                           onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                          className="text-slate-600 hover:text-red-400 transition-colors"
+                          className="text-muted-foreground/70 hover:text-red-400 transition-colors"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -237,14 +237,14 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                     </div>
 
                     {/* Scheduled/Deadline indicators */}
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-white/5">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-border">
                       {task.scheduledAt ? (
                         <div className="flex items-center gap-1 text-[9px] text-blue-400">
                           <Calendar className="h-2.5 w-2.5" />
                           <span>{formatDate(task.scheduledAt)}</span>
                           <button
                             onClick={(e) => { e.stopPropagation(); setTaskScheduled(task.id, null); }}
-                            className="text-slate-600 hover:text-white ml-0.5"
+                            className="text-muted-foreground/70 hover:text-foreground ml-0.5"
                           >×</button>
                         </div>
                       ) : (
@@ -254,7 +254,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                             const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                             setTaskScheduled(task.id, tomorrow.toISOString().split('T')[0]);
                           }}
-                          className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-blue-400 transition"
+                          className="flex items-center gap-1 text-[9px] text-muted-foreground/70 hover:text-blue-400 transition"
                           title="设置计划日期"
                         >
                           <Calendar className="h-2.5 w-2.5" />
@@ -268,7 +268,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                           {isOverdue && <span className="text-[8px]">逾期</span>}
                           <button
                             onClick={(e) => { e.stopPropagation(); setTaskDeadline(task.id, null); }}
-                            className="text-slate-600 hover:text-white ml-0.5"
+                            className="text-muted-foreground/70 hover:text-foreground ml-0.5"
                           >×</button>
                         </div>
                       ) : (
@@ -278,7 +278,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                             const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
                             setTaskDeadline(task.id, tomorrow.toISOString().split('T')[0]);
                           }}
-                          className="flex items-center gap-1 text-[9px] text-slate-600 hover:text-orange-400 transition"
+                          className="flex items-center gap-1 text-[9px] text-muted-foreground/70 hover:text-orange-400 transition"
                           title="设置截止日期"
                         >
                           <Clock className="h-2.5 w-2.5" />
@@ -292,14 +292,14 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
 
                 {/* Empty state */}
                 {columnTasks.length === 0 && (
-                  <div className="text-center py-4 text-[10px] text-slate-600">
+                  <div className="text-center py-4 text-[10px] text-muted-foreground/70">
                     拖拽任务至此
                   </div>
                 )}
               </div>
 
               {/* Add task button */}
-              <div className="p-1.5 border-t border-white/5">
+              <div className="p-1.5 border-t border-border">
                 {showAddFor === col.id ? (
                   <div className="space-y-1.5">
                     <input
@@ -311,14 +311,14 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                         if (e.key === 'Escape') { setShowAddFor(null); setNewTaskText(''); setNewTaskScheduled(''); setNewTaskDeadline(''); }
                       }}
                       placeholder="任务内容..."
-                      className="w-full bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-[11px] text-white placeholder:text-slate-500 outline-none focus:border-amber-200/30"
+                      className="w-full bg-muted/30 border border-border rounded-md px-2 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-amber-200/30"
                       autoFocus
                     />
                     <div className="flex flex-wrap items-center gap-1">
                       <select
                         value={newTaskPriority}
                         onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
-                        className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-slate-400 outline-none"
+                        className="bg-muted/30 border border-border rounded-md px-1.5 py-1 text-[10px] text-muted-foreground outline-none"
                       >
                         <option value="p2">P2</option>
                         <option value="p1">P1</option>
@@ -329,7 +329,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                         value={newTaskScheduled}
                         onChange={(e) => setNewTaskScheduled(e.target.value)}
                         placeholder="计划"
-                        className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-blue-400 outline-none"
+                        className="bg-muted/30 border border-border rounded-md px-1.5 py-1 text-[10px] text-blue-400 outline-none"
                         title="计划日期"
                       />
                       <input
@@ -337,7 +337,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                         value={newTaskDeadline}
                         onChange={(e) => setNewTaskDeadline(e.target.value)}
                         placeholder="截止"
-                        className="bg-white/5 border border-white/10 rounded-md px-1.5 py-1 text-[10px] text-orange-400 outline-none"
+                        className="bg-muted/30 border border-border rounded-md px-1.5 py-1 text-[10px] text-orange-400 outline-none"
                         title="截止日期"
                       />
                     </div>
@@ -350,7 +350,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                       </button>
                       <button
                         onClick={() => { setShowAddFor(null); setNewTaskText(''); setNewTaskScheduled(''); setNewTaskDeadline(''); }}
-                        className="px-1.5 py-1 text-slate-500 hover:text-slate-300 rounded-md text-[10px] transition"
+                        className="px-1.5 py-1 text-muted-foreground hover:text-foreground/80 rounded-md text-[10px] transition"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -359,7 +359,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                 ) : (
                   <button
                     onClick={() => setShowAddFor(col.id)}
-                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] text-slate-500 hover:text-slate-300 transition"
+                    className="w-full flex items-center justify-center gap-1 py-1.5 text-[10px] text-muted-foreground hover:text-foreground/80 transition"
                   >
                     <Plus className="h-3 w-3" />
                     添加

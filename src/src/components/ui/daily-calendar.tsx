@@ -92,20 +92,20 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
   const totalNotes = dailyDates.length;
 
   return (
-    <div className="rounded-[1.25rem] border border-white/10 bg-black/20 p-3">
+    <div className="rounded-[1.25rem] border border-border bg-secondary p-3">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5" />
           日历
         </span>
         <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-white/6 transition">
+          <button onClick={prevMonth} className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition">
             <ChevronLeft className="h-3 w-3" />
           </button>
-          <button onClick={goToday} className="text-[11px] text-slate-300 hover:text-white transition px-1">
+          <button onClick={goToday} className="text-[11px] text-foreground/80 hover:text-foreground transition px-1">
             {monthLabel}
           </button>
-          <button onClick={nextMonth} className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-white hover:bg-white/6 transition">
+          <button onClick={nextMonth} className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition">
             <ChevronRight className="h-3 w-3" />
           </button>
         </div>
@@ -114,14 +114,14 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
       {/* Heatmap — last ~12 weeks */}
       <div className="mb-3">
         <div className="flex items-center gap-1 mb-1">
-          <span className="text-[9px] text-slate-500">{totalNotes} 篇日记</span>
+          <span className="text-[9px] text-muted-foreground">{totalNotes} 篇日记</span>
           <div className="ml-auto flex items-center gap-0.5">
-            <span className="text-[8px] text-slate-600">少</span>
-            <div className="h-2.5 w-2.5 rounded-[2px] bg-white/4" />
+            <span className="text-[8px] text-muted-foreground/70">少</span>
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-secondary" />
             <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/20" />
             <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/40" />
             <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-300/60" />
-            <span className="text-[8px] text-slate-600">多</span>
+            <span className="text-[8px] text-muted-foreground/70">多</span>
           </div>
         </div>
         <div className="flex gap-[2px] overflow-hidden">
@@ -142,7 +142,7 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
                         ? 'ring-1 ring-amber-300'
                         : cell.hasNote
                           ? 'bg-amber-200/40'
-                          : 'bg-white/4 hover:bg-white/8'
+                          : 'bg-secondary hover:bg-muted'
                     }`}
                     title={`${cell.dateStr}${cell.hasNote ? ' ✦' : ''}`}
                   />
@@ -156,7 +156,7 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-1">
         {WEEKDAYS.map(w => (
-          <div key={w} className="text-center text-[10px] text-slate-500 py-0.5">{w}</div>
+          <div key={w} className="text-center text-[10px] text-muted-foreground py-0.5">{w}</div>
         ))}
       </div>
 
@@ -169,10 +169,10 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
                 onClick={() => onSelectDate(cell.dateStr)}
                 className={`h-6 w-6 flex items-center justify-center rounded-md text-[11px] transition ${
                   cell.isToday
-                    ? 'bg-amber-300 text-slate-950 font-semibold'
+                    ? 'bg-amber-300 text-foreground font-semibold'
                     : cell.hasNote
                       ? 'bg-amber-200/15 text-amber-200 hover:bg-amber-200/25'
-                      : 'text-slate-400 hover:text-white hover:bg-white/6'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
                 title={cell.hasNote ? `查看 ${cell.dateStr} 日记` : `创建 ${cell.dateStr} 日记`}
               >

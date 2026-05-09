@@ -1,4 +1,3 @@
-import { useState, useCallback, useEffect } from 'react';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, Loader2, Hash, X, CheckSquare, Square, Tag, Download, Filter, GitBranch, Clock, ArrowUpDown, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,32 +76,33 @@ export function SearchPage() {
     setSearchHistory(getSearchHistory());
   }, []);
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(async (overrideQuery?: string) => {
+    const q = overrideQuery ?? query;
     setSelectedIds(new Set());
     setShowHistory(false);
     try {
-      if (!query.trim() && !selectedFolder) {
+      if (!q.trim() && !selectedFolder) {
         toast(userInputError('Enter a search query, or switch to a folder-scoped search before running this action.'));
         return;
       }
 
       // Save to history
-      if (query.trim()) {
-        addToSearchHistory(query.trim());
+      if (q.trim()) {
+        addToSearchHistory(q.trim());
         setSearchHistory(getSearchHistory());
       }
 
       if (selectedFolder) {
-        const hits = await api.searchInFolder(selectedFolder.id, query || '*', 20, mode);
+        const hits = await api.searchInFolder(selectedFolder.id, q || '*', 20, mode);
         setGraphResults(hits);
         return;
       }
       // Use graph-enhanced search if pattern is provided
       if (graphPattern.trim()) {
-        const hits = await api.searchWithGraph(query, graphPattern, 20, mode);
+        const hits = await api.searchWithGraph(q, graphPattern, 20, mode);
         setGraphResults(hits);
       } else {
-        await search(query, mode);
+        await search(q, mode);
         setGraphResults([]);
       }
     } catch (error) {
@@ -113,9 +113,9 @@ export function SearchPage() {
         }),
       );
     }
-  }, [query, mode, search, graphPattern]);
+  }, [query, mode, search, graphPattern, selectedFolder, toast]);
 
-  const displayResults = graphResults.length > 0 ? graphResults : results;
+  const displayResults = graphResults.length > 0 ? graphResults : (results ?? []);
 
   // Filter by tag
   let filteredResults = tagFilter
@@ -224,13 +224,17 @@ export function SearchPage() {
             Folder: {selectedFolder.path}
           </span>
           <button
-            onClick={() => {
+            onClick={async () => {
               selectFolder(null);
-              void handleSearch();
+              setGraphResults([]);
+              // Clear folder and immediately search without stale closure
+              if (query.trim()) {
+                try { await search(query, mode); } catch { /* ignore */ }
+              }
             }}
             className="rounded-full bg-muted/40 px-2 py-1 hover:bg-muted/60"
           >
-            Clear folder
+            清除文件夹
           </button>
         </div>
       )}
@@ -253,7 +257,7 @@ export function SearchPage() {
                 if (e.key === 'Enter') handleSearch();
                 if (e.key === 'Escape') setShowHistory(false);
               }}
-              placeholder="Search your knowledge base... (⌘K)"
+              placeholder="搜索知识库... (⌘K)"
               autoFocus
               className="pl-10 h-10 rounded-xl bg-muted/30 border-border/50 focus:dark:bg-background focus:bg-white"
             />
@@ -296,7 +300,7 @@ export function SearchPage() {
                     e.preventDefault();
                     setQuery(q);
                     setShowHistory(false);
-                    handleSearch();
+                    handleSearch(q);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted/40 transition-colors"
                 >
@@ -346,7 +350,7 @@ export function SearchPage() {
             value={graphPattern}
             onChange={e => setGraphPattern(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="Entity filter (e.g., Person:Alice)..."
+            placeholder="实体过滤 (如: Person:Alice)..."
             className="pl-10 h-9 rounded-lg bg-muted/20 border-border/30 text-xs"
           />
         </div>
@@ -428,7 +432,7 @@ export function SearchPage() {
                   <Input
                     value={batchTag}
                     onChange={e => setBatchTag(e.target.value)}
-                    placeholder="Add tags..."
+                    placeholder="添加标签..."
                     className="h-7 w-32 text-xs rounded-md"
                   />
                   <Button

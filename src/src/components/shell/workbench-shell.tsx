@@ -39,7 +39,7 @@ export function WorkbenchShell() {
   const registry = useKbRegistry();
   const aiStore = useAiStore();
   const { selectDocument, seedDraftFromDocument, setActiveTab } = useDocumentWorkspaceStore();
-  const { openImportView, setActiveDocumentsView } = useWorkspaceStore();
+  const { openImportView, openExploreView, setActiveDocumentsView } = useWorkspaceStore();
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('conversation');
   const [mention, setMention] = useState('current');
@@ -247,19 +247,19 @@ export function WorkbenchShell() {
   const stats = useKbStore((s) => s.stats);
 
   return (
-    <div className="kb-shell min-h-full text-white">
+    <div className="kb-shell min-h-full text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 md:px-8 lg:py-10">
         {isKbOpen ? (
           <>
             {/* Header with stats and quick actions */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-semibold text-white">工作台</h1>
-                <p className="text-sm text-slate-400">欢迎回来，今天是 {dateStr}</p>
+                <h1 className="text-2xl font-semibold text-foreground">工作台</h1>
+                <p className="text-sm text-muted-foreground">欢迎回来，今天是 {dateStr}</p>
               </div>
               <Button
                 onClick={handleNewNote}
-                className="h-10 rounded-full bg-amber-300 px-4 text-sm font-medium text-slate-950 hover:bg-amber-200"
+                className="h-10 rounded-full bg-amber-300 px-4 text-sm font-medium text-foreground hover:bg-amber-200"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 新建笔记
@@ -269,40 +269,40 @@ export function WorkbenchShell() {
             {/* Stats Cards Row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Notes Count */}
-              <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+              <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-2xl font-semibold text-white">{stats?.frame_count ?? 0}</div>
-                    <div className="text-xs text-slate-400">笔记总数</div>
+                    <div className="text-2xl font-semibold text-foreground">{stats?.frame_count ?? 0}</div>
+                    <div className="text-xs text-muted-foreground">笔记总数</div>
                   </div>
                 </div>
               </div>
 
               {/* KB Size */}
-              <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+              <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
                     <LibraryBig className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-2xl font-semibold text-white">{stats ? formatBytes(stats.size_bytes) : '-'}</div>
-                    <div className="text-xs text-slate-400">知识库大小</div>
+                    <div className="text-2xl font-semibold text-foreground">{stats ? formatBytes(stats.size_bytes) : '-'}</div>
+                    <div className="text-xs text-muted-foreground">知识库大小</div>
                   </div>
                 </div>
               </div>
 
               {/* Recent Activity */}
-              <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+              <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
                     <TrendingUp className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-2xl font-semibold text-white">{recentEntries.length}</div>
-                    <div className="text-xs text-slate-400">最近活跃</div>
+                    <div className="text-2xl font-semibold text-foreground">{recentEntries.length}</div>
+                    <div className="text-xs text-muted-foreground">最近活跃</div>
                   </div>
                 </div>
               </div>
@@ -310,15 +310,15 @@ export function WorkbenchShell() {
               {/* Daily Note */}
               <button
                 onClick={handleOpenDailyNote}
-                className="kb-panel-strong rounded-2xl border border-white/10 p-4 text-left transition hover:border-amber-200/30 hover:bg-amber-200/5"
+                className="kb-panel-strong rounded-2xl border border-border p-4 text-left transition hover:border-amber-200/30 hover:bg-amber-200/5"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-white">今日日记</div>
-                    <div className="text-xs text-slate-400">{dateStr}</div>
+                    <div className="text-sm font-medium text-foreground">今日日记</div>
+                    <div className="text-xs text-muted-foreground">{dateStr}</div>
                   </div>
                 </div>
               </button>
@@ -329,7 +329,7 @@ export function WorkbenchShell() {
               <Button
                 variant="outline"
                 onClick={handleSearch}
-                className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-sm text-white hover:bg-white/10"
+                className="h-10 rounded-full border-border bg-secondary px-4 text-sm text-foreground hover:bg-accent"
               >
                 <Search className="mr-2 h-4 w-4" />
                 搜索
@@ -337,7 +337,7 @@ export function WorkbenchShell() {
               <Button
                 variant="outline"
                 onClick={handleOpenGraph}
-                className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-sm text-white hover:bg-white/10"
+                className="h-10 rounded-full border-border bg-secondary px-4 text-sm text-foreground hover:bg-accent"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
                 图谱
@@ -345,7 +345,7 @@ export function WorkbenchShell() {
               <Button
                 variant="outline"
                 onClick={() => setPage('tags')}
-                className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-sm text-white hover:bg-white/10"
+                className="h-10 rounded-full border-border bg-secondary px-4 text-sm text-foreground hover:bg-accent"
               >
                 <Tag className="mr-2 h-4 w-4" />
                 标签
@@ -353,7 +353,7 @@ export function WorkbenchShell() {
               <Button
                 variant="outline"
                 onClick={() => setPage('spaces')}
-                className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-sm text-white hover:bg-white/10"
+                className="h-10 rounded-full border-border bg-secondary px-4 text-sm text-foreground hover:bg-accent"
               >
                 <LibraryBig className="mr-2 h-4 w-4" />
                 知识库
@@ -365,14 +365,14 @@ export function WorkbenchShell() {
               {/* Left Column: Recent Notes + Quick Note Creation */}
               <div className="lg:col-span-2 space-y-4">
                 {/* Recent Notes */}
-                <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+                <div className="kb-panel-strong rounded-2xl border border-border p-4">
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-medium text-white">最近笔记</h2>
+                    <h2 className="text-sm font-medium text-foreground">最近笔记</h2>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => { openExploreView('notes'); setPage('documents'); }}
-                      className="h-8 rounded-full text-xs text-slate-400 hover:text-white"
+                      className="h-8 rounded-full text-xs text-muted-foreground hover:text-foreground"
                     >
                       查看全部
                       <ChevronRight className="ml-1 h-3 w-3" />
@@ -387,17 +387,17 @@ export function WorkbenchShell() {
                             useKbStore.getState().openDocument(entry);
                             setPage('editor');
                           }}
-                          className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-white/10 hover:bg-white/4"
+                          className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-border hover:bg-secondary"
                         >
-                          <BookOpen className="h-4 w-4 shrink-0 text-slate-400" />
+                          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-medium text-white">{entry.title}</div>
-                            <div className="text-xs text-slate-500">{formatRelativeTime(entry.modified)}</div>
+                            <div className="truncate text-sm font-medium text-foreground">{entry.title}</div>
+                            <div className="text-xs text-muted-foreground">{formatRelativeTime(entry.modified)}</div>
                           </div>
                           {entry.tags && entry.tags.length > 0 && (
                             <div className="flex gap-1">
                               {entry.tags.slice(0, 2).map((tag) => (
-                                <span key={tag} className="rounded-full bg-white/6 px-2 py-0.5 text-[10px] text-slate-400">
+                                <span key={tag} className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
                                   #{tag}
                                 </span>
                               ))}
@@ -408,13 +408,13 @@ export function WorkbenchShell() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <FileText className="h-10 w-10 text-slate-600" />
-                      <p className="mt-3 text-sm text-slate-400">暂无笔记</p>
+                      <FileText className="h-10 w-10 text-muted-foreground/70" />
+                      <p className="mt-3 text-sm text-muted-foreground">暂无笔记</p>
                       <Button
                         onClick={handleNewNote}
                         variant="outline"
                         size="sm"
-                        className="mt-3 h-8 rounded-full border-white/10 bg-white/4 text-sm text-white hover:bg-white/10"
+                        className="mt-3 h-8 rounded-full border-border bg-secondary text-sm text-foreground hover:bg-accent"
                       >
                         <Plus className="mr-1.5 h-3 w-3" />
                         创建第一篇笔记
@@ -424,16 +424,16 @@ export function WorkbenchShell() {
                 </div>
 
                 {/* AI Chat Area */}
-                <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+                <div className="kb-panel-strong rounded-2xl border border-border p-4">
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-medium text-white">AI 对话</h2>
-                    <span className="rounded-full bg-white/6 px-2.5 py-1 text-[10px] text-slate-400">
+                    <h2 className="text-sm font-medium text-foreground">AI 对话</h2>
+                    <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] text-muted-foreground">
                       {selectedMention?.label ?? '@当前知识库'}
                     </span>
                   </div>
 
                   {/* Chat history above composer */}
-                  <div className="rounded-xl border border-white/8 bg-black/20 p-3 mb-4">
+                  <div className="rounded-xl border border-border bg-secondary p-3 mb-4">
                     <ChatHistory messages={messages} visibleMessages={visibleMessages} />
                   </div>
 
@@ -462,13 +462,13 @@ export function WorkbenchShell() {
               {/* Right Column: KB Info + Recent Libraries */}
               <div className="space-y-4">
                 {/* Current KB Info */}
-                <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
+                <div className="kb-panel-strong rounded-2xl border border-border p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <h3 className="text-sm font-medium text-white">当前知识库</h3>
+                    <h3 className="text-sm font-medium text-foreground">当前知识库</h3>
                   </div>
-                  <div className="truncate text-xs text-slate-400">{kbPath.split('/').pop()}</div>
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+                  <div className="truncate text-xs text-muted-foreground">{kbPath.split('/').pop()}</div>
+                  <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{stats?.frame_count ?? 0} 篇</span>
                     <span>{stats ? formatBytes(stats.size_bytes) : '-'}</span>
                   </div>
@@ -476,8 +476,8 @@ export function WorkbenchShell() {
 
                 {/* Recent Libraries */}
                 {recentLibraries.length > 0 && (
-                  <div className="kb-panel-strong rounded-2xl border border-white/10 p-4">
-                    <h3 className="mb-3 text-sm font-medium text-white">其他知识库</h3>
+                  <div className="kb-panel-strong rounded-2xl border border-border p-4">
+                    <h3 className="mb-3 text-sm font-medium text-foreground">其他知识库</h3>
                     <div className="space-y-2">
                       {recentLibraries.map((space) => (
                         <button
@@ -487,12 +487,12 @@ export function WorkbenchShell() {
                               registry.setActiveKb(space.id);
                             });
                           }}
-                          className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-white/10 hover:bg-white/4"
+                          className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-border hover:bg-secondary"
                         >
                           <LibraryBig className="h-4 w-4 shrink-0 text-amber-200" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm text-white">{space.name}</div>
-                            <div className="text-xs text-slate-500">{space.path.split('/').pop()}</div>
+                            <div className="truncate text-sm text-foreground">{space.name}</div>
+                            <div className="text-xs text-muted-foreground">{space.path.split('/').pop()}</div>
                           </div>
                         </button>
                       ))}
@@ -503,20 +503,20 @@ export function WorkbenchShell() {
             </div>
           </>
         ) : (
-          <section className="rounded-[1.75rem] border border-amber-200/20 bg-[linear-gradient(180deg,_rgba(28,24,18,0.96)_0%,_rgba(14,12,16,0.96)_100%)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+          <section className="rounded-[1.75rem] border border-amber-200/20 bg-card p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
             <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-amber-100/80">
               桌面初始化
             </div>
-            <h2 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+            <h2 className="mt-4 text-2xl font-semibold text-foreground sm:text-3xl">
               先打开一个本地知识库，再开始提问和做笔记
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-foreground/80">
               首页只保留最短主链路：开库、提问、笔记。挂载知识库之后，再回来继续围绕自己的资料工作。
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Button
                 onClick={() => setPage('settings')}
-                className="h-11 rounded-full bg-amber-300 px-5 text-sm font-medium text-slate-950 hover:bg-amber-200"
+                className="h-11 rounded-full bg-amber-300 px-5 text-sm font-medium text-foreground hover:bg-amber-200"
               >
                 <FolderPlus className="mr-2 h-4 w-4" />
                 打开或创建知识库
@@ -524,7 +524,7 @@ export function WorkbenchShell() {
               <Button
                 variant="outline"
                 onClick={() => setPage('spaces')}
-                className="h-11 rounded-full border-white/10 bg-white/4 px-5 text-sm text-white hover:bg-white/10"
+                className="h-11 rounded-full border-border bg-secondary px-5 text-sm text-foreground hover:bg-accent"
               >
                 <LibraryBig className="mr-2 h-4 w-4" />
                 管理知识库

@@ -67,19 +67,19 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
           isUser
-            ? 'bg-amber-300 text-slate-900 rounded-br-md'
+            ? 'bg-amber-300 text-foreground rounded-br-md'
             : isAssistant
-            ? 'bg-white/8 text-slate-200 rounded-bl-md border border-white/10'
+            ? 'bg-muted text-foreground/90 rounded-bl-md border border-border'
             : 'bg-muted text-muted-foreground'
         }`}
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
         {message.citations && message.citations.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-white/10">
+          <div className="mt-2 pt-2 border-t border-border">
             <span className="text-[10px] text-muted-foreground">参考</span>
             <div className="flex flex-wrap gap-1 mt-1">
               {message.citations.slice(0, 3).map((cite: { title?: string; uri?: string }, i: number) => (
-                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-white/8 text-muted-foreground">
+                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                   {cite.title?.slice(0, 20) || cite.uri?.slice(0, 20) || '文档'}
                 </span>
               ))}

@@ -165,7 +165,7 @@ export function KnowledgeSpaceShell() {
   };
 
   return (
-    <div className="kb-shell flex h-full min-h-full text-white">
+    <div className="kb-shell flex h-full min-h-full text-foreground">
       <div className="grid flex-1 min-w-0 grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)]">
         <KbListPane
           title="知识库管理"
@@ -175,11 +175,11 @@ export function KnowledgeSpaceShell() {
           onUnregister={registry.unregisterKb}
         />
 
-        <div className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_30%),linear-gradient(180deg,_rgba(18,20,29,0.92)_0%,_rgba(11,13,19,1)_100%)]">
-          <div className="border-b border-white/10 px-5 py-4 lg:px-8">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">知识库管理</div>
-            <h1 className="mt-2 text-2xl font-semibold text-white">选择当前要工作的知识库，并决定从资料还是笔记继续。</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+        <div className="flex min-w-0 flex-col bg-background">
+          <div className="border-b border-border px-5 py-4 lg:px-8">
+            <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">知识库管理</div>
+            <h1 className="mt-2 text-2xl font-semibold text-foreground">选择当前要工作的知识库，并决定从资料还是笔记继续。</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-foreground/80">
               这里负责切换和整理知识库，不承载长期工作本身。选定后回到资料或笔记继续推进主任务。
             </p>
           </div>
@@ -202,7 +202,7 @@ export function KnowledgeSpaceShell() {
             />
           </div>
 
-          <div className="border-t border-white/10 bg-[rgba(7,9,14,0.78)] p-5">
+          <div className="border-t border-border bg-background/78 p-5">
             <KbChatPane
               selectedSpace={selectedSpace}
               isCurrent={isCurrent}

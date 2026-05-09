@@ -62,27 +62,27 @@ export function ExploreShell() {
   );
 
   return (
-    <div className="kb-shell flex h-full flex-col text-white">
-      <div className="border-b border-white/10 bg-black/20 px-5 py-4 backdrop-blur-xl">
+    <div className="kb-shell flex h-full flex-col text-foreground">
+      <div className="border-b border-border bg-secondary px-5 py-4 backdrop-blur-xl">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">资料工作面</div>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">资料工作面</div>
               <h1 className="mt-2 text-2xl font-semibold">先搜索、导入和整理资料，再进入阅读与笔记沉淀。</h1>
-              <p className="mt-2 text-sm leading-7 text-slate-300">
+              <p className="mt-2 text-sm leading-7 text-foreground/80">
                 这里负责管理你的来源资料：搜索、导入、快速整理，以及按需展开时间线、图谱和报告等高级资料工具。
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs text-slate-300">
-              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+            <div className="flex flex-wrap gap-2 text-xs text-foreground/80">
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">
                 <Compass className="mr-1.5 inline h-3.5 w-3.5" />
                 资料
               </span>
-              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">
                 <Search className="mr-1.5 inline h-3.5 w-3.5" />
                 搜索优先
               </span>
-              <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1">
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1">
                 <Sparkles className="mr-1.5 inline h-3.5 w-3.5" />
                 高级资料工具
               </span>
@@ -90,12 +90,12 @@ export function ExploreShell() {
           </div>
 
           <Tabs value={activeExploreView} onValueChange={(value) => setActiveExploreView(value as ExploreView)}>
-            <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-2xl border border-white/10 bg-white/6 p-1">
+            <TabsList className="h-auto flex-wrap justify-start gap-1 rounded-2xl border border-border bg-muted/50 p-1">
               {visibleViews.map((view) => (
                 <TabsTrigger
                   key={view.id}
                   value={view.id}
-                  className="rounded-xl px-3 py-2 text-xs data-[state=active]:bg-black/60 data-[state=active]:text-white"
+                  className="rounded-xl px-3 py-2 text-xs data-[state=active]:bg-card/80 data-[state=active]:text-foreground"
                 >
                   {view.shortLabel}
                 </TabsTrigger>
@@ -107,12 +107,12 @@ export function ExploreShell() {
             <Button
               variant="outline"
               onClick={() => setShowAdvanced((prev) => !prev)}
-              className="h-10 rounded-full border-white/10 bg-white/4 px-4 text-xs uppercase tracking-[0.18em] text-white hover:bg-white/10"
+              className="h-10 rounded-full border-border bg-secondary px-4 text-xs uppercase tracking-[0.18em] text-foreground hover:bg-accent"
             >
               <ChevronDown className={`mr-2 h-4 w-4 transition ${showAdvanced ? 'rotate-180' : ''}`} />
               {showAdvanced ? '隐藏高级资料工具' : '显示高级资料工具'}
             </Button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               高级资料工具仍然可用，但主路径只把 Search 和 Import 作为第一层入口。
             </p>
           </div>
@@ -122,7 +122,7 @@ export function ExploreShell() {
       <div className="min-h-0 flex-1 overflow-auto bg-transparent">
         <Suspense
           fallback={
-            <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               Loading explore view...
             </div>
           }

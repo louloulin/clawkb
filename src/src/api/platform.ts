@@ -28,6 +28,10 @@ export function getRuntimeMode(): RuntimeMode {
 }
 
 export function isBrowserPreview(): boolean {
+  // Dev mode: allow full UI testing in browser
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('dev')) {
+    return false;
+  }
   return getRuntimeMode() === 'browser-unsupported';
 }
 

@@ -3,6 +3,23 @@ import { persist } from 'zustand/middleware';
 import type { VaultSummary, WebdavConfig, SyncStatus } from '@/api/types';
 import { STORAGE_KEYS } from '@/store/persistence';
 
+/**
+ * Secure session storage for sensitive data (e.g. WebDAV passwords).
+ * Uses sessionStorage so secrets are cleared when the tab closes and
+ * are never written to persistent localStorage.
+ */
+function secureSessionGet(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function secureSessionSet(key: string, value: string) {
+  try { sessionStorage.setItem(key, value); } catch { /* ignore */ }
+}
+function secureSessionRemove(key: string) {
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+const SECURE_PASSWORD_KEY = 'clawkb-webdav-pwd';
+
 interface ObsidianConfig {
   vaultPath: string;
   lastScanned: VaultSummary | null;
@@ -93,8 +110,16 @@ export const useSyncStore = create<SyncState>()(
         set((state) => ({ webdavConfig: { ...state.webdavConfig, url } })),
       setWebdavUsername: (username) =>
         set((state) => ({ webdavConfig: { ...state.webdavConfig, username } })),
-      setWebdavPassword: (password) =>
-        set((state) => ({ webdavConfig: { ...state.webdavConfig, password } })),
+      setWebdavPassword: (password) => {
+        // Store password in sessionStorage (not persisted to disk)
+        if (password) {
+          secureSessionSet(SECURE_PASSWORD_KEY, password);
+        } else {
+          secureSessionRemove(SECURE_PASSWORD_KEY);
+        }
+        // Keep placeholder in zustand state for UI binding
+        set((state) => ({ webdavConfig: { ...state.webdavConfig, password } }));
+      },
       setWebdavRemotePath: (remotePath) =>
         set((state) => ({ webdavConfig: { ...state.webdavConfig, remotePath } })),
       setWebdavEnabled: (enabled) =>
@@ -107,15 +132,27 @@ export const useSyncStore = create<SyncState>()(
             lastError: status?.last_error ?? state.webdavConfig.lastError,
           },
         })),
-      resetWebdav: () =>
-        set({ webdavConfig: defaultWebdav }),
+      resetWebdav: () => {
+        secureSessionRemove(SECURE_PASSWORD_KEY);
+        set({ webdavConfig: defaultWebdav });
+      },
       getWebdavConfig: () => {
-        const { url, username, password, remotePath, enabled } = get().webdavConfig;
+        const { url, username, remotePath, enabled } = get().webdavConfig;
+        // Read password from secure session storage
+        const password = secureSessionGet(SECURE_PASSWORD_KEY) ?? '';
         return { url, username, password, remote_path: remotePath, enabled };
       },
     }),
     {
       name: STORAGE_KEYS.sync.store,
+      // Strip password from persisted state — it lives in sessionStorage only
+      partialize: (state) => ({
+        ...state,
+        webdavConfig: {
+          ...state.webdavConfig,
+          password: '', // never persist password to localStorage
+        },
+      }),
     }
   )
 );

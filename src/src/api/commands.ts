@@ -310,28 +310,9 @@ export const api = {
     return invoke('list_memories') as Promise<MemoryCardInfo[]>;
   },
 
-  async listSessions(): Promise<SessionSummary[]> {
-    const invoke = await getDesktopInvoke();
-    return invoke('list_sessions') as Promise<SessionSummary[]>;
-  },
-
-  async searchAsOf(query: string, asOfTs: number, topK?: number): Promise<SearchHit[]> {
-    const invoke = await getDesktopInvoke();
-    return invoke('search_as_of', {
-      query,
-      asOfTs,
-      topK: topK ?? 10,
-    }) as Promise<SearchHit[]>;
-  },
-
-  async askAsOf(question: string, asOfTs: number, topK?: number): Promise<AsOfResult> {
-    const invoke = await getDesktopInvoke();
-    return invoke('ask_as_of', {
-      question,
-      asOfTs,
-      topK: topK ?? 8,
-    }) as Promise<AsOfResult>;
-  },
+  // NOTE: listSessions, searchAsOf, and askAsOf were removed because
+  // the corresponding Rust backend commands (list_sessions, search_as_of, ask_as_of)
+  // do not exist and would cause runtime errors. Re-add when backend implements them.
 
   async compareTimeline(
     query: string,

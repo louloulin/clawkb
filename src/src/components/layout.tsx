@@ -1,6 +1,8 @@
+import React from 'react';
 import {
   BookOpen,
   LibraryBig,
+  Menu,
   Monitor,
   Moon,
   PanelLeft,
@@ -9,6 +11,7 @@ import {
   Settings,
   Sparkles,
   Sun,
+  X,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
@@ -50,7 +53,7 @@ const pageLabels: Record<string, string> = {
 };
 
 export function Sidebar() {
-  const { currentPage, setPage, sidebarCollapsed, toggleSidebar, stats, kbPath, isKbOpen } = useKbStore();
+  const { currentPage, setPage, sidebarCollapsed, toggleSidebar, stats, kbPath, isKbOpen, mobileSidebarOpen, setMobileSidebarOpen } = useKbStore();
   const [dailyDates, setDailyDates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -80,12 +83,28 @@ export function Sidebar() {
     })();
   }, [setPage]);
 
+  const handleNavClick = (id: string) => {
+    setPage(id);
+    setMobileSidebarOpen(false);
+  };
+
   return (
-    <aside
-      className={`${
-        sidebarCollapsed ? 'w-[86px]' : 'w-[220px]'
-      } kb-shell shrink-0 border-r border-white/10 text-white transition-all duration-200 ease-out`}
-    >
+    <>
+      {/* Mobile overlay backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+      <aside
+        className={`${
+          sidebarCollapsed ? 'w-[86px]' : 'w-[220px]'
+        } kb-shell shrink-0 border-r border-border text-foreground transition-all duration-200 ease-out
+        hidden md:flex md:flex-col
+        fixed inset-y-0 left-0 z-50 ${mobileSidebarOpen ? '!flex flex-col' : ''}
+        `}
+      >
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between px-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
@@ -95,7 +114,7 @@ export function Sidebar() {
             {!sidebarCollapsed && (
               <div>
                 <div className="text-sm font-semibold tracking-tight">ClawKB</div>
-                <div className="text-[11px] tracking-[0.22em] text-slate-500">本地知识工作台</div>
+                <div className="text-[11px] tracking-[0.22em] text-muted-foreground">本地知识工作台</div>
               </div>
             )}
           </div>
@@ -104,7 +123,7 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-8 w-8 rounded-xl text-slate-400 hover:bg-white/6 hover:text-white"
+              className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
             </Button>
@@ -117,12 +136,20 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-10 w-10 rounded-2xl text-slate-400 hover:bg-white/6 hover:text-white"
+              className="h-10 w-10 rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <PanelLeft className="h-4 w-4" />
             </Button>
           </div>
         )}
+
+        {/* Mobile close button */}
+        <button
+          className="absolute right-3 top-4 z-10 rounded-lg p-1 text-muted-foreground hover:text-foreground md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        >
+          <X className="h-5 w-5" />
+        </button>
 
         <nav className="mt-4 flex flex-col gap-1 px-2">
           {navItems.map((item, index) => {
@@ -132,18 +159,17 @@ export function Sidebar() {
             const showSeparator = index === 1;
 
             return (
-              <>
+              <React.Fragment key={item.id}>
                 {showSeparator && !sidebarCollapsed && (
-                  <div className="my-3 h-px bg-white/8" />
+                  <div className="my-3 h-px bg-muted" />
                 )}
                 <button
-                  key={item.id}
-                  onClick={() => setPage(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                   aria-label={item.label}
                   className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
                     isActive
-                      ? 'bg-amber-200/10 text-white'
-                      : 'text-slate-400 hover:bg-white/4 hover:text-white'
+                      ? 'bg-amber-200/10 text-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                   } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
                 >
                   <div
@@ -157,7 +183,7 @@ export function Sidebar() {
                     <span className="text-sm font-medium">{item.label}</span>
                   )}
                 </button>
-              </>
+              </React.Fragment>
             );
           })}
         </nav>
@@ -170,37 +196,38 @@ export function Sidebar() {
 
         <div className="mt-auto" />
 
-        <div className="border-t border-white/8 px-4 py-4">
+        <div className="border-t border-border px-4 py-4">
           {isKbOpen && stats ? (
             <div className={`kb-panel-strong rounded-2xl p-3 ${sidebarCollapsed ? 'text-center' : ''}`}>
               <div className={`flex items-center gap-2 ${sidebarCollapsed ? 'justify-center' : ''}`}>
                 <div className="h-2 w-2 rounded-full bg-emerald-400" />
                 {!sidebarCollapsed && (
-                  <span className="truncate text-xs font-medium text-white">{kbPath.split('/').pop()}</span>
+                  <span className="truncate text-xs font-medium text-foreground">{kbPath.split('/').pop()}</span>
                 )}
               </div>
               {!sidebarCollapsed ? (
-                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{stats.frame_count} 篇资料</span>
                   <span>{formatBytes(stats.size_bytes)}</span>
                 </div>
               ) : (
-                <div className="mt-2 text-[10px] text-slate-500">{stats.frame_count}</div>
+                <div className="mt-2 text-[10px] text-muted-foreground">{stats.frame_count}</div>
               )}
             </div>
           ) : (
-            <div className={`kb-panel-strong rounded-2xl border-dashed p-3 text-[11px] text-slate-500 ${sidebarCollapsed ? 'text-center' : ''}`}>
+            <div className={`kb-panel-strong rounded-2xl border-dashed p-3 text-[11px] text-muted-foreground ${sidebarCollapsed ? 'text-center' : ''}`}>
               {sidebarCollapsed ? 'KB' : '先打开本地知识库，再开始检索、阅读和沉淀笔记。'}
             </div>
           )}
         </div>
       </div>
     </aside>
+    </>
   );
 }
 
 export function Header() {
-  const { currentPage, darkMode, toggleDarkMode, setPage } = useKbStore();
+  const { currentPage, darkMode, toggleDarkMode, setPage, setMobileSidebarOpen } = useKbStore();
   const { openExploreView } = useWorkspaceStore();
   const runtimeInfo = getRuntimeModeInfo();
 
@@ -221,17 +248,28 @@ export function Header() {
   }, []);
 
   return (
-    <header className="kb-panel-strong flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-5 text-white">
-      <button
-        onClick={handleSearchClick}
-        className="kb-chip flex h-10 w-full max-w-sm items-center gap-2.5 rounded-full px-4 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white"
-      >
-        <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">搜索你的知识库…</span>
-        <kbd className="ml-auto hidden rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] text-slate-400 sm:inline-block">
-          ⌘K
-        </kbd>
-      </button>
+    <header className="kb-panel-strong flex h-14 shrink-0 items-center justify-between border-b border-border px-5 text-foreground">
+      <div className="flex items-center gap-3">
+        {/* Mobile hamburger menu */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground md:hidden"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <button
+          onClick={handleSearchClick}
+          className="kb-chip flex h-10 w-full max-w-sm items-center gap-2.5 rounded-full px-4 text-sm text-foreground/80 transition hover:bg-accent hover:text-foreground"
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="truncate">搜索你的知识库…</span>
+          <kbd className="ml-auto hidden rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground sm:inline-block">
+            ⌘K
+          </kbd>
+        </button>
+      </div>
 
       <div className="ml-4 flex items-center gap-3">
         {isBrowserPreview() && (
@@ -244,12 +282,12 @@ export function Header() {
             {runtimeInfo.badge}
           </span>
         )}
-        <span className="hidden text-sm font-medium text-slate-300 lg:inline">{pageLabels[currentPage] ?? currentPage}</span>
+        <span className="hidden text-sm font-medium text-foreground/80 lg:inline">{pageLabels[currentPage] ?? currentPage}</span>
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleDarkMode}
-          className="h-9 w-9 rounded-full text-slate-400 hover:bg-white/6 hover:text-white"
+          className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
@@ -262,7 +300,7 @@ export function MobileBottomNav() {
   const { currentPage, setPage } = useKbStore();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[rgba(8,10,15,0.92)] px-2 py-2 backdrop-blur-xl md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/92 px-2 py-2 backdrop-blur-xl md:hidden">
       <div className="flex justify-around gap-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -272,7 +310,7 @@ export function MobileBottomNav() {
               key={item.id}
               onClick={() => setPage(item.id)}
               className={`flex flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[10px] transition ${
-                isActive ? 'bg-amber-200/12 text-white' : 'text-slate-500'
+                isActive ? 'bg-amber-200/12 text-foreground' : 'text-muted-foreground'
               }`}
             >
               <Icon className="h-4 w-4" />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2, List, Copy, Share2, Palette, Type, MessageSquarePlus } from 'lucide-react';
+import { BookOpen, MessageSquare, Send, Loader2, FileText, X, Sparkles, Languages, Highlighter, MessageCircle, ChevronLeft, ChevronRight, Bookmark, BookmarkCheck, Trash2, Plus, Tag, Link2, List, Copy, Palette, MessageSquarePlus, Network } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -8,14 +8,18 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { OutlinePanel } from '@/components/ui/reader-outline-panel';
+import { BacklinksPanel } from '@/components/ui/backlinks-panel';
+import { LocalGraph } from '@/components/ui/local-graph';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
 import { useBookmarkStore, useReadingProgressStore, HIGHLIGHT_COLORS, type HighlightColor, type Bookmark as BookmarkType } from '@/store/bookmark-store';
-import { useKbStore } from '@/store/kb-store';
 import { STORAGE_KEYS, safeStorageGet, safeStorageSet } from '@/store/persistence';
 
-// Configure PDF.js worker — needed for text layer support
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Configure PDF.js worker — use local worker for offline desktop support
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 interface SelectionPopup {
   text: string;
@@ -220,6 +224,17 @@ export function ReaderPage({
   const { loadBookmarks, addBookmark, removeBookmark, getBookmarksForDoc } = useBookmarkStore();
   const { loadProgress, saveProgress, getProgress } = useReadingProgressStore();
 
+  const loadDocuments = async () => {
+    setLoading(true);
+    try {
+      const results = await api.search('*', 50, 'hybrid');
+      setDocuments(results);
+    } catch {
+      // Use empty list on error
+    }
+    setLoading(false);
+  };
+
   // Load bookmarks & progress on mount
   useEffect(() => {
     loadBookmarks();
@@ -233,12 +248,6 @@ export function ReaderPage({
       return;
     }
     loadDocuments();
-  }, [externalDocuments]);
-
-  useEffect(() => {
-    if (externalDocuments) {
-      setDocuments(externalDocuments);
-    }
   }, [externalDocuments]);
 
   useEffect(() => {
@@ -260,17 +269,6 @@ export function ReaderPage({
   }, [selectedDoc?.id]);
 
   const currentBookmarks = selectedDoc ? getBookmarksForDoc(selectedDoc.id) : [];
-
-  const loadDocuments = async () => {
-    setLoading(true);
-    try {
-      const results = await api.search('*', 50, 'hybrid');
-      setDocuments(results);
-    } catch {
-      // Use empty list on error
-    }
-    setLoading(false);
-  };
 
   const handleSelectDoc = (doc: SearchHit) => {
     setSelectedDoc(doc);
@@ -444,7 +442,7 @@ export function ReaderPage({
       docId: selectedDoc.id,
       text: selectionPopup.text,
       note: '',
-      color: 'yellow',
+      color: highlightColor,
       createdAt: new Date().toISOString(),
     };
     saveHighlight(h);
@@ -477,7 +475,23 @@ export function ReaderPage({
   // Render content using react-markdown for safe rendering
   const renderContent = (text: string) => {
     // Convert [[wiki links]] to clickable markdown links
-    const processed = text.replace(/\[\[([^\]]+)\]\]/g, '[$1](wiki:$1)');
+    let processed = text.replace(/\[\[([^\]]+)\]\]/g, '[$1](wiki:$1)');
+
+    // Apply highlight markers into the text — wrap highlighted text in <mark> tags
+    // so they visually appear highlighted in the rendered content.
+    for (const h of highlights) {
+      if (h.text && h.text.length > 2) {
+        // Escape regex special chars in highlight text
+        const escaped = h.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        try {
+          const colorClass = HIGHLIGHT_COLORS[h.color as HighlightColor]?.light || 'bg-yellow-200/60';
+          processed = processed.replace(
+            new RegExp(escaped, 'g'),
+            `<mark class="${colorClass} rounded px-0.5" title="${h.note || '高亮'}">$&</mark>`,
+          );
+        } catch { /* skip invalid regex */ }
+      }
+    }
 
     return (
       <Markdown
@@ -491,9 +505,9 @@ export function ReaderPage({
           code: ({ className, children, ...props }) => {
             const isBlock = className?.includes('language-');
             return isBlock ? (
-              <pre className="rounded bg-black/30 p-3 my-2 overflow-x-auto text-sm"><code className={className} {...props}>{children}</code></pre>
+              <pre className="rounded bg-secondary/80 p-3 my-2 overflow-x-auto text-sm"><code className={className} {...props}>{children}</code></pre>
             ) : (
-              <code className="rounded bg-black/20 px-1 text-sm" {...props}>{children}</code>
+              <code className="rounded bg-secondary px-1 text-sm" {...props}>{children}</code>
             );
           },
           a: ({ href, children }) => {
@@ -502,13 +516,13 @@ export function ReaderPage({
               return (
                 <button
                   type="button"
-                  className="text-amber-300 underline decoration-amber-300/40 hover:decoration-amber-300 transition cursor-pointer"
+                  className="text-primary underline decoration-primary/40 hover:decoration-primary transition cursor-pointer"
                   onClick={async () => {
                     try {
                       const hits = await api.search(title, 3, 'lex');
                       const match = hits.find(h => h.title === title) || hits[0];
                       if (match) {
-                        useKbStore.getState().openDocument(match);
+                        handleSelectDoc(match);
                       }
                     } catch { /* ignore */ }
                   }}
@@ -610,22 +624,22 @@ export function ReaderPage({
                   size="icon"
                   onClick={() => togglePanel('outline')}
                   className="h-7 w-7"
-                  title="Outline"
+                  title="大纲"
                 >
                   <List className="h-3.5 w-3.5" />
                 </Button>
                 {/* Right panel toggles */}
-                <div className="flex items-center gap-0.5 border border-white/10 rounded-lg px-1 py-0.5">
+                <div className="flex items-center gap-0.5 border border-border rounded-lg px-1 py-0.5">
                   <Button
                     variant={annotationsOpen ? 'default' : 'ghost'}
                     size="icon"
                     onClick={() => togglePanel('annotations')}
                     className="relative h-6 w-6"
-                    title="Highlights"
+                    title="高亮"
                   >
                     <Highlighter className="h-3 w-3" />
                     {highlights.length > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-amber-300 text-[8px] font-bold text-slate-950 flex items-center justify-center z-10">
+                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-amber-300 text-[8px] font-bold text-foreground flex items-center justify-center z-10">
                         {highlights.length > 9 ? '9+' : highlights.length}
                       </span>
                     )}
@@ -635,11 +649,11 @@ export function ReaderPage({
                     size="icon"
                     onClick={() => togglePanel('bookmarks')}
                     className="relative h-6 w-6"
-                    title="Bookmarks"
+                    title="书签"
                   >
                     <Bookmark className="h-3 w-3" />
                     {currentBookmarks.length > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-400 text-[8px] font-bold text-slate-950 flex items-center justify-center z-10">
+                      <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-blue-400 text-[8px] font-bold text-foreground flex items-center justify-center z-10">
                         {currentBookmarks.length > 9 ? '9+' : currentBookmarks.length}
                       </span>
                     )}
@@ -649,7 +663,7 @@ export function ReaderPage({
                     size="icon"
                     onClick={() => togglePanel('chat')}
                     className="h-6 w-6"
-                    title="Document Chat"
+                    title="文档对话"
                   >
                     <MessageSquare className="h-3 w-3" />
                   </Button>
@@ -660,7 +674,7 @@ export function ReaderPage({
             <div className="flex flex-1 overflow-hidden relative">
               {/* Outline panel — left side */}
               {outlineOpen && (
-                <div className="w-64 shrink-0 border-r border-white/10 overflow-auto">
+                <div className="w-64 shrink-0 border-r border-border overflow-auto">
                   <OutlinePanel noteId={selectedDoc.id} />
                 </div>
               )}
@@ -682,7 +696,44 @@ export function ReaderPage({
                     {renderContent(selectedDoc.content)}
                   </article>
                 )}
-                <BacklinksPanel noteId={selectedDoc.id} />
+                <BacklinksPanel
+                  noteId={selectedDoc.id}
+                  onNavigate={(_noteId, title, snippet) => {
+                    // Navigate to the linked note within the reader
+                    handleSelectDoc({
+                      id: _noteId,
+                      title,
+                      content: snippet,
+                      score: 0,
+                      tags: [],
+                      created_at: '',
+                      source: null,
+                    });
+                  }}
+                />
+
+                {/* Per-note local graph */}
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Network className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground/80">笔记图谱</span>
+                  </div>
+                  <LocalGraph
+                    noteId={selectedDoc.id}
+                    noteTitle={selectedDoc.title}
+                    onNavigate={(blId, title) => {
+                      handleSelectDoc({
+                        id: blId,
+                        title,
+                        content: '',
+                        score: 0,
+                        tags: [],
+                        created_at: '',
+                        source: null,
+                      });
+                    }}
+                  />
+                </div>
                 </div>
               </div>
 
@@ -697,14 +748,14 @@ export function ReaderPage({
                   }}
                 >
                   {/* Main action bar */}
-                  <div className="bg-[hsl(224,44%,10%)] border border-white/10 rounded-xl shadow-lg p-1.5 flex items-center gap-0.5">
+                  <div className="bg-card border border-border rounded-xl shadow-lg p-1.5 flex items-center gap-0.5">
                     {/* Copy */}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-foreground/80 hover:text-foreground hover:bg-muted/50"
                       onClick={() => handleSelectionAction('copy')}
-                      title="Copy text"
+                      title="复制文本"
                     >
                       <Copy className="h-3.5 w-3.5" />
                       <span>复制</span>
@@ -717,7 +768,7 @@ export function ReaderPage({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                        className="h-8 px-2.5 text-xs gap-1.5 text-foreground/80 hover:text-foreground hover:bg-muted/50"
                         onClick={handleHighlight}
                       >
                         <Highlighter className="h-3.5 w-3.5" />
@@ -725,7 +776,7 @@ export function ReaderPage({
                         <Palette className="h-3 w-3 ml-0.5 opacity-50" />
                       </Button>
                       {/* Color picker tooltip */}
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-card border border-border rounded-lg shadow-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <div className="flex gap-1.5">
                           {(Object.keys(HIGHLIGHT_COLORS) as HighlightColor[]).map(color => (
                             <button
@@ -746,7 +797,7 @@ export function ReaderPage({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-foreground/80 hover:text-foreground hover:bg-muted/50"
                       onClick={() => handleSelectionAction('explain')}
                       disabled={selectionLoading}
                     >
@@ -756,7 +807,7 @@ export function ReaderPage({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-foreground/80 hover:text-foreground hover:bg-muted/50"
                       onClick={() => handleSelectionAction('translate')}
                       disabled={selectionLoading}
                     >
@@ -769,7 +820,7 @@ export function ReaderPage({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2.5 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/6"
+                      className="h-8 px-2.5 text-xs gap-1.5 text-foreground/80 hover:text-foreground hover:bg-muted/50"
                       onClick={() => {
                         // Add note/annotation
                         const note = window.prompt('添加笔记:');
@@ -796,7 +847,7 @@ export function ReaderPage({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-slate-500 hover:text-white hover:bg-white/6"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       onClick={() => { setSelectionPopup(null); setSelectionResult(null); }}
                     >
                       <X className="h-4 w-4" />
@@ -805,22 +856,22 @@ export function ReaderPage({
 
                   {/* Processing indicator */}
                   {selectionLoading && (
-                    <div className="mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-3 flex items-center gap-3">
+                    <div className="mt-1 bg-card border border-border rounded-lg shadow-lg p-3 flex items-center gap-3">
                       <Loader2 className="h-4 w-4 animate-spin text-amber-200" />
-                      <span className="text-sm text-slate-300">正在处理...</span>
+                      <span className="text-sm text-foreground/80">正在处理...</span>
                     </div>
                   )}
 
                   {/* AI result display */}
                   {selectionResult && (
-                    <div className="mt-1 bg-[hsl(224,44%,10%)] border border-amber-200/20 rounded-xl shadow-lg p-4 max-w-sm">
+                    <div className="mt-1 bg-card border border-amber-200/20 rounded-xl shadow-lg p-4 max-w-sm">
                       <div className="text-[10px] uppercase tracking-wider text-amber-200/60 mb-2">AI 回复</div>
-                      <p className="text-sm text-white leading-relaxed">{selectionResult}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{selectionResult}</p>
                       <div className="flex gap-2 mt-3">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-xs border-white/10 bg-white/4 hover:bg-white/8"
+                          className="h-7 text-xs border-border bg-secondary hover:bg-muted"
                           onClick={() => {
                             navigator.clipboard.writeText(selectionResult);
                           }}
@@ -831,7 +882,7 @@ export function ReaderPage({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-xs text-slate-400 hover:text-white"
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground"
                           onClick={() => { setSelectionResult(null); }}
                         >
                           关闭
@@ -841,8 +892,8 @@ export function ReaderPage({
                   )}
 
                   {/* Selected text preview */}
-                  <div className="mt-1 bg-[hsl(224,44%,10%)] border border-white/10 rounded-lg shadow-lg p-2 max-w-sm">
-                    <div className="text-[10px] text-slate-500 truncate">{selectionPopup.text.slice(0, 100)}{selectionPopup.text.length > 100 ? '...' : ''}</div>
+                  <div className="mt-1 bg-card border border-border rounded-lg shadow-lg p-2 max-w-sm">
+                    <div className="text-[10px] text-muted-foreground truncate">{selectionPopup.text.slice(0, 100)}{selectionPopup.text.length > 100 ? '...' : ''}</div>
                   </div>
                 </div>
               )}
@@ -920,7 +971,7 @@ export function ReaderPage({
                         size="icon"
                         className="h-6 w-6"
                         onClick={handleAddBookmark}
-                        title="Add bookmark at current position"
+                        title="在当前位置添加书签"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
@@ -1018,7 +1069,7 @@ export function ReaderPage({
                             {editingHighlightId === hl.id ? (
                               <div className="mt-2 flex flex-col gap-1.5">
                                 <textarea
-                                  className="w-full text-[11px] dark:bg-background/50 bg-white/50 border rounded px-2 py-1 resize-none"
+                                  className="w-full text-[11px] dark:bg-background/50 bg-muted/300 border rounded px-2 py-1 resize-none"
                                   rows={2}
                                   placeholder="添加注释..."
                                   value={highlightNote}
@@ -1108,81 +1159,3 @@ export function ReaderPage({
 }
 
 /** Backlinks panel — shows notes that reference the current note. */
-function BacklinksPanel({ noteId }: { noteId: string }) {
-  const [backlinks, setBacklinks] = useState<Array<{ note_id: string; note_title: string; context_snippet: string }>>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    api.listBacklinks(noteId)
-      .then((result) => { if (!cancelled) setBacklinks(result); })
-      .catch(() => { if (!cancelled) setBacklinks([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [noteId]);
-
-  if (loading) {
-    return (
-      <div className="mt-8 border-t border-white/10 pt-4">
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          查找反向链接…
-        </div>
-      </div>
-    );
-  }
-
-  if (backlinks.length === 0) {
-    return (
-      <div className="mt-8 border-t border-white/10 pt-4">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex items-center gap-1.5">
-          <Link2 className="h-3.5 w-3.5" />
-          反向链接
-        </div>
-        <p className="mt-2 text-xs text-slate-500">暂无笔记引用此文档。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-8 border-t border-white/10 pt-4">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-slate-400 hover:text-white transition"
-      >
-        <Link2 className="h-3.5 w-3.5" />
-        反向链接 ({backlinks.length})
-        <ChevronRight className={`h-3 w-3 transition ${expanded ? 'rotate-90' : ''}`} />
-      </button>
-
-      {expanded && (
-        <div className="mt-3 grid gap-2">
-          {backlinks.map((bl) => (
-            <button
-              key={bl.note_id}
-              type="button"
-              className="rounded-xl border border-white/10 bg-white/4 p-3 text-left transition hover:border-white/20 hover:bg-white/8"
-              onClick={() => {
-                useKbStore.getState().openDocument({
-                  id: bl.note_id,
-                  title: bl.note_title,
-                  content: bl.context_snippet,
-                  score: 0,
-                  tags: [],
-                  created_at: '',
-                  source: null,
-                });
-              }}
-            >
-              <div className="text-sm font-medium text-white">{bl.note_title}</div>
-              <div className="mt-1 text-xs leading-6 text-slate-400 line-clamp-2">{bl.context_snippet}</div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

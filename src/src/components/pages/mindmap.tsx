@@ -210,16 +210,16 @@ Include at least 4-6 main branches with 2-4 sub-items each.`;
           <p className="text-sm text-muted-foreground">正在生成脑图…</p>
         </div>
       ) : positionedNodes.nodes.length > 0 ? (
-        <div className="relative border border-white/10 rounded-2xl bg-black/20 overflow-hidden" style={{ height: 500 }}>
+        <div className="relative border border-border rounded-2xl bg-secondary overflow-hidden" style={{ height: 500 }}>
           {/* Zoom controls */}
           <div className="absolute top-3 right-3 z-10 flex flex-col gap-1">
-            <button onClick={zoomIn} title="放大" className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/60 text-white hover:bg-white/10 transition">
+            <button onClick={zoomIn} title="放大" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground hover:bg-accent transition">
               <ZoomIn className="h-4 w-4" />
             </button>
-            <button onClick={zoomOut} title="缩小" className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/60 text-white hover:bg-white/10 transition">
+            <button onClick={zoomOut} title="缩小" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground hover:bg-accent transition">
               <ZoomOut className="h-4 w-4" />
             </button>
-            <button onClick={resetView} title="重置" className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/60 text-white hover:bg-white/10 transition">
+            <button onClick={resetView} title="重置" className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/60 text-foreground hover:bg-accent transition">
               <Maximize2 className="h-4 w-4" />
             </button>
           </div>

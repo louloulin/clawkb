@@ -97,6 +97,11 @@ function App() {
         e.preventDefault();
         setCommandPaletteOpen(true);
       }
+      // Cmd+O: Quick Switcher (Obsidian-style note quick-open)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'o') {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+      }
       // Cmd+Shift+D: 打开或创建今日日记
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'd') {
         e.preventDefault();
@@ -165,37 +170,37 @@ function App() {
 
   if (isBrowserPreview()) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,_rgba(6,8,13,1)_0%,_rgba(13,16,23,1)_100%)] p-6 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
         <div
           ref={previewRef}
-          className="w-full max-w-3xl rounded-[32px] border border-white/10 bg-black/30 p-8 shadow-[0_32px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+          className="w-full max-w-3xl rounded-[32px] border border-border bg-card p-8 shadow-[0_32px_120px_rgba(0,0,0,0.45)] backdrop-blur-xl"
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-amber-100/80">
             <Monitor className="h-3.5 w-3.5" />
             Preview Only
           </div>
           <div className="mt-6 flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/6 text-amber-200">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted/50 text-amber-200">
               <MonitorOff className="h-7 w-7" />
             </div>
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">Desktop runtime required</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
                 ClawKB no longer ships browser sample data or placeholder knowledge-base flows. Open the Tauri desktop app to work with a real local `.mv2` knowledge base.
               </p>
             </div>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Available Here</div>
-              <p className="mt-3 text-sm text-slate-300">
+            <div className="rounded-2xl border border-border bg-muted/30 p-4">
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Available Here</div>
+              <p className="mt-3 text-sm text-muted-foreground">
                 Runtime messaging checks, visual QA, and automated preview verification.
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Requires Desktop</div>
-              <p className="mt-3 text-sm text-slate-300">
+            <div className="rounded-2xl border border-border bg-muted/30 p-4">
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Requires Desktop</div>
+              <p className="mt-3 text-sm text-muted-foreground">
                 Opening or creating a KB, import, search, OCR, sync, and all native file actions.
               </p>
             </div>
@@ -208,7 +213,7 @@ function App() {
             >
               Recheck Runtime
             </Button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Open the Tauri desktop app from this repository to continue with real data.
             </p>
           </div>
@@ -220,7 +225,7 @@ function App() {
   const PageComponent = shellPages[currentPage] || WorkbenchShell;
 
   return (
-    <div className="flex h-screen bg-[linear-gradient(180deg,_rgba(6,8,13,1)_0%,_rgba(13,16,23,1)_100%)] text-foreground">
+    <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -229,8 +234,16 @@ function App() {
           <ErrorBoundary>
             <Suspense
               fallback={
-                <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                  Loading workspace...
+                <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
+                  <div className="flex items-center gap-3">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-200 border-t-transparent" />
+                    <span className="text-sm text-muted-foreground">加载工作区...</span>
+                  </div>
+                  <div className="flex w-full max-w-2xl flex-col gap-3">
+                    <div className="h-8 w-3/4 animate-pulse rounded-lg bg-muted/30" />
+                    <div className="h-6 w-1/2 animate-pulse rounded-lg bg-muted/30" />
+                    <div className="h-32 w-full animate-pulse rounded-xl bg-muted/30" />
+                  </div>
                 </div>
               }
             >

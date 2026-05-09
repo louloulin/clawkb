@@ -17,14 +17,14 @@ export function DocumentTabs({ value, onValueChange }: DocumentTabsProps) {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Tabs value={value} onValueChange={(next) => onValueChange(next as DocumentWorkspaceTab)}>
-        <TabsList className="h-auto rounded-2xl border border-white/10 bg-white/6 p-1">
+        <TabsList className="h-auto rounded-2xl border border-border bg-muted/50 p-1">
           {PRIMARY_TAB_META.map((tab) => {
             const Icon = tab.icon;
             return (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="rounded-xl px-3 py-2 text-xs data-[state=active]:bg-black/50 data-[state=active]:text-white"
+                className="rounded-xl px-3 py-2 text-xs data-[state=active]:bg-secondary data-[state=active]:text-foreground"
               >
                 <Icon className="mr-1.5 h-3.5 w-3.5" />
                 {tab.label}

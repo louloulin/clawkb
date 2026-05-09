@@ -14,6 +14,7 @@ interface KbState {
   // Navigation
   currentPage: Page;
   sidebarCollapsed: boolean;
+  mobileSidebarOpen: boolean;
 
   // Document detail panel
   selectedDocument: SearchHit | null;
@@ -28,6 +29,7 @@ interface KbState {
   refreshStats: () => Promise<void>;
   setPage: (page: Page) => void;
   toggleSidebar: () => void;
+  setMobileSidebarOpen: (open: boolean) => void;
   toggleDarkMode: () => void;
   setError: (error: string | null) => void;
   openDocument: (doc: SearchHit) => void;
@@ -44,6 +46,7 @@ export const useKbStore = create<KbState>((set, get) => ({
   error: null,
   currentPage: 'home',
   sidebarCollapsed: true,
+  mobileSidebarOpen: false,
   selectedDocument: null,
   detailLoading: false,
   darkMode: (() => {
@@ -92,6 +95,7 @@ export const useKbStore = create<KbState>((set, get) => ({
 
   setPage: (page: Page) => set({ currentPage: page }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setMobileSidebarOpen: (open: boolean) => set({ mobileSidebarOpen: open }),
   toggleDarkMode: () => {
     const newDark = !get().darkMode;
     set({ darkMode: newDark });
