@@ -896,6 +896,7 @@
 | S-d | **Frontmatter 标签编辑器** | `editor.tsx`: 标题栏下方添加标签输入区域, 支持回车/逗号添加, Backspace 删除, 保存时合并用户标签 | ✅ |
 | S-e | **模板变量替换** | `editor.tsx` `handleTemplateSelect`: 替换 `{{date}}`/`{{time}}`/`{{title}}`/`{{tags}}` 为实际值 | ✅ |
 | UI-1 | 主题一致性修复 (之前会话) | 全局替换硬编码颜色为 CSS 变量 token, 对齐 `.dark` 变量 | ✅ |
+| UI-2 | **亮色主题完整修复** | `tokens.css`: :root 定义亮色值, .dark 定义暗色值; `index.css`: @theme 引用动态 CSS 变量; `workbench.css`: 移除硬编码颜色; `kb-store.ts`: darkMode 默认跟随系统 | ✅ |
 
 ### ⬜ 待执行 (按优先级排序)
 
