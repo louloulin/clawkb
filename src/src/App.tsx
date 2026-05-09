@@ -44,7 +44,7 @@ const shellPages: Record<string, React.ComponentType> = {
 };
 
 function App() {
-  const { currentPage, darkMode, openKb } = useKbStore();
+  const { currentPage, darkMode, openKb, sidebarCollapsed } = useKbStore();
   const { openExploreView } = useWorkspaceStore();
   const [selectionPanelOpen, setSelectionPanelOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -228,7 +228,7 @@ function App() {
     <div className="flex h-screen bg-background text-foreground">
       <Sidebar />
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className={`flex min-w-0 flex-1 flex-col overflow-hidden transition-all duration-200 md:ml-[220px] ${sidebarCollapsed ? 'md:!ml-[86px]' : ''}`}>
         <Header />
         <div className="flex-1 overflow-auto pb-16 md:pb-0">
           <ErrorBoundary>

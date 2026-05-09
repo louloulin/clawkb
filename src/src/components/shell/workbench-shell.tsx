@@ -247,7 +247,7 @@ export function WorkbenchShell() {
   const stats = useKbStore((s) => s.stats);
 
   return (
-    <div className="kb-shell min-h-full text-foreground">
+    <div className="min-h-full bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 md:px-8 lg:py-10">
         {isKbOpen ? (
           <>
@@ -259,7 +259,7 @@ export function WorkbenchShell() {
               </div>
               <Button
                 onClick={handleNewNote}
-                className="h-10 rounded-full bg-amber-300 px-4 text-sm font-medium text-foreground hover:bg-amber-200"
+                className="h-10 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 新建笔记
@@ -271,7 +271,7 @@ export function WorkbenchShell() {
               {/* Notes Count */}
               <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div>
@@ -284,7 +284,7 @@ export function WorkbenchShell() {
               {/* KB Size */}
               <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <LibraryBig className="h-5 w-5" />
                   </div>
                   <div>
@@ -297,7 +297,7 @@ export function WorkbenchShell() {
               {/* Recent Activity */}
               <div className="kb-panel-strong rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <TrendingUp className="h-5 w-5" />
                   </div>
                   <div>
@@ -310,10 +310,10 @@ export function WorkbenchShell() {
               {/* Daily Note */}
               <button
                 onClick={handleOpenDailyNote}
-                className="kb-panel-strong rounded-2xl border border-border p-4 text-left transition hover:border-amber-200/30 hover:bg-amber-200/5"
+                className="kb-panel-strong rounded-2xl border border-border p-4 text-left transition hover:border-primary/30 hover:bg-primary/5"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-200/10 text-amber-200">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
@@ -504,7 +504,7 @@ export function WorkbenchShell() {
           </>
         ) : (
           <section className="rounded-[1.75rem] border border-amber-200/20 bg-card p-6 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-amber-200/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-amber-100/80">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-primary">
               桌面初始化
             </div>
             <h2 className="mt-4 text-2xl font-semibold text-foreground sm:text-3xl">
@@ -516,7 +516,7 @@ export function WorkbenchShell() {
             <div className="mt-5 flex flex-wrap gap-3">
               <Button
                 onClick={() => setPage('settings')}
-                className="h-11 rounded-full bg-amber-300 px-5 text-sm font-medium text-foreground hover:bg-amber-200"
+                className="h-11 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 <FolderPlus className="mr-2 h-4 w-4" />
                 打开或创建知识库

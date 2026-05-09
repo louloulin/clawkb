@@ -108,7 +108,7 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         <div className="flex h-16 items-center justify-between px-4">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : ''}`}>
-            <div className="kb-chip flex h-11 w-11 items-center justify-center rounded-2xl text-amber-200">
+            <div className="kb-chip flex h-11 w-11 items-center justify-center rounded-2xl text-primary">
               <Sparkles className="h-5 w-5" />
             </div>
             {!sidebarCollapsed && (
@@ -174,7 +174,7 @@ export function Sidebar() {
                 >
                   <div
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                      isActive ? 'bg-amber-200/15 text-amber-200' : ''
+                      isActive ? 'bg-primary/15 text-primary' : ''
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -276,7 +276,7 @@ export function Header() {
           <span
             data-runtime-badge
             title={runtimeInfo.summary}
-            className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/20 bg-amber-200/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-100/80"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-primary"
           >
             <Monitor className="h-3 w-3" />
             {runtimeInfo.badge}

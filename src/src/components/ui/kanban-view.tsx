@@ -344,7 +344,7 @@ export function KanbanView({ date, onTaskClick }: KanbanViewProps) {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => addTask(col.id)}
-                        className="ml-auto px-2 py-1 bg-amber-200/20 text-amber-200 rounded-md text-[10px] hover:bg-amber-200/30 transition"
+                        className="ml-auto px-2 py-1 bg-primary/15 text-primary rounded-md text-[10px] hover:bg-amber-200/30 transition"
                       >
                         添加
                       </button>

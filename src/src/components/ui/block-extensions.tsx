@@ -425,7 +425,7 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       <button
         onClick={handleToggleBold}
         className={`rounded-md p-1.5 text-xs font-bold transition-colors ${
-          editor.isActive('bold') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('bold') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="粗体 (⌘B)"
       >
@@ -434,7 +434,7 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       <button
         onClick={handleToggleItalic}
         className={`rounded-md p-1.5 text-xs italic transition-colors ${
-          editor.isActive('italic') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('italic') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="斜体 (⌘I)"
       >
@@ -443,7 +443,7 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       <button
         onClick={handleToggleStrike}
         className={`rounded-md p-1.5 text-xs line-through transition-colors ${
-          editor.isActive('strike') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('strike') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="删除线"
       >
@@ -452,7 +452,7 @@ export function BlockBubbleMenu({ editor }: BlockBubbleMenuProps) {
       <button
         onClick={handleToggleCode}
         className={`rounded-md p-1.5 text-xs font-mono transition-colors ${
-          editor.isActive('code') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('code') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="行内代码"
       >
@@ -530,7 +530,7 @@ export function BlockFloatingMenu({ editor }: BlockFloatingMenuProps) {
           key={level}
           onClick={handleHeading(level)}
           className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
-            editor.isActive('heading', { level }) ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+            editor.isActive('heading', { level }) ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
           }`}
           title={`标题 ${level}`}
         >
@@ -541,7 +541,7 @@ export function BlockFloatingMenu({ editor }: BlockFloatingMenuProps) {
       <button
         onClick={handleBullet}
         className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
-          editor.isActive('bulletList') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('bulletList') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="无序列表"
       >
@@ -550,7 +550,7 @@ export function BlockFloatingMenu({ editor }: BlockFloatingMenuProps) {
       <button
         onClick={handleTask}
         className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
-          editor.isActive('taskList') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('taskList') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="任务列表"
       >
@@ -559,7 +559,7 @@ export function BlockFloatingMenu({ editor }: BlockFloatingMenuProps) {
       <button
         onClick={handleQuote}
         className={`rounded-md px-2 py-1 text-[10px] transition-colors ${
-          editor.isActive('blockquote') ? 'bg-amber-200/20 text-amber-200' : 'text-foreground/80 hover:bg-muted/50'
+          editor.isActive('blockquote') ? 'bg-primary/15 text-primary' : 'text-foreground/80 hover:bg-muted/50'
         }`}
         title="引用"
       >

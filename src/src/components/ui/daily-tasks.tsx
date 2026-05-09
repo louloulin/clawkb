@@ -181,7 +181,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
 
     const statusStyles = {
       todo: 'border-border/50 hover:border-border',
-      doing: 'border-amber-200/30 bg-amber-200/5',
+      doing: 'border-primary/30 bg-primary/5',
       done: 'border-emerald-200/30 bg-emerald-200/5 opacity-60',
       cancelled: 'border-border/30 bg-muted/20 opacity-40',
     };
@@ -383,7 +383,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
             onClick={() => setFilter(status)}
             className={`px-2 py-1 rounded-md text-[10px] transition-colors ${
               filter === status 
-                ? 'bg-amber-200/15 text-amber-200' 
+                ? 'bg-primary/15 text-primary' 
                 : 'text-muted-foreground hover:text-foreground/80 hover:bg-muted/50'
             }`}
           >
@@ -429,7 +429,7 @@ export function DailyTasks({ date, onTaskClick }: DailyTasksProps) {
           />
           <button
             onClick={addTask}
-            className="px-3 py-2 bg-amber-200/20 text-amber-200 rounded-lg hover:bg-amber-200/30 transition"
+            className="px-3 py-2 bg-primary/15 text-primary rounded-lg hover:bg-amber-200/30 transition"
           >
             <Plus className="h-4 w-4" />
           </button>

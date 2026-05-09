@@ -118,9 +118,9 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
           <div className="ml-auto flex items-center gap-0.5">
             <span className="text-[8px] text-muted-foreground/70">少</span>
             <div className="h-2.5 w-2.5 rounded-[2px] bg-secondary" />
-            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/20" />
-            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-200/40" />
-            <div className="h-2.5 w-2.5 rounded-[2px] bg-amber-300/60" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-primary/20" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-primary/40" />
+            <div className="h-2.5 w-2.5 rounded-[2px] bg-primary/60" />
             <span className="text-[8px] text-muted-foreground/70">多</span>
           </div>
         </div>
@@ -141,7 +141,7 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
                       cell.isToday
                         ? 'ring-1 ring-amber-300'
                         : cell.hasNote
-                          ? 'bg-amber-200/40'
+                          ? 'bg-primary/40'
                           : 'bg-secondary hover:bg-muted'
                     }`}
                     title={`${cell.dateStr}${cell.hasNote ? ' ✦' : ''}`}
@@ -169,9 +169,9 @@ export function DailyCalendar({ dailyDates, onSelectDate }: DailyCalendarProps) 
                 onClick={() => onSelectDate(cell.dateStr)}
                 className={`h-6 w-6 flex items-center justify-center rounded-md text-[11px] transition ${
                   cell.isToday
-                    ? 'bg-amber-300 text-foreground font-semibold'
+                    ? 'bg-primary text-primary-foreground font-semibold'
                     : cell.hasNote
-                      ? 'bg-amber-200/15 text-amber-200 hover:bg-amber-200/25'
+                      ? 'bg-primary/15 text-primary hover:bg-primary/25'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
                 title={cell.hasNote ? `查看 ${cell.dateStr} 日记` : `创建 ${cell.dateStr} 日记`}

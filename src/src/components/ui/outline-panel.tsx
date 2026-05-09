@@ -137,7 +137,7 @@ export function OutlinePanel({ editor, open, onClose }: OutlinePanelProps) {
                     isDragging
                       ? 'opacity-40 bg-white/4'
                       : isDropTarget
-                        ? 'bg-amber-200/10 ring-1 ring-amber-200/30'
+                        ? 'bg-primary/10 ring-1 ring-primary/30'
                         : 'text-muted-foreground hover:bg-white/6 hover:text-white'
                   }`}
                   style={{ paddingLeft: `${8 + indent}px` }}

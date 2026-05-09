@@ -389,7 +389,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         ) : (
           <button
             onClick={() => setEditingName(true)}
-            className="text-[13px] text-foreground hover:text-amber-200 transition flex items-center gap-1"
+            className="text-[13px] text-foreground hover:text-primary transition flex items-center gap-1"
           >
             <Database className="h-4 w-4" />
             {name}
@@ -399,13 +399,13 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
         <div className="ml-auto flex items-center gap-1">
           <button
             onClick={() => setViewMode('table')}
-            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'table' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-foreground/80'}`}
+            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'table' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground/80'}`}
           >
             表格
           </button>
           <button
             onClick={() => setViewMode('kanban')}
-            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'kanban' ? 'bg-amber-200/20 text-amber-200' : 'text-muted-foreground hover:text-foreground/80'}`}
+            className={`px-2 py-1 rounded text-[10px] transition ${viewMode === 'kanban' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground/80'}`}
           >
             看板
           </button>
@@ -442,7 +442,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
                   <tbody>
                     {/* Add row */}
                     {addingRow && (
-                      <tr className="border-b border-border/50 bg-amber-200/5">
+                      <tr className="border-b border-border/50 bg-primary/5">
                         {properties.map(prop => (
                           <td key={prop.id} className="px-3 py-1.5">
                             {prop.type === 'select' && prop.options ? (
@@ -666,7 +666,7 @@ export function InlineDatabase({ initialName = '新数据库', onSave, storageKe
               <div className="px-3 py-2 border-t border-border flex justify-end">
                 <button
                   onClick={() => { setShowRelationPicker(null); setRelationSearch(''); }}
-                  className="px-3 py-1 rounded-lg bg-amber-200/20 text-amber-200 text-[11px] hover:bg-amber-200/30 transition"
+                  className="px-3 py-1 rounded-lg bg-primary/15 text-primary text-[11px] hover:bg-amber-200/30 transition"
                 >
                   完成
                 </button>
