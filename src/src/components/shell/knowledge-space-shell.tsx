@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { api, type ContextFragment, type SearchHit } from '@/api';
 import { KbChatPane } from '@/components/spaces/kb-chat-pane';
 import { KbDetailPane } from '@/components/spaces/kb-detail-pane';
@@ -55,19 +55,26 @@ export function KnowledgeSpaceShell() {
     registry.recordStats(selectedSpace.id, stats);
   };
 
+  const latestRequestId = useRef(0);
+
   const loadPreview = async (query = previewQuery) => {
     if (!selectedSpace) return;
     setPreviewLoading(true);
+    const requestId = ++latestRequestId.current;
     try {
       await onEnsureSelectedSpaceReady();
       const normalized = query.trim() || '*';
       const results = isCurrent
         ? await api.search(normalized, 12, 'hybrid')
         : await api.searchMultiKb(normalized, [selectedSpace.path], 12, 'hybrid');
-      setPreviewHits(Array.isArray(results) ? results : []);
-      setPreviewQuery(normalized);
+      if (requestId === latestRequestId.current) {
+        setPreviewHits(Array.isArray(results) ? results : []);
+        setPreviewQuery(normalized);
+      }
     } finally {
-      setPreviewLoading(false);
+      if (requestId === latestRequestId.current) {
+        setPreviewLoading(false);
+      }
     }
   };
 

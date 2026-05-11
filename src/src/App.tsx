@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { CommandPalette } from '@/components/command/command-palette';
+import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 import { getRuntimeMode, isBrowserPreview } from '@/api/platform';
 import { api } from '@/api/commands';
 import { safeStorageGet } from '@/store/persistence';
@@ -258,6 +259,7 @@ function App() {
       <MobileBottomNav />
       <Toaster />
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+      <ShortcutsDialog />
 
       <SelectionPanel
         visible={selectionPanelOpen}

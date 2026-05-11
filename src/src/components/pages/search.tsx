@@ -272,7 +272,7 @@ export function SearchPage() {
               <SelectItem value="sem">Semantic</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleSearch} disabled={loading} className="h-10 px-5 rounded-xl">
+          <Button onClick={() => handleSearch()} disabled={loading} className="h-10 px-5 rounded-xl">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </div>

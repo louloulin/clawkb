@@ -21,6 +21,7 @@ import { useWorkspaceStore } from '@/store/workspace-store';
 import { formatBytes } from '@/lib/format';
 import { DailyCalendar } from '@/components/ui/daily-calendar';
 import { api } from '@/api/commands';
+import type { Page } from '@/api';
 
 const navItems = [
   { id: 'home', label: '工作台', icon: Sparkles },
@@ -84,7 +85,7 @@ export function Sidebar() {
   }, [setPage]);
 
   const handleNavClick = (id: string) => {
-    setPage(id);
+    setPage(id as Page);
     setMobileSidebarOpen(false);
   };
 

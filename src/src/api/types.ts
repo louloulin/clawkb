@@ -34,6 +34,7 @@ export interface TimelineEntry {
   title: string;
   timestamp: string;
   snippet: string;
+  tags: string[];
 }
 
 export interface ImportResult {
@@ -195,10 +196,10 @@ export interface CompareResult {
 export interface FolderInfo {
   id: string;
   name: string;
-  parentId: string | null;
+  parent_id: string | null;
   path: string;
-  docCount: number;
-  createdAt: number;
+  doc_count: number;
+  created_at: number;
 }
 
 // Obsidian sync types

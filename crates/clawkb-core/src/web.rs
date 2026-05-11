@@ -123,20 +123,26 @@ impl KnowledgeBase {
 }
 
 /// Extract the <title> content from HTML (pub(crate) for testing).
-pub(crate) fn extract_title(html: &str) -> Option<String> {
+pub fn extract_title(html: &str) -> Option<String> {
     let lower = html.to_lowercase();
-    let start_tag = lower.find("<title>")?;
-    let start = start_tag.checked_add(7)?;
+    let mut start_idx = 0;
+    
+    // Find the first </title>
     let end = lower.find("</title>")?;
+    
+    // Find the LAST <title> before the </title>
+    let start_tag = lower[..end].rfind("<title>")?;
+    let start = start_tag.checked_add(7)?;
+    
     if end <= start || start >= html.len() {
         return None;
     }
-    let end = end.min(html.len());
+    
     Some(html[start..end].trim().to_string())
 }
 
 /// Strip HTML tags to get plain text (pub(crate) for testing).
-pub(crate) fn strip_html(html: &str) -> String {
+pub fn strip_html(html: &str) -> String {
     let mut result = String::with_capacity(html.len() / 2);
     let mut in_tag = false;
     let mut in_script = false;
@@ -162,6 +168,8 @@ pub(crate) fn strip_html(html: &str) -> String {
                 in_script = false;
             } else if lower.starts_with("</style") {
                 in_style = false;
+            } else if lower.starts_with("<br") {
+                result.push('\n');
             }
             i += 1;
             continue;
@@ -178,28 +186,23 @@ pub(crate) fn strip_html(html: &str) -> String {
             continue;
         }
 
-        // Collapse whitespace
+        // Collapse whitespace but preserve newlines
         if ch.is_whitespace() {
-            if result.ends_with(' ') {
-                i += 1;
-                continue;
+            if ch == '\n' {
+                result.push('\n');
+            } else {
+                if result.ends_with(' ') || result.ends_with('\n') {
+                    i += 1;
+                    continue;
+                }
+                result.push(' ');
             }
-            result.push(' ');
         } else {
             result.push(ch);
         }
 
         i += 1;
     }
-
-    // Decode common HTML entities
-    let result = result
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&nbsp;", " ");
 
     result.trim().to_string()
 }

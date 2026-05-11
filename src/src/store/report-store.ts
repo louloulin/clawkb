@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/api';
 import type { SearchHit } from '@/api';
+import { toast } from '@/hooks/use-toast';
 
 export type ReportTemplate = 'blank' | 'article' | 'meeting' | 'proposal' | 'research' | 'summary';
 
@@ -26,6 +27,7 @@ interface ReportState {
   sections: ReportSection[];
   isGenerating: boolean;
   isExporting: boolean;
+  error: string | null;
 
   // Actions
   selectDoc: (doc: SearchHit) => void;
@@ -48,6 +50,7 @@ export const useReportStore = create<ReportState>((set, get) => ({
   sections: [],
   isGenerating: false,
   isExporting: false,
+  error: null,
 
   selectDoc: (doc) => {
     const { selectedDocs } = get();
@@ -99,7 +102,12 @@ export const useReportStore = create<ReportState>((set, get) => ({
 
       set({ outline, sections, isGenerating: false });
     } catch (e) {
-      set({ isGenerating: false });
+      set({ isGenerating: false, error: String(e) });
+      toast({
+        title: '生成大纲失败',
+        description: String(e),
+        variant: 'destructive',
+      });
     }
   },
 
@@ -131,7 +139,12 @@ Write comprehensive, well-structured content for this section.`;
         isGenerating: false,
       });
     } catch (e) {
-      set({ isGenerating: false });
+      set({ isGenerating: false, error: String(e) });
+      toast({
+        title: '生成章节内容失败',
+        description: String(e),
+        variant: 'destructive',
+      });
     }
   },
 

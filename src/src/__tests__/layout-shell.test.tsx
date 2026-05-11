@@ -33,19 +33,19 @@ describe('workspace shell navigation smoke', () => {
       </>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /资料/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^知识库$/i }));
 
-    expect(useKbStore.getState().currentPage).toBe('documents');
-    expect(screen.getAllByText('资料').length).toBeGreaterThan(0);
+    expect(useKbStore.getState().currentPage).toBe('spaces');
+    expect(screen.getAllByText('知识库').length).toBeGreaterThan(0);
   });
 
   it('keeps the primary rail focused on workbench, sources, notes, and settings', () => {
     render(<Sidebar />);
 
-    expect(screen.getByRole('button', { name: /工作台/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /资料/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /笔记/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /设置/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^工作台$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^知识库$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^笔记$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^设置$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /个人知识库/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /explore/i })).not.toBeInTheDocument();
   });

@@ -284,8 +284,8 @@ function FolderNode({
         <span className="flex-1 truncate text-[12px] font-medium">{node.name}</span>
 
         {/* Doc count */}
-        {node.docCount > 0 && (
-          <span className="text-[10px] text-muted-foreground/60">{node.docCount}</span>
+        {node.doc_count > 0 && (
+          <span className="text-[10px] text-muted-foreground/60">{node.doc_count}</span>
         )}
 
         {/* Action buttons (visible on hover) */}

@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { OutlinePanel } from '@/components/ui/reader-outline-panel';
 import { BacklinksPanel } from '@/components/ui/backlinks-panel';
+import { OutlinksPanel } from '@/components/ui/outlinks-panel';
 import { LocalGraph } from '@/components/ui/local-graph';
 import { api } from '@/api/commands';
 import type { SearchHit, AskResult, ChatMessage } from '@/api';
@@ -696,6 +697,20 @@ export function ReaderPage({
                     {renderContent(selectedDoc.content)}
                   </article>
                 )}
+                <OutlinksPanel
+                  noteId={selectedDoc.id}
+                  onNavigate={(_noteId, title) => {
+                    handleSelectDoc({
+                      id: _noteId,
+                      title,
+                      content: '',
+                      score: 0,
+                      tags: [],
+                      created_at: '',
+                      source: null,
+                    });
+                  }}
+                />
                 <BacklinksPanel
                   noteId={selectedDoc.id}
                   onNavigate={(_noteId, title, snippet) => {

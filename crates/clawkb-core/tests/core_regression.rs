@@ -32,6 +32,26 @@ fn note_round_trip_supports_search_and_stats() {
 }
 
 #[test]
+fn export_full_content() {
+    let (_dir, mut kb) = create_temp_kb();
+
+    kb.add_note(
+        "Export Test",
+        "This is the full content of the export test note.",
+        &["export"],
+    )
+    .expect("add note");
+    kb.commit().expect("commit");
+
+    let export_data = kb.export(clawkb_core::ExportFormat::Json).expect("export");
+    for doc in &export_data.documents {
+        println!("Exported document: id={}, tags={:?}", doc.id, doc.tags);
+    }
+    assert_eq!(export_data.documents.len(), 1);
+    assert!(export_data.documents[0].content.contains("This is the full content of the export test note."));
+}
+
+#[test]
 fn folder_round_trip_tracks_document_counts_and_search_scope() {
     let (_dir, mut kb) = create_temp_kb();
 
@@ -60,9 +80,11 @@ fn folder_round_trip_tracks_document_counts_and_search_scope() {
     kb.commit().expect("commit folder move");
 
     let folders = kb.list_folders().expect("list folders");
+    println!("List folders returned: {:?}", folders);
     let scoped_hits = kb
         .search_in_folder(&folder.id, "project memo", 10, SearchMode::Hybrid)
         .expect("search in folder");
+    assert_eq!(scoped_hits.len(), 1);
 
     let stored_folder = folders
         .iter()

@@ -51,6 +51,8 @@ describe('settings page mvp kb setup', () => {
         customModelName: '',
         temperature: 0.7,
         topK: 8,
+        apiKey: '',
+        apiBase: '',
       },
       isConfigured: false,
     });

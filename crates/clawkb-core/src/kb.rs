@@ -148,7 +148,23 @@ impl KnowledgeBase {
         let path = path.into();
         let mem = Memvid::create(&path)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
-        Ok(Self { mem, path, note_path_registry: std::collections::HashMap::new(), registry: None })
+        
+        let registry = KbRegistry {
+            version: 1,
+            note_index: HashMap::new(),
+            folder_index: HashMap::new(),
+            tag_index: HashMap::new(),
+            created_at: chrono::Utc::now().timestamp(),
+            last_modified: chrono::Utc::now().timestamp(),
+            registry_frame_id: None,
+        };
+
+        Ok(Self { 
+            mem, 
+            path, 
+            note_path_registry: std::collections::HashMap::new(), 
+            registry: Some(registry) 
+        })
     }
 
     /// Open an existing knowledge base.
@@ -201,6 +217,8 @@ impl KnowledgeBase {
         let seq = self.mem
             .put_bytes_with_options(payload, opts)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
+
+        self.sync_tag_index_add(tags);
 
         Ok(format!("{}", seq))
     }
@@ -268,14 +286,18 @@ impl KnowledgeBase {
             tags: vec![NOTE_META_TAG.to_string(), format!("{NOTE_ID_PREFIX}{}", note.id), format!("{NOTE_PATH_PREFIX}{}", note.path.as_str()), "note-meta".to_string()],
             ..Default::default()
         };
-        self.mem.update_frame(meta_frame_id, Some(payload), opts, None)
+        let new_meta_frame_id = self.mem.update_frame(meta_frame_id, Some(payload), opts, None)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
+        let mut old_content_fid = None;
         if let Some(old_path) = existing_registry_path {
+            if let Some(entry) = self.registry.as_ref().and_then(|r| r.note_index.get(&old_path)) {
+                old_content_fid = entry.content_frame_id;
+            }
             self.note_path_registry.remove(&old_path);
             self.sync_registry_remove_note(&old_path);
         }
-        self.sync_registry_note(note.path.as_str(), &note.id, meta_frame_id, None);
+        self.sync_registry_note(note.path.as_str(), &note.id, new_meta_frame_id, old_content_fid);
 
         Ok(note)
     }
@@ -689,6 +711,7 @@ impl KnowledgeBase {
         let mut bytes = Vec::new();
         use std::io::Read;
         reader.read_to_end(&mut bytes)?;
+        // println!("DEBUG: note_record_from_meta_frame read payload: {}", String::from_utf8_lossy(&bytes));
         let note = serde_json::from_slice::<NoteRecord>(&bytes)?;
         Ok(note)
     }
@@ -1187,12 +1210,16 @@ impl KnowledgeBase {
             .timeline(mq)
             .map_err(|e| KbError::Memvid(e.to_string()))?;
 
-        Ok(entries.into_iter().map(|e| TimelineEntry {
-            id: format!("{}", e.frame_id),
-            title: e.preview.clone(),
-            timestamp: format_timestamp(e.timestamp),
-            tags: Vec::new(),
-            snippet: truncate_str(&e.preview, 200),
+        Ok(entries.into_iter().map(|e| {
+            let tags = self.mem.frame_by_id(e.frame_id).map(|f| f.tags).unwrap_or_default();
+            let id = tags.iter().find_map(|t| t.strip_prefix("note_id:")).map(|s| s.to_string()).unwrap_or_else(|| format!("{}", e.frame_id));
+            TimelineEntry {
+                id,
+                title: e.preview.clone(),
+                timestamp: format_timestamp(e.timestamp),
+                tags,
+                snippet: truncate_str(&e.preview, 200),
+            }
         }).collect())
     }
 
@@ -1466,8 +1493,21 @@ impl KnowledgeBase {
     }
 
     pub fn list_folders(&mut self) -> Result<Vec<FolderInfo>> {
-        let folder_frames = self.folder_meta_frames()?;
         let counts = self.folder_doc_counts()?;
+        if let Some(reg) = &self.registry {
+            let mut folders: Vec<FolderInfo> = reg.folder_index.values().map(|entry| FolderInfo {
+                id: entry.folder_id.clone(),
+                name: entry.name.clone(),
+                parent_id: entry.parent_id.clone(),
+                path: entry.path.clone(),
+                doc_count: counts.get(&entry.folder_id).copied().unwrap_or(0),
+                created_at: entry.created_at,
+            }).collect();
+            folders.sort_by(|a, b| a.name.cmp(&b.name));
+            return Ok(folders);
+        }
+
+        let folder_frames = self.folder_meta_frames()?;
 
         Ok(folder_frames
             .into_iter()
@@ -1745,23 +1785,55 @@ impl KnowledgeBase {
         let timeline_query = TimelineQuery {
             from_date: None,
             to_date: None,
-            limit: Some(1000),
+            limit: Some(1000000), // Export should not be limited to 1000
             tag: None,
         };
         let entries = self.timeline(timeline_query)?;
 
-        // Convert timeline entries to export documents
-        let documents: Vec<ExportDocument> = entries
-            .into_iter()
-            .map(|e| ExportDocument {
+        // Convert timeline entries to export documents with full content
+        let mut documents: Vec<ExportDocument> = Vec::new();
+        for e in entries {
+            // Filter out internal frames like __kb_registry__ and note_meta
+            if e.tags.iter().any(|t| t == KB_REGISTRY_TAG || t == FOLDER_META_TAG || t == NOTE_META_TAG || t == "note-meta") {
+                continue;
+            }
+            if e.title.is_empty() && e.snippet.contains(KB_REGISTRY_TAG) {
+                continue; // just in case it doesn't have tags populated in timeline entry
+            }
+
+            let mut content = e.snippet.clone();
+            
+            // Try to find the note in the registry to get the content frame
+            let mut found = false;
+            if let Some(reg) = &self.registry {
+                if let Some(entry) = reg.note_index.values().find(|n| n.note_id == e.id) {
+                    if let Some(content_fid) = entry.content_frame_id {
+                        if let Ok(mut reader) = self.mem.blob_reader(content_fid) {
+                            let mut bytes = Vec::new();
+                            use std::io::Read;
+                            if reader.read_to_end(&mut bytes).is_ok() {
+                                if let Ok(text) = String::from_utf8(bytes) {
+                                    content = text;
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: just use timeline snippet since list_frames is not public
+            // The snippets from timeline might be limited, but this is the best effort without scanning all frames.
+
+            documents.push(ExportDocument {
                 id: e.id,
                 title: e.title,
-                content: e.snippet,
+                content,
                 tags: e.tags,
                 created_at: e.timestamp,
                 source: None,
-            })
-            .collect();
+            });
+        }
 
         Ok(ExportData {
             stats,
@@ -2238,6 +2310,31 @@ impl KnowledgeBase {
         }
     }
 
+    /// Add tags to registry tag_index after creating a frame.
+    fn sync_tag_index_add(&mut self, tags: &[&str]) {
+        if let Some(reg) = self.registry.as_mut() {
+            for tag in tags {
+                if tag.starts_with(FOLDER_ID_PREFIX)
+                    || tag.starts_with(FOLDER_NAME_PREFIX)
+                    || tag.starts_with(FOLDER_PARENT_PREFIX)
+                    || tag.starts_with(FOLDER_PATH_PREFIX)
+                    || tag.starts_with(FOLDER_CREATED_PREFIX)
+                    || tag.starts_with("note_id:")
+                    || tag.starts_with("note_path:")
+                    || tag.starts_with("__")
+                    || *tag == "note"
+                    || *tag == "note-meta"
+                {
+                    continue;
+                }
+                let count = reg.tag_index.get(*tag).copied().unwrap_or(0);
+                reg.tag_index.insert(tag.to_string(), count + 1);
+            }
+            reg.last_modified = chrono::Utc::now().timestamp();
+            drop(self.persist_registry());
+        }
+    }
+
     /// Add a folder to the registry after create_folder.
     fn sync_registry_add_folder(&mut self, folder: &FolderInfo, frame_id: u64) {
         if let Some(reg) = self.registry.as_mut() {
@@ -2522,9 +2619,11 @@ impl KnowledgeBase {
 
     /// Collect all frame IDs from the knowledge base using timeline enumeration.
     fn collect_all_frame_ids(&mut self) -> Result<Vec<u64>> {
-        let mq = MemvidTimelineQuery::builder()
-            .limit(std::num::NonZeroU64::new(10000).unwrap())
-            .build();
+        let mut builder = MemvidTimelineQuery::builder();
+        builder = builder.limit(std::num::NonZeroU64::new(1000000).unwrap());
+        // Try to get all kinds if supported by builder.
+        // If not, we just build it.
+        let mq = builder.build();
 
         let entries = self.mem
             .timeline(mq)

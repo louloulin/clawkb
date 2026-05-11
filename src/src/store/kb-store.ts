@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '@/api';
 import type { KbStats, Page, SearchHit } from '@/api';
 import { STORAGE_KEYS, safeStorageGetString, safeStorageSetString } from '@/store/persistence';
+import { toast } from '@/hooks/use-toast';
 
 interface KbState {
   // KB state
@@ -131,8 +132,13 @@ export const useKbStore = create<KbState>((set, get) => ({
           detailLoading: false,
         });
       }
-    } catch {
-      set({ detailLoading: false });
+    } catch (e) {
+      set({ detailLoading: false, error: String(e) });
+      toast({
+        title: '获取文档失败',
+        description: String(e),
+        variant: 'destructive',
+      });
     }
   },
 

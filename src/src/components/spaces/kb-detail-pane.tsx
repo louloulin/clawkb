@@ -45,6 +45,7 @@ export function KbDetailPane({
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
+    setShowSettings(false);
     if (!selectedSpace || selectedSpace.kind !== 'registered') return;
     setName(selectedSpace.name);
     setDescription(selectedSpace.description);

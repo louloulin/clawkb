@@ -38,14 +38,14 @@ export function DocumentWorkspaceShell() {
   }, [isKbOpen, loadDocuments]);
 
   useEffect(() => {
-    if (activeDocumentsView === 'draft') {
+    if (activeDocumentsView === 'draft' && activeTab !== 'draft') {
       setActiveTab('draft');
-    } else if (activeDocumentsView === 'notes') {
+    } else if (activeDocumentsView === 'notes' && activeTab !== 'notes') {
       setActiveTab('notes');
-    } else if (activeDocumentsView === 'reader') {
+    } else if (activeDocumentsView === 'reader' && activeTab !== 'reader') {
       setActiveTab('reader');
     }
-  }, [activeDocumentsView, setActiveTab]);
+  }, [activeDocumentsView, activeTab, setActiveTab]);
 
   useEffect(() => {
     if (activeTab === 'report' || activeTab === 'podcast') {

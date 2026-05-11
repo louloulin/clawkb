@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/api';
 import type { EntityInfo, RelationEdge, MeshStats, MemoryCardInfo } from '@/api';
+import { toast } from '@/hooks/use-toast';
 
 interface GraphState {
   entities: EntityInfo[];
@@ -55,6 +56,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       set({ selectedEdges: edges });
     } catch (e) {
       set({ selectedEdges: [], error: String(e) });
+      toast({
+        title: '获取图谱失败',
+        description: String(e),
+        variant: 'destructive',
+      });
     }
   },
 

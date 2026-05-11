@@ -63,8 +63,8 @@ describe('source workspace shell', () => {
 
     expect(screen.getByText('资料工作面')).toBeInTheDocument();
     expect(screen.getByText('先搜索、导入和整理资料，再进入阅读与笔记沉淀。')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Search' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Import' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '搜索' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '导入' })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Notes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Timeline' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '显示高级资料工具' })).toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('source workspace shell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '显示高级资料工具' }));
 
-    expect(screen.getByRole('tab', { name: 'Timeline' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Report' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '时间线' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '报告' })).toBeInTheDocument();
   });
 });

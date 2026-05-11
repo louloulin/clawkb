@@ -1,6 +1,5 @@
 import type {
   AskResult,
-  AsOfResult,
   CompareResult,
   EntityInfo,
   FetchUrlResult,
@@ -16,7 +15,6 @@ import type {
   SearchHit,
   SearchMode,
   SelectionResult,
-  SessionSummary,
   SyncStatus,
   TagInfo,
   TimelineEntry,
@@ -31,28 +29,8 @@ const DESKTOP_RUNTIME_REQUIRED_MESSAGE =
 
 let invokeCache: ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null = null;
 
-type RawFolderInfo = {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  path: string;
-  doc_count: number;
-  created_at: number;
-};
-
 function createDesktopRuntimeError() {
   return new Error(DESKTOP_RUNTIME_REQUIRED_MESSAGE);
-}
-
-function toFolderInfo(folder: RawFolderInfo): FolderInfo {
-  return {
-    id: folder.id,
-    name: folder.name,
-    parentId: folder.parent_id,
-    path: folder.path,
-    docCount: folder.doc_count,
-    createdAt: folder.created_at,
-  };
 }
 
 async function getDesktopInvoke() {
@@ -393,8 +371,8 @@ export const api = {
 
   async listFolders(): Promise<FolderInfo[]> {
     const invoke = await getDesktopInvoke();
-    const folders = (await invoke('list_folders', {})) as RawFolderInfo[];
-    return folders.map(toFolderInfo);
+    const folders = (await invoke('list_folders', {})) as FolderInfo[];
+    return folders;
   },
 
   async createFolder(name: string, parentId?: string | null): Promise<FolderInfo> {
@@ -402,8 +380,8 @@ export const api = {
     const folder = (await invoke('create_folder', {
       name,
       parent_id: parentId ?? null,
-    })) as RawFolderInfo;
-    return toFolderInfo(folder);
+    })) as FolderInfo;
+    return folder;
   },
 
   async renameFolder(folderId: string, newName: string): Promise<void> {

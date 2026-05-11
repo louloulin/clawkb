@@ -27,6 +27,8 @@ describe('ai store config application', () => {
         customModelName: '',
         temperature: 0.7,
         topK: 8,
+        apiKey: '',
+        apiBase: '',
       },
       isConfigured: false,
     });

@@ -34,7 +34,7 @@ scraper = { workspace = true }
 csv = { workspace = true }
 
 # MCP (Model Context Protocol) support for skill exposure
-rmcp = { version = "0.8", optional = true }
+rmcp = { version = "0.8", features = ["transport-io"], optional = true }
 tokio = { workspace = true, optional = true }
 
 # HTTP server (optional)

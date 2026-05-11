@@ -52,7 +52,7 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
   entities: EntityInfo[];
   edges: RelationEdge[];
   onSelect: (entity: EntityInfo) => void;
-  svgRef?: React.RefObject<SVGSVGElement>;
+  svgRef?: React.RefObject<SVGSVGElement | null>;
   highlightedNodeId?: number | null;
   layout?: 'force' | 'radial';
 }) {
@@ -140,7 +140,7 @@ function ForceGraph({ entities, edges, onSelect, svgRef: externalSvgRef, highlig
       simulation = forceSimulation<GraphNode>(graphNodes)
         .force('charge', forceManyBody().strength(-80))
         .force('collision', forceCollide<GraphNode>().radius(30))
-        .force('radial', forceRadial<GraphNode>()
+        .force('radial', forceRadial<GraphNode>(200)
           .radius(maxRadius)
           .strength(0.3)
           .x(centerX)
@@ -411,8 +411,8 @@ function NoteLinkGraph() {
       .force('charge', forceManyBody().strength(-60))
       .force('center', forceCenter(dimensions.width / 2, dimensions.height / 2))
       .force('collide', forceCollide().radius(20))
-      .force('link', forceLink(simLinks as Array<SimulationLinkDatum<{ id: string }>>)
-        .id((d: { id: string }) => d.id)
+      .force('link', forceLink<SimulationNodeDatum, SimulationLinkDatum<SimulationNodeDatum>>(simLinks as any)
+        .id((d: any) => d.id)
         .distance(80)
       );
 

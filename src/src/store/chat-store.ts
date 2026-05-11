@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '@/api';
 import type { ChatMessage, AskResult, ChatMode, ContextFragment, SearchHit } from '@/api';
 import { STORAGE_KEYS, safeStorageGet, safeStorageRemove, safeStorageSet } from '@/store/persistence';
+import { toast } from '@/hooks/use-toast';
 
 const HISTORY_KEY = STORAGE_KEYS.chat.history;
 const MAX_HISTORY = 100;
@@ -146,6 +147,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       saveToStorage(final);
     } catch (e) {
       set({ isLoading: false, error: String(e) });
+      toast({
+        title: '对话失败',
+        description: String(e),
+        variant: 'destructive',
+      });
     } finally {
       for (const path of openedKbs) {
         try { await api.closeExtraKb(path); } catch { /* best effort */ }

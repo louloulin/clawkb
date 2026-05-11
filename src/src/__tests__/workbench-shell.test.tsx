@@ -99,6 +99,8 @@ describe('workbench shell onboarding state', () => {
         customModelName: '',
         temperature: 0.7,
         topK: 8,
+        apiKey: '',
+        apiBase: '',
       },
       isConfigured: false,
     });
@@ -320,9 +322,9 @@ describe('workbench shell onboarding state', () => {
 
     await waitFor(() => expect(screen.getByText('当前知识库')).toBeInTheDocument());
     expect(screen.getByText('current.mv2')).toBeInTheDocument();
-    expect(screen.getByText('最近库')).toBeInTheDocument();
+    expect(screen.getByText('其他知识库')).toBeInTheDocument();
     expect(screen.getByText('投资研究')).toBeInTheDocument();
-    expect(screen.getByText('最近资料')).toBeInTheDocument();
+    expect(screen.getByText('最近笔记')).toBeInTheDocument();
     expect(screen.getByText('周会笔记')).toBeInTheDocument();
   });
 });

@@ -384,7 +384,15 @@ export function WorkbenchShell() {
                         <button
                           key={entry.id}
                           onClick={() => {
-                            useKbStore.getState().openDocument(entry);
+                            useKbStore.getState().openDocument({
+                              id: entry.id,
+                              title: entry.title,
+                              content: entry.snippet,
+                              score: 1,
+                              tags: entry.tags,
+                              created_at: entry.timestamp,
+                              source: null,
+                            });
                             setPage('editor');
                           }}
                           className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-border hover:bg-secondary"
@@ -392,7 +400,7 @@ export function WorkbenchShell() {
                           <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium text-foreground">{entry.title}</div>
-                            <div className="text-xs text-muted-foreground">{formatRelativeTime(entry.modified)}</div>
+                            <div className="text-xs text-muted-foreground">{formatRelativeTime(Number(entry.timestamp))}</div>
                           </div>
                           {entry.tags && entry.tags.length > 0 && (
                             <div className="flex gap-1">

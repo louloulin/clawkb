@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { api } from '@/api';
+import { toast } from '@/hooks/use-toast';
 
 export interface Folder {
   id: string;
   name: string;
-  parentId: string | null;
+  parent_id: string | null;
   path: string;
-  createdAt: number;
-  docCount: number;
+  created_at: number;
+  doc_count: number;
   isExpanded?: boolean;
 }
 
@@ -17,13 +18,13 @@ interface FolderState {
   isLoading: boolean;
   error: string | null;
   loadFolders: () => Promise<void>;
-  createFolder: (name: string, parentId?: string | null) => Promise<Folder>;
+  createFolder: (name: string, parent_id?: string | null) => Promise<Folder>;
   renameFolder: (folderId: string, newName: string) => Promise<void>;
   deleteFolder: (folderId: string) => Promise<void>;
   selectFolder: (folder: Folder | null) => void;
   toggleExpand: (folderId: string) => void;
   moveDocument: (docId: string, folderId: string | null) => Promise<void>;
-  getChildFolders: (parentId: string | null) => Folder[];
+  getChildFolders: (parent_id: string | null) => Folder[];
   getFolderPath: (folderId: string) => Folder[];
 }
 
@@ -50,28 +51,53 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     }
   },
 
-  createFolder: async (name, parentId = null) => {
+  createFolder: async (name, parent_id = null) => {
     try {
-      const folder = await api.createFolder(name, parentId);
+      const folder = await api.createFolder(name, parent_id);
       await get().loadFolders();
       return { ...folder, isExpanded: false };
     } catch (e) {
       set({ error: String(e) });
+      toast({
+        title: '创建文件夹失败',
+        description: String(e),
+        variant: 'destructive',
+      });
       throw e;
     }
   },
 
   renameFolder: async (folderId, newName) => {
-    await api.renameFolder(folderId, newName);
-    await get().loadFolders();
+    try {
+      await api.renameFolder(folderId, newName);
+      await get().loadFolders();
+    } catch (e) {
+      set({ error: String(e) });
+      toast({
+        title: '重命名文件夹失败',
+        description: String(e),
+        variant: 'destructive',
+      });
+      throw e;
+    }
   },
 
   deleteFolder: async (folderId) => {
-    await api.deleteFolder(folderId);
-    const selected = get().selectedFolder;
-    await get().loadFolders();
-    if (selected?.id === folderId) {
-      set({ selectedFolder: null });
+    try {
+      await api.deleteFolder(folderId);
+      const selected = get().selectedFolder;
+      await get().loadFolders();
+      if (selected?.id === folderId) {
+        set({ selectedFolder: null });
+      }
+    } catch (e) {
+      set({ error: String(e) });
+      toast({
+        title: '删除文件夹失败',
+        description: String(e),
+        variant: 'destructive',
+      });
+      throw e;
     }
   },
 
@@ -90,11 +116,16 @@ export const useFolderStore = create<FolderState>((set, get) => ({
       await get().loadFolders();
     } catch (e) {
       set({ error: String(e) });
+      toast({
+        title: '移动文件失败',
+        description: String(e),
+        variant: 'destructive',
+      });
       throw e;
     }
   },
 
-  getChildFolders: (parentId) => get().folders.filter((folder) => folder.parentId === parentId),
+  getChildFolders: (parent_id) => get().folders.filter((folder) => folder.parent_id === parent_id),
 
   getFolderPath: (folderId) => {
     const folders = get().folders;
@@ -103,7 +134,7 @@ export const useFolderStore = create<FolderState>((set, get) => ({
 
     while (current) {
       result.unshift(current);
-      current = current.parentId ? folders.find((folder) => folder.id === current!.parentId) : undefined;
+      current = current.parent_id ? folders.find((folder) => folder.id === current!.parent_id) : undefined;
     }
 
     return result;
@@ -124,8 +155,8 @@ export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
 
   for (const folder of folders) {
     const node = map.get(folder.id)!;
-    if (folder.parentId && map.has(folder.parentId)) {
-      const parent = map.get(folder.parentId)!;
+    if (folder.parent_id && map.has(folder.parent_id)) {
+      const parent = map.get(folder.parent_id)!;
       node.depth = parent.depth + 1;
       parent.children.push(node);
     } else {
